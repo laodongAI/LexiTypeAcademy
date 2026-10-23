@@ -13,9 +13,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api.routers import health, migration
+from app.api.routers import asr, health, migration, tts
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 
@@ -59,6 +60,19 @@ def create_app() -> FastAPI:
 
     # 注册数据迁移路由（IndexedDB 导出导入与报告查询）
     app.include_router(migration.router, prefix="/api")
+
+    # 注册语音合成路由（TTS 生成、音色列表、健康检查）
+    app.include_router(tts.router, prefix="/api")
+
+    # 注册语音识别路由（整段识别、分段识别、健康检查）
+    app.include_router(asr.router, prefix="/api")
+
+    # 静态挂载 TTS 音频缓存目录：前端 <audio> 可直接播放生成结果
+    app.mount(
+        "/api/tts/audio",
+        StaticFiles(directory=str(settings.tts_cache_path)),
+        name="tts-audio",
+    )
 
     # 记录启动信息，便于确认实际生效的配置
     logger.info(

@@ -17,3 +17,8 @@ alembic>=1.14.0
 
 # 表单/文件上传（资源工坊导入、音频上传需要）
 python-multipart>=0.0.9
+
+# 本地语音推理（TTS/ASR），模型文件不打入版本库
+sherpa-onnx>=1.13.0
+# 音频采样处理（读写 WAV、float32 转换）
+numpy>=2.0.0

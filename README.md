@@ -28,7 +28,7 @@ lexitype-academy/
 | --- | --- |
 | Python | 3.11+ |
 | Node.js | 18+ |
-| ffmpeg（资源工坊后续需要） | 可选 |
+| ffmpeg（语音识别转码需要） | 必需 |
 
 ## 快速开始
 
@@ -91,6 +91,26 @@ npm run dev
 backend\.venv\Scripts\python.exe scripts\check_models.py
 backend\.venv\Scripts\python.exe scripts\check_models.py --json
 ```
+
+## 语音服务
+
+后端已内置本地离线语音能力（sherpa-onnx），不依赖外部网络：
+
+| 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/tts/generate` | POST | 文本合成，返回 base64 WAV + 时长 + 播放 URL |
+| `/api/tts/voices` | GET | 可用音色列表 |
+| `/api/tts/health` | GET | TTS 模型就绪状态 |
+| `/api/tts/audio/{file}` | GET | 合成音频静态访问（文件缓存命中时直接播放） |
+| `/api/asr/recognize` | POST | 整段识别，可选用参考文本评分 |
+| `/api/asr/segment` | POST | 长音频分段识别（定长窗口） |
+| `/api/asr/health` | GET | ASR 模型就绪状态 |
+
+- TTS 默认引擎：`tts/vits-melo-tts-zh_en`（中英双语，44.1 kHz）
+- ASR 默认引擎：`asr/sensevoice`（中英日韩粤，16 kHz）
+- 音频缓存：`backend/data/tts-cache/`（按 文本+音色+语速+格式 哈希命名）
+- ffmpeg 用于将浏览器录音（webm）转 16 kHz 单声道 WAV；可用 `FFMPEG_PATH` 指定路径或安装目录
+- 发音评分当前为**文本相似度级简化实现**，不进行音素级对齐，详见 `backend/app/services/voice/scoring.py`
 
 ## 开发约定
 

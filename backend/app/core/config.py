@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import shutil
 from functools import lru_cache
 from pathlib import Path
 from typing import List
@@ -71,6 +72,36 @@ class Settings(BaseSettings):
     # 数据库连接串，阶段2接入 SQLAlchemy 后生效
     database_url: str = Field(default="sqlite:///./data/lexitype.db", alias="DATABASE_URL")
 
+    # ---------- 语音服务（TTS） ----------
+    # 默认 TTS 引擎标识：melo 为中英双语主引擎（音质优先）
+    tts_engine: str = Field(default="melo", alias="TTS_ENGINE")
+    # TTS 模型目录（相对 backend/，指向 manifest 中 en-zh-primary 条目）
+    tts_model_dir: str = Field(
+        default="models/tts/vits-melo-tts-zh_en", alias="TTS_MODEL_DIR"
+    )
+    # TTS 推理线程数：本地单机默认 2，兼顾速度与 CPU 占用
+    tts_num_threads: int = Field(default=2, alias="TTS_NUM_THREADS")
+    # TTS 音频缓存目录（相对 backend/，用于文件级缓存与静态播放）
+    tts_cache_dir: str = Field(default="data/tts-cache", alias="TTS_CACHE_DIR")
+    # 单次合成文本上限：与前端契约保持一致（1000 字符）
+    tts_max_chars: int = Field(default=1000, alias="TTS_MAX_CHARS")
+
+    # ---------- 语音服务（ASR） ----------
+    # ASR 模型目录（相对 backend/，指向 manifest 中 asr-primary 条目）
+    asr_model_dir: str = Field(default="models/asr/sensevoice", alias="ASR_MODEL_DIR")
+    # ASR 推理线程数
+    asr_num_threads: int = Field(default=2, alias="ASR_NUM_THREADS")
+    # ASR 识别语言：auto / zh / en / ja / ko / yue
+    asr_language: str = Field(default="auto", alias="ASR_LANGUAGE")
+    # 是否启用逆文本规整（数字、标点等），提升可读性
+    asr_use_itn: bool = Field(default=True, alias="ASR_USE_ITN")
+
+    # ---------- 音频工具 ----------
+    # ffmpeg 可执行文件路径：默认走 PATH，可用环境变量指定绝对路径
+    ffmpeg_path: str = Field(default="ffmpeg", alias="FFMPEG_PATH")
+    # 语音临时文件目录（相对 backend/），上传音频转换后落盘于此
+    voice_tmp_dir: str = Field(default="data/tmp/voice", alias="VOICE_TMP_DIR")
+
     @field_validator("log_level")
     @classmethod
     def normalize_log_level(cls, value: str) -> str:
@@ -112,6 +143,70 @@ class Settings(BaseSettings):
         """
         # 拼接 backend/ 下的模型目录
         return BACKEND_ROOT / self.models_dir
+
+    @property
+    def tts_model_path(self) -> Path:
+        """返回 TTS 模型目录绝对路径（不自动创建，缺失由语音服务显式报错）。"""
+        # 相对路径按 backend/ 解析，绝对路径原样返回
+        return BACKEND_ROOT / self.tts_model_dir
+
+    @property
+    def asr_model_path(self) -> Path:
+        """返回 ASR 模型目录绝对路径（不自动创建，缺失由语音服务显式报错）。"""
+        # 相对路径按 backend/ 解析，绝对路径原样返回
+        return BACKEND_ROOT / self.asr_model_dir
+
+    @property
+    def tts_cache_path(self) -> Path:
+        """返回 TTS 音频缓存目录绝对路径，目录不存在时自动创建。"""
+        # 拼接并确保目录存在，供静态文件服务直接挂载
+        path = BACKEND_ROOT / self.tts_cache_dir
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def voice_tmp_path(self) -> Path:
+        """返回语音临时文件目录绝对路径，目录不存在时自动创建。"""
+        # 上传音频转码、分段中间文件统一落在此目录
+        path = BACKEND_ROOT / self.voice_tmp_dir
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def resolve_ffmpeg(self) -> str:
+        """解析可用的 ffmpeg 可执行文件路径。
+
+        返回：
+            可直接传给 subprocess 的 ffmpeg 路径。
+
+        说明：
+            兼容三种配置写法：
+            1) 可执行文件绝对路径（D:\\tools\\ffmpeg\\bin\\ffmpeg.exe）
+            2) 安装目录（D:\\tools\\ffmpeg-7.1），自动查找 bin/ffmpeg.exe
+            3) 命令名（ffmpeg），依赖系统 PATH
+            都不可用时抛 FileNotFoundError，由调用方转换为业务错误。
+        """
+        # 写法 1：配置值本身就是可执行文件
+        configured = Path(self.ffmpeg_path)
+        if configured.is_file():
+            return str(configured)
+
+        # 写法 2：配置值是安装目录，依次尝试目录内与 bin/ 子目录
+        if configured.is_dir():
+            for candidate in (configured / "ffmpeg.exe", configured / "bin" / "ffmpeg.exe"):
+                if candidate.is_file():
+                    return str(candidate)
+
+        # 写法 3：按命令名在 PATH 中查找
+        resolved = shutil.which(self.ffmpeg_path)
+        if resolved:
+            return resolved
+
+        # 兜底：配置失效时仍尝试系统 PATH 中的 ffmpeg，保证本机可用
+        fallback = shutil.which("ffmpeg")
+        if fallback:
+            return fallback
+
+        raise FileNotFoundError(f"未找到 ffmpeg 可执行文件：{self.ffmpeg_path}")
 
 
 @lru_cache(maxsize=1)
