@@ -50,10 +50,14 @@ backend/tmp/
 *.sqlite3
 
 # ---------- 模型资产（体积大，用户本地复制，不入库） ----------
-# 统一模型根目录，完整目录整体忽略；提交 backend/models/manifest.json 之前需单独放行
-backend/models/
-# 旧版前端仍在使用的 sherpa 运行时与模型
-public/sherpa/
+# 统一模型根目录，完整目录整体忽略；仅放行清单文件，用于声明期望的模型结构
+backend/models/*
+!backend/models/manifest.json
+# 旧版前端仍在使用的 sherpa 运行时与模型（任意层级）
+**/public/sherpa/
+
+# 历史版本的构建产物与安装包归档（本地保留，不入库）
+legacy/artifacts/
 
 # ---------- 环境变量与密钥 ----------
 .env

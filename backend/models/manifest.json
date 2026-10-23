@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "description": "LexiType Academy 本地模型资产清单。模型文件体积大，整体不入版本库，由用户从本地拷贝到 backend/models/。",
+  "root": "backend/models",
+  "entries": [
+    {
+      "id": "vits-melo-tts-zh_en",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/vits-melo-tts-zh_en",
+      "required": true,
+      "role": "en-zh-primary",
+      "license": "MIT",
+      "note": "中英双语主引擎，音质优先，作为默认 TTS"
+    },
+    {
+      "id": "matcha-icefall-zh-baker",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/matcha-icefall-zh-baker",
+      "required": false,
+      "role": "low-latency-backup",
+      "license": "DataBaker-NC",
+      "note": "低延迟备选引擎，非商用授权，界面需标注 license"
+    },
+    {
+      "id": "kokoro-int8-multi-lang-v1_1",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/kokoro-int8-multi-lang-v1_1",
+      "required": false,
+      "role": "multi-lang-optional",
+      "license": "Apache-2.0",
+      "note": "多语种可选引擎，用于扩展语种"
+    },
+    {
+      "id": "vits-icefall-zh-aishell3",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/vits-icefall-zh-aishell3",
+      "required": false,
+      "role": "zh-multi-speaker",
+      "license": "Apache-2.0",
+      "note": "中文多说话人引擎，音色丰富度补充"
+    },
+    {
+      "id": "openvoice-onnx-v2",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/openvoice-onnx-v2",
+      "required": false,
+      "role": "voice-clone",
+      "license": "MIT",
+      "note": "音色克隆，默认关闭，仅显式启用时加载"
+    },
+    {
+      "id": "vocos-22khz-univ.onnx",
+      "type": "tts",
+      "kind": "file",
+      "path": "tts/vocos-22khz-univ.onnx",
+      "required": false,
+      "role": "vocoder",
+      "license": "MIT",
+      "note": "声码器，配合声学模型使用"
+    },
+    {
+      "id": "sensevoice",
+      "type": "asr",
+      "kind": "directory",
+      "path": "asr/sensevoice",
+      "required": true,
+      "role": "asr-primary",
+      "license": "Apache-2.0",
+      "note": "主 ASR 引擎，现有识别能力保持不变（目录名保持 sensevoice 不改名）"
+    },
+    {
+      "id": "silero_vad",
+      "type": "asr",
+      "kind": "file",
+      "path": "asr/silero_vad.onnx",
+      "required": false,
+      "role": "vad",
+      "license": "MIT",
+      "note": "语音活动检测模型，资源工坊做长音频切分时使用"
+    },
+    {
+      "id": "sherpa-onnx-whisper-tiny",
+      "type": "asr",
+      "kind": "directory",
+      "path": "asr/sherpa-onnx-whisper-tiny",
+      "required": false,
+      "role": "asr-fallback",
+      "license": "MIT",
+      "note": "轻量兜底 ASR，用于低配机器"
+    },
+    {
+      "id": "chattts",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/chattts",
+      "required": false,
+      "role": "experimental",
+      "license": "CC-BY-NC-4.0",
+      "note": "实验性引擎，已移出 auto 默认候选，仅显式启用时加载"
+    },
+    {
+      "id": "CosyVoice2-0.5B",
+      "type": "tts",
+      "kind": "directory",
+      "path": "tts/CosyVoice2-0.5B",
+      "required": false,
+      "role": "experimental",
+      "license": "Apache-2.0",
+      "note": "实验性大模型引擎，已移出 auto 默认候选，不纳入常规运行时"
+    }
+  ]
+}

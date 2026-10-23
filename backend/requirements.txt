@@ -1,0 +1,15 @@
+# ============================================================================
+# LexiType Academy 后端运行依赖（Python 3.11+）
+# 安装：python -m pip install -r requirements.txt
+# ============================================================================
+
+# Web 框架与 ASGI 服务器
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# 配置与数据校验
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+
+# 表单/文件上传（资源工坊导入、音频上传需要）
+python-multipart>=0.0.9
