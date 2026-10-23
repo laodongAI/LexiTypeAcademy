@@ -114,7 +114,7 @@ import {
 import { ElMessage } from 'element-plus'
 import * as TypingPageModule from './TypingPage.vue'
 import * as PinyinPageModule from './PinyinPage.vue'
-import { db } from '../../shared/database/index'
+import { courseRepository } from '../../shared/database/repositories/courseRepository'
 
 const TypingPage = (TypingPageModule as unknown as { default: Component }).default
 const PinyinPage = (PinyinPageModule as unknown as { default: Component }).default
@@ -138,11 +138,8 @@ async function loadTodayStats() {
     today.setHours(0, 0, 0, 0)
     const todayTimestamp = today.getTime()
     
-    // 获取今日练习记录
-    const records = await db.practiceRecords
-      .where('completedAt')
-      .above(todayTimestamp)
-      .toArray()
+    // 获取今日练习记录（后端按时间范围过滤）
+    const records = await courseRepository.getPracticeRecordsByRange(todayTimestamp, Date.now())
     
     if (records.length > 0) {
       todayStats.value.practiceCount = records.length
@@ -160,27 +157,32 @@ async function loadTodayStats() {
 // 计算连续练习天数
 async function calculateStreakDays(): Promise<number> {
   try {
+    const DAY_MS = 24 * 60 * 60 * 1000
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    let streakDays = 0
-    let checkDate = today.getTime()
+    const todayStart = today.getTime()
     
-    // 向前检查最多30天
+    // 一次取回最近30天的练习记录，避免逐日查询造成 30 次请求
+    const records = await courseRepository.getPracticeRecordsByRange(
+      todayStart - 29 * DAY_MS,
+      Date.now()
+    )
+    
+    // 按“当天零点”归并，得到有练习的日期集合
+    const practicedDays = new Set<number>()
+    for (const record of records) {
+      const day = new Date(record.completedAt)
+      day.setHours(0, 0, 0, 0)
+      practicedDays.add(day.getTime())
+    }
+    
+    // 从今天向前连续统计，遇到空档即停止
+    let streakDays = 0
+    let checkDate = todayStart
     for (let i = 0; i < 30; i++) {
-      const dayStart = checkDate
-      const dayEnd = checkDate + 24 * 60 * 60 * 1000
-      
-      const count = await db.practiceRecords
-        .where('completedAt')
-        .between(dayStart, dayEnd, true, false)
-        .count()
-      
-      if (count > 0) {
-        streakDays++
-        checkDate -= 24 * 60 * 60 * 1000 // 前一天
-      } else {
-        break
-      }
+      if (!practicedDays.has(checkDate)) break
+      streakDays++
+      checkDate -= DAY_MS
     }
     
     return streakDays

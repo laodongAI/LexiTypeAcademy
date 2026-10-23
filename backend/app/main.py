@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api.routers import asr, health, migration, tts
+from app.api.routers import asr, courses, health, migration, practice, records, review, tts
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 
@@ -66,6 +66,25 @@ def create_app() -> FastAPI:
 
     # 注册语音识别路由（整段识别、分段识别、健康检查）
     app.include_router(asr.router, prefix="/api")
+
+    # 注册课程与课时业务路由（课程 CRUD、课时 CRUD、课程进度）
+    app.include_router(courses.router, prefix="/api")
+    app.include_router(courses.lesson_router, prefix="/api")
+    app.include_router(courses.progress_router, prefix="/api")
+
+    # 注册练习数据路由（练习记录、练习尝试事件）
+    app.include_router(practice.record_router, prefix="/api")
+    app.include_router(practice.attempt_router, prefix="/api")
+
+    # 注册复习路由（单词掌握度、到期队列、复习日志与统计、Unit 维度）
+    app.include_router(review.router, prefix="/api")
+
+    # 注册通用学习记录路由（学习列表、打字记录、学习记录、成就、AI 任务日志）
+    app.include_router(records.list_router, prefix="/api")
+    app.include_router(records.typing_router, prefix="/api")
+    app.include_router(records.learning_router, prefix="/api")
+    app.include_router(records.achievement_router, prefix="/api")
+    app.include_router(records.ai_log_router, prefix="/api")
 
     # 静态挂载 TTS 音频缓存目录：前端 <audio> 可直接播放生成结果
     app.mount(

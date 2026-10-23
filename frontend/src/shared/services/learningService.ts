@@ -4,9 +4,10 @@
  * 管理学习列表、学习进度和学习统计
  */
 
-import { db } from '../database/index'
+import { commonRepository } from '../database/repositories/commonRepository'
+import { courseRepository } from '../database/repositories/courseRepository'
 import type { LearningCourse, LearningStats, LearningStatus } from '../types/learning'
-import type { Course, CourseProgress } from '../types/course'
+import type { CourseProgress } from '../types/course'
 
 class LearningService {
   /**
@@ -14,21 +15,32 @@ class LearningService {
    */
   async getLearningCourses(): Promise<LearningCourse[]> {
     try {
-      // 从数据库获取学习列表
-      const learningList = await db.learningList.toArray()
+      // 从后端获取学习列表
+      const learningList = await commonRepository.getLearningList()
       const courseIds = learningList.map(item => item.courseId)
       
       if (courseIds.length === 0) {
         return []
       }
       
-      // 获取课程详情
-      const courses = await db.courses.where('id').anyOf(courseIds).toArray()
+      // 获取课程详情（一次请求批量取回）
+      const courses = await courseRepository.getCoursesByIds(courseIds)
       
-      // 获取进度信息
+      // 获取进度信息：逐个读取，失败项按无进度处理
       const progressMap = new Map<string, CourseProgress>()
-      const progressList = await db.courseProgress.where('courseId').anyOf(courseIds).toArray()
-      progressList.forEach(p => progressMap.set(p.courseId, p))
+      const progressList = await Promise.all(
+        courseIds.map(async courseId => {
+          try {
+            return await courseRepository.getCourseProgress(courseId)
+          } catch (error) {
+            console.error('读取课程进度失败:', courseId, error)
+            return undefined
+          }
+        })
+      )
+      progressList.forEach(p => {
+        if (p) progressMap.set(p.courseId, p)
+      })
       
       // 组装学习课程数据
       const learningCourses: LearningCourse[] = courses.map(course => {
@@ -62,14 +74,14 @@ class LearningService {
   async addToLearningList(courseId: string): Promise<void> {
     try {
       // 检查是否已存在
-      const existing = await db.learningList.get(courseId)
+      const existing = await commonRepository.getLearningListItem(courseId)
       if (existing) {
         console.warn('课程已在学习列表中:', courseId)
         return
       }
       
       // 添加到学习列表
-      await db.learningList.add({
+      await commonRepository.addLearningListItem({
         courseId,
         addedAt: Date.now(),
         totalStudyTime: 0,
@@ -103,7 +115,7 @@ class LearningService {
    */
   async removeFromLearningList(courseId: string): Promise<void> {
     try {
-      await db.learningList.delete(courseId)
+      await commonRepository.removeLearningListItem(courseId)
     } catch (error) {
       console.error('移除课程失败:', error)
       throw error
@@ -156,7 +168,7 @@ class LearningService {
    */
   async isInLearningList(courseId: string): Promise<boolean> {
     try {
-      const item = await db.learningList.get(courseId)
+      const item = await commonRepository.getLearningListItem(courseId)
       return !!item
     } catch (error) {
       console.error('检查学习列表失败:', error)
@@ -169,9 +181,9 @@ class LearningService {
    */
   async updateStudyTime(courseId: string, durationMinutes: number): Promise<void> {
     try {
-      const item = await db.learningList.get(courseId)
+      const item = await commonRepository.getLearningListItem(courseId)
       if (item) {
-        await db.learningList.update(courseId, {
+        await commonRepository.updateLearningListItem(courseId, {
           totalStudyTime: (item.totalStudyTime || 0) + durationMinutes,
         })
       }

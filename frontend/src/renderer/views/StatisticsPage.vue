@@ -133,7 +133,7 @@ import {
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import * as HistoryPageModule from './HistoryPage.vue'
-import { db } from '../../shared/database/index'
+import { courseRepository } from '../../shared/database/repositories/courseRepository'
 
 const HistoryPage = (HistoryPageModule as unknown as { default: Component }).default
 
@@ -164,8 +164,8 @@ const dateRange = ref<[Date, Date]>()
 // 加载统计数据
 async function loadStats() {
   try {
-    // 获取所有练习记录
-    const allRecords = await db.practiceRecords.toArray()
+    // 获取所有练习记录（后端按完成时间倒序返回）
+    const allRecords = await courseRepository.getAllPracticeRecords()
     
     if (allRecords.length > 0) {
       stats.value.totalPractice = allRecords.length
@@ -192,10 +192,10 @@ async function loadTrendChart() {
     const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000)
     
     // 获取日期范围内的练习记录
-    const records = await db.practiceRecords
-      .where('completedAt')
-      .between(startDate.getTime(), endDate.getTime())
-      .toArray()
+    const records = await courseRepository.getPracticeRecordsByRange(
+      startDate.getTime(),
+      endDate.getTime()
+    )
     
     // 按日期聚合数据
     const dailyData = new Map<string, { count: number; duration: number }>()
@@ -288,12 +288,8 @@ async function loadProgressChart() {
   if (!progressChartRef.value) return
   
   try {
-    // 获取最近30次练习记录
-    const records = await db.practiceRecords
-      .orderBy('completedAt')
-      .reverse()
-      .limit(30)
-      .toArray()
+    // 获取最近30次练习记录（后端返回倒序）
+    const records = await courseRepository.getRecentPracticeRecords(30)
     
     records.reverse() // 按时间正序
     
@@ -369,7 +365,7 @@ async function loadModeChart() {
   if (!modeChartRef.value) return
   
   try {
-    const records = await db.practiceRecords.toArray()
+    const records = await courseRepository.getAllPracticeRecords()
     
     // 统计各模式练习次数
     const modeCount = new Map<string, number>()
@@ -421,7 +417,7 @@ async function loadTimeChart() {
   if (!timeChartRef.value) return
   
   try {
-    const records = await db.practiceRecords.toArray()
+    const records = await courseRepository.getAllPracticeRecords()
     
     // 统计各时段练习次数（0-6时, 6-12时, 12-18时, 18-24时）
     const timeSlots = ['凌晨(0-6)', '上午(6-12)', '下午(12-18)', '晚上(18-24)']

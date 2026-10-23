@@ -31,12 +31,36 @@
 - 校验：14 张表行数一致 + 掌握度逐条比对 + 今日复习队列 = 17/17 PASS；库内实际 27/142，quality 分布 4×35、0×107，与源一致。
 - 原始快照位置：`%LOCALAPPDATA%\lexitype-migration-backup\export\legacy-react-20261024-002646.json`（仓库外）。
 
-## 三、未完成功能清单（按学习闭环优先级）
+## 三、阶段4 · 批次B：后端业务 CRUD + 前端仓储切 HTTP（DONE）
+
+| 交付物 | 状态 | 证据 |
+| --- | --- | --- |
+| 后端业务路由 4 组：课程/练习/复习/记录 | DONE | `backend/app/api/routers/{courses,practice,review,records}.py`；`app.main` 注册 15 个路由组 |
+| 字段映射唯一来源抽取 | DONE | `backend/app/db/field_maps.py`；迁移 `importer.py` 改为 import，避免两份映射漂移 |
+| 前后端契约序列化 | DONE | `backend/app/api/contracts.py`（ORM→camelCase、请求体→snake_case、必填校验） |
+| 前端 HTTP 客户端 | DONE | `frontend/src/shared/services/apiClient.ts`，默认 `http://127.0.0.1:8010`，`VITE_API_URL` 可覆盖 |
+| 5 个仓储切换 HTTP | DONE | `courseRepository`、`reviewRepository`、`unitReviewRepository`、`practiceAttemptEventRepository`、`commonRepository` |
+| 页面/服务清理 Dexie 直连 | DONE | `learningService`、`unitReviewService`、`PracticeCenterPage`、`StatisticsPage`；仅 TTS Blob 缓存保留 IndexedDB |
+
+### 批次B 实测证据（2026-10-23，后端 8010）
+
+- `GET /api/courses` → 200 `{"items":[],"total":0}`（真实库当前无课程）
+- `GET /api/review/stats` → 200 `{"totalWords":27,"newWords":5,"learningWords":22,"masteredWords":0,"dueToday":27,"reviewedToday":0}`，与迁移入库的 27 条掌握度一致
+- `GET /api/review/sources` → 200 `{"items":["english","finger"]}`
+- `GET /api/review/due?limit=3` → 200，返回真实到期单词（`s`/`c`…，source=english）
+- 课程链路：POST 课程（含 1 课时）→ 201；PUT 课程/课时 → 200；PUT 进度 → 200；POST 练习记录 → 201；DELETE 课程 → 200 且关联练习记录清零
+- 复习链路：PUT/GET/batch 掌握度、POST/GET 日志、DELETE by source → 全部 2xx，测试数据已清理
+- 错误契约：`PUT /api/lessons/not-exist` → 404
+- 前端 `npm run build` → `✓ built in 38.17s`（仅 chunk >500 kB 提示）
+- 后端 `compileall` → exit=0
+- 浏览器联调：首页、练习中心、统计页无 `[api]` 报错；写入测试课程后，课程仓库页与「我的学习」页均渲染出该课程（测试数据随后删除）
+
+## 四、未完成功能清单（按学习闭环优先级）
 
 | 优先级 | 功能 | 现状 | 关键依据 |
 | --- | --- | --- | --- |
-| P0 | 后端业务 CRUD（课程/课时/进度/练习/复习） | 只有表与迁移导入，无 REST 接口 | `backend/app/api/routers/` 仅 health/migration/tts/asr |
-| P0 | 前端数据源与后端统一 | 业务读写仍走 IndexedDB，后端 SQLite 为旁路 | `shared/database/repositories/*` |
+| ~~P0~~ | ~~后端业务 CRUD（课程/课时/进度/练习/复习）~~ 已完成 | 4 组业务路由已上线并实测 | 见“批次B 实测证据” |
+| ~~P0~~ | ~~前端数据源与后端统一~~ 已完成 | 5 个仓储全部走 HTTP；仅 TTS Blob 缓存留在 IndexedDB | `shared/services/apiClient.ts`、`shared/database/repositories/*` |
 | ~~P0~~ | ~~真实存量数据迁移~~ 已完成 | 27 条掌握度 + 142 条复习日志已入库，17/17 校验通过 | 见“真实迁移证据” |
 | P1 | 学习计划页 | 页面占位，无数据模型 | `router` 注释“数据模型待实现” |
 | P1 | 统计页真实数据 | WPM/完成率使用随机数；记录缺 WPM 字段 | `StatisticsPage.vue` |
@@ -47,16 +71,15 @@
 | P2 | 拼音练习 | 3 处 TODO | `PinyinPage.vue` |
 | P3 | 翻译工具 / 词汇分析 | 各 2-4 处未完成 | `TranslateToolPage.vue`、`VocabularyAnalyzerPage.vue` |
 
-## 四、后续执行计划
+## 五、后续执行计划
 
-1. **批次B（P0）**：后端业务 CRUD + 前端 Repository 切换为 HTTP（先课程/课时/练习记录，再复习）。
-   - 前置已完成：真实数据已导入 SQLite 并通过 17/17 校验，可作为迁移基线。
-   - 备注：`http://localhost:5173` 源（旧 Vue 版）的 IndexedDB 约 11KB 尚未导出，该端口被其它项目占用，待端口释放后补迁。
-2. **批次C（P1）**：统计页真实聚合；学习计划需求分析与建模。
-3. **批次D（P1）**：AI 能力后端化（统一代理、密钥留在本地后端），再接前端。
-4. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
+1. **批次C（P1）**：统计页真实聚合（补 WPM/完成度数据来源）；学习计划需求分析与建模。
+2. **批次D（P1）**：AI 能力后端化（统一代理、密钥留在本地后端），再接前端。
+3. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
+4. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。
+5. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB）尚未导出，该端口被其它项目占用，待端口释放后执行。
 
-## 五、验证命令
+## 六、验证命令
 
 ```powershell
 # 后端

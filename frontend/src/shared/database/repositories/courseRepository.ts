@@ -1,10 +1,53 @@
 /**
- * 课程数据仓库
- * 封装课程相关的数据库操作
+ * 课程数据仓库（HTTP 版）
+ *
+ * 变更说明：
+ * 批次B 起不再直接读写 IndexedDB，统一调用本地后端 REST 接口，
+ * 方法签名与返回结构保持不变，上层 courseService 无需改动。
  */
 
-import { db } from '../index';
-import type { Course, Lesson, PracticeRecord, CourseProgress } from '../../types/course';
+import { apiDelete, apiGet, apiPost, apiPut, type ApiError } from '../../services/apiClient'
+import type { Course, Lesson, PracticeRecord, CourseProgress } from '../../types/course'
+
+/** 后端列表响应结构：items + total */
+interface ListResponse<T> {
+  /** 数据条目 */
+  items: T[]
+  /** 命中总数 */
+  total: number
+}
+
+/**
+ * 判断是否为“资源不存在”错误
+ * @param error 捕获到的异常
+ * @returns 状态码为 404 时返回 true
+ */
+function isNotFound(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as ApiError).status === 404
+}
+
+/**
+ * 补全课程对象的前端必需字段
+ * @param raw 后端返回的课程数据
+ * @returns 保证 lessons 为数组、lessonCount 为数字的课程对象
+ */
+function normalizeCourse(raw: Course): Course {
+  return {
+    ...raw,
+    lessons: Array.isArray(raw.lessons) ? raw.lessons : [],
+    lessonCount: typeof raw.lessonCount === 'number' ? raw.lessonCount : 0,
+  }
+}
+
+/**
+ * 去除课时里的 courseId 字段
+ * 说明：前端 Lesson 类型不包含 courseId，保持与原实现一致的返回结构。
+ * @param lesson 后端返回的课时（可能含 courseId）
+ */
+function normalizeLesson(lesson: Lesson & { courseId?: string }): Lesson {
+  const { courseId: _courseId, ...rest } = lesson
+  return rest as Lesson
+}
 
 /**
  * 课程仓库类
@@ -14,201 +57,228 @@ export class CourseRepository {
    * 获取所有课程
    */
   async getAllCourses(): Promise<Course[]> {
-    return await db.courses.toArray();
+    const result = await apiGet<ListResponse<Course>>('/api/courses', { limit: 1000 })
+    return result.items.map(normalizeCourse)
   }
-  
+
   /**
-   * 根据ID获取课程
+   * 按 ID 集合批量获取课程
+   * @param ids 课程 ID 数组
+   */
+  async getCoursesByIds(ids: string[]): Promise<Course[]> {
+    if (ids.length === 0) return []
+    const result = await apiGet<ListResponse<Course>>('/api/courses', {
+      ids: ids.join(','),
+      limit: Math.max(ids.length, 1),
+    })
+    return result.items.map(normalizeCourse)
+  }
+
+  /**
+   * 根据ID获取课程（含课时）
    */
   async getCourseById(id: string): Promise<Course | undefined> {
-    return await db.courses.get(id);
+    try {
+      const course = await apiGet<Course>(`/api/courses/${encodeURIComponent(id)}`)
+      return normalizeCourse(course)
+    } catch (error) {
+      if (isNotFound(error)) return undefined
+      throw error
+    }
   }
-  
+
   /**
    * 根据分类获取课程
    */
   async getCoursesByCategory(category: string): Promise<Course[]> {
-    return await db.courses.where('category').equals(category).toArray();
+    const result = await apiGet<ListResponse<Course>>('/api/courses', { category, limit: 1000 })
+    return result.items.map(normalizeCourse)
   }
-  
+
   /**
-   * 搜索课程
+   * 搜索课程（标题/描述/标签）
    */
   async searchCourses(query: string): Promise<Course[]> {
-    const lowerQuery = query.toLowerCase();
-    const allCourses = await db.courses.toArray();
-    return allCourses.filter(course => 
-      course.title.toLowerCase().includes(lowerQuery) ||
-      course.description?.toLowerCase().includes(lowerQuery) ||
-      course.tags?.some(tag => tag.toLowerCase().includes(lowerQuery))
-    );
+    const result = await apiGet<ListResponse<Course>>('/api/courses', { q: query, limit: 1000 })
+    return result.items.map(normalizeCourse)
   }
-  
+
   /**
    * 创建课程
    */
   async createCourse(course: Course): Promise<string> {
-    await db.courses.add(course);
-    return course.id;
+    const created = await apiPost<Course>('/api/courses', course)
+    return created.id
   }
-  
+
   /**
    * 更新课程
    */
   async updateCourse(id: string, updates: Partial<Course>): Promise<void> {
-    await db.courses.update(id, {
+    await apiPut<Course>(`/api/courses/${encodeURIComponent(id)}`, {
       ...updates,
-      updatedAt: Date.now()
-    });
+      updatedAt: Date.now(),
+    })
   }
-  
+
   /**
-   * 删除课程
+   * 删除课程（后端级联删除课时、进度、练习记录）
    */
   async deleteCourse(id: string): Promise<void> {
-    await db.transaction('rw', db.courses, db.lessons, db.courseProgress, db.practiceRecords, async () => {
-      // 删除课程
-      await db.courses.delete(id);
-      // 删除关联的课时
-      await db.lessons.where('courseId').equals(id).delete();
-      // 删除课程进度
-      await db.courseProgress.delete(id);
-      // 删除练习记录
-      await db.practiceRecords.where('courseId').equals(id).delete();
-    });
+    await apiDelete(`/api/courses/${encodeURIComponent(id)}`)
   }
-  
+
   /**
    * 获取课程的所有课时
    */
   async getLessonsByCourseId(courseId: string): Promise<Lesson[]> {
-    const lessons = await db.lessons.where('courseId').equals(courseId).toArray();
-    return lessons.map(lesson => {
-      const { courseId: _, ...lessonData } = lesson;
-      return lessonData as Lesson;
-    });
+    const result = await apiGet<ListResponse<Lesson & { courseId?: string }>>(
+      `/api/courses/${encodeURIComponent(courseId)}/lessons`
+    )
+    return result.items.map(normalizeLesson)
   }
-  
+
   /**
    * 获取单个课时
    */
   async getLessonById(lessonId: string): Promise<Lesson | undefined> {
-    const lesson = await db.lessons.get(lessonId);
-    if (!lesson) return undefined;
-    const { courseId: _, ...lessonData } = lesson;
-    return lessonData as Lesson;
+    try {
+      const lesson = await apiGet<Lesson & { courseId?: string }>(
+        `/api/lessons/${encodeURIComponent(lessonId)}`
+      )
+      return normalizeLesson(lesson)
+    } catch (error) {
+      if (isNotFound(error)) return undefined
+      throw error
+    }
   }
-  
+
   /**
    * 创建课时
    */
   async createLesson(courseId: string, lesson: Lesson): Promise<string> {
-    await db.lessons.add({
-      ...lesson,
-      courseId
-    });
-    return lesson.id;
+    const created = await apiPost<Lesson>(
+      `/api/courses/${encodeURIComponent(courseId)}/lessons`,
+      lesson
+    )
+    return created.id
   }
-  
+
   /**
    * 更新课时
    */
   async updateLesson(lessonId: string, updates: Partial<Lesson>): Promise<void> {
-    await db.lessons.update(lessonId, {
+    await apiPut<Lesson>(`/api/lessons/${encodeURIComponent(lessonId)}`, {
       ...updates,
-      updatedAt: Date.now()
-    });
+      updatedAt: Date.now(),
+    })
   }
-  
+
   /**
-   * 删除课时
+   * 删除课时（后端同时清理该课时的练习记录）
    */
   async deleteLesson(lessonId: string): Promise<void> {
-    await db.transaction('rw', db.lessons, db.practiceRecords, async () => {
-      await db.lessons.delete(lessonId);
-      await db.practiceRecords.where('lessonId').equals(lessonId).delete();
-    });
+    await apiDelete(`/api/lessons/${encodeURIComponent(lessonId)}`)
   }
-  
+
   /**
    * 获取课程进度
    */
   async getCourseProgress(courseId: string): Promise<CourseProgress | undefined> {
-    return await db.courseProgress.get(courseId);
+    const progress = await apiGet<CourseProgress | null>(
+      `/api/course-progress/${encodeURIComponent(courseId)}`
+    )
+    return progress ?? undefined
   }
-  
+
   /**
-   * 更新课程进度
+   * 更新课程进度（不存在时由后端创建）
    */
   async updateCourseProgress(progress: CourseProgress): Promise<void> {
-    await db.courseProgress.put(progress);
+    await apiPut<CourseProgress>(
+      `/api/course-progress/${encodeURIComponent(progress.courseId)}`,
+      progress
+    )
   }
-  
+
   /**
    * 添加练习记录
    */
   async addPracticeRecord(record: PracticeRecord): Promise<number> {
-    return await db.practiceRecords.add(record);
+    const created = await apiPost<PracticeRecord>('/api/practice-records', record)
+    return created.id ?? 0
   }
-  
+
   /**
    * 获取课程的练习记录
    */
   async getPracticeRecordsByCourse(courseId: string, limit?: number): Promise<PracticeRecord[]> {
-    let query = db.practiceRecords.where('courseId').equals(courseId);
-    if (limit) {
-      query = query.limit(limit);
-    }
-    return await query.reverse().sortBy('completedAt');
+    const result = await apiGet<ListResponse<PracticeRecord>>('/api/practice-records', {
+      courseId,
+      limit: limit ?? 500,
+    })
+    return result.items
   }
-  
+
   /**
    * 获取课时的练习记录
    */
   async getPracticeRecordsByLesson(lessonId: string): Promise<PracticeRecord[]> {
-    return await db.practiceRecords
-      .where('lessonId')
-      .equals(lessonId)
-      .reverse()
-      .sortBy('completedAt');
+    const result = await apiGet<ListResponse<PracticeRecord>>('/api/practice-records', {
+      lessonId,
+      limit: 500,
+    })
+    return result.items
   }
-  
+
+  /**
+   * 按完成时间范围获取练习记录
+   * @param start 下界（毫秒，含）
+   * @param end 上界（毫秒，含）
+   */
+  async getPracticeRecordsByRange(start: number, end: number): Promise<PracticeRecord[]> {
+    const result = await apiGet<ListResponse<PracticeRecord>>('/api/practice-records', {
+      start,
+      end,
+      limit: 5000,
+    })
+    return result.items
+  }
+
+  /**
+   * 获取最近的练习记录（按完成时间倒序）
+   * @param limit 返回条数
+   */
+  async getRecentPracticeRecords(limit = 30): Promise<PracticeRecord[]> {
+    const result = await apiGet<ListResponse<PracticeRecord>>('/api/practice-records', { limit })
+    return result.items
+  }
+
+  /**
+   * 获取全部练习记录（统计页使用，受后端上限约束）
+   */
+  async getAllPracticeRecords(): Promise<PracticeRecord[]> {
+    const result = await apiGet<ListResponse<PracticeRecord>>('/api/practice-records', {
+      limit: 5000,
+    })
+    return result.items
+  }
+
   /**
    * 导入课程（包括课时）
    */
   async importCourse(course: Course): Promise<void> {
-    await db.transaction('rw', db.courses, db.lessons, async () => {
-      // 保存课程基本信息
-      const { lessons, ...courseData } = course;
-      await db.courses.put({
-        ...courseData,
-        lessons: [],
-      });
-      
-      // 保存所有课时
-      for (const lesson of lessons) {
-        await db.lessons.put({
-          ...lesson,
-          courseId: course.id
-        });
-      }
-    });
+    await apiPost<Course>('/api/courses', course)
   }
-  
+
   /**
    * 导出课程（包括课时）
    */
   async exportCourse(courseId: string): Promise<Course | null> {
-    const course = await db.courses.get(courseId);
-    if (!course) return null;
-    
-    const lessons = await this.getLessonsByCourseId(courseId);
-    return {
-      ...course,
-      lessons
-    };
+    const course = await this.getCourseById(courseId)
+    return course ?? null
   }
 }
 
 // 导出单例实例
-export const courseRepository = new CourseRepository();
+export const courseRepository = new CourseRepository()

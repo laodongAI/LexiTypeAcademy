@@ -10,7 +10,7 @@ import type { UnitMastery, UnitReviewLog } from '../types/unitReview'
 import { MasteryLevel } from '../types/review'
 import { calculateSM2, createNewMastery } from './sm2Algorithm'
 import { unitReviewRepository } from '../database/repositories/unitReviewRepository'
-import { db, databaseReady } from '../database'
+import { practiceAttemptEventRepository } from '../database/repositories/practiceAttemptEventRepository'
 
 function qualityFromCorrectAndSimilarity(correct: boolean, similarity?: number): number {
   if (!correct) return 0
@@ -109,16 +109,8 @@ function createNewUnitMastery(courseId: string, unitId: string, mode: PracticeMo
 }
 
 async function computeRollingAccuracy(courseId: string, unitId: string, mode: PracticeMode, sampleSize: number = 5): Promise<number | undefined> {
-  if (!databaseReady) return
-
-  const all = await db.practiceAttemptEvents
-    .where('courseId')
-    .equals(courseId)
-    .and(e => e.unitId === unitId && e.mode === mode)
-    .toArray()
-
-  all.sort((a, b) => b.createdAt - a.createdAt)
-  const recent = all.slice(0, sampleSize)
+  // 后端已按发生时间倒序返回，直接取最近 sampleSize 条
+  const recent = await practiceAttemptEventRepository.listRecent(courseId, unitId, mode, sampleSize)
   if (!recent.length) return
   const correctCount = recent.filter(e => e.correct).length
   return correctCount / recent.length
@@ -129,8 +121,6 @@ export class UnitReviewService {
    * 消费单条 PracticeAttemptEvent：更新 unitMasteryItems + 写入 unitReviewLogs
    */
   async consumePracticeAttemptEvent(event: PracticeAttemptEvent): Promise<void> {
-    if (!databaseReady) return
-
     const quality = event.scoreDetail
       ? qualityFromCorrectAndOverall(event.correct, event.scoreDetail.overall)
       : qualityFromCorrectAndSimilarity(event.correct, event.similarity)
