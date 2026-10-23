@@ -1,0 +1,538 @@
+<!--
+  课时练习页面
+  
+  支持多种练习模式：听写、跟读、翻译、模仿
+-->
+
+<template>
+  <div class="lesson-practice-page">
+    <!-- 顶部导航 -->
+    <div class="practice-topbar">
+      <div class="topbar-left">
+        <el-button link @click="handleBack">
+          <el-icon><ArrowLeft /></el-icon>
+          返回
+        </el-button>
+      </div>
+
+      <div class="topbar-center">
+        <div class="lesson-title">{{ lessonTitle }}</div>
+        <div v-if="practiceStarted" class="progress-row">
+          <el-progress
+            :percentage="progress"
+            :stroke-width="8"
+            :show-text="false"
+            style="width: 240px"
+          />
+          <span class="progress-text">{{ currentIndex + 1 }} / {{ totalItems }}</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <el-tag v-if="practiceStarted && currentMode" size="small">{{ getModeLabel(currentMode) }}</el-tag>
+      </div>
+    </div>
+    
+    <div class="practice-layout">
+      <main class="practice-main">
+        <!-- 模式选择 -->
+        <el-card v-if="!practiceStarted" class="mode-selector">
+          <template #header>
+            <h3>选择练习模式</h3>
+          </template>
+
+          <el-row :gutter="16">
+            <el-col :xs="24" :sm="12" :md="12" v-for="mode in practiceModeslist" :key="mode.value">
+              <button
+                type="button"
+                class="mode-card"
+                :class="{ active: currentMode === mode.value }"
+                @click="currentMode = mode.value"
+              >
+                <div class="mode-card-left">
+                  <el-icon :size="28"><component :is="mode.icon" /></el-icon>
+                </div>
+                <div class="mode-card-right">
+                  <div class="mode-name">{{ mode.label }}</div>
+                  <div class="mode-desc">{{ mode.description }}</div>
+                </div>
+              </button>
+            </el-col>
+          </el-row>
+
+          <div class="start-button-container">
+            <el-button
+              type="primary"
+              size="large"
+              @click="startPractice"
+              :disabled="!currentMode"
+            >
+              开始练习
+            </el-button>
+          </div>
+        </el-card>
+
+        <!-- 练习区域 -->
+        <div v-else class="practice-area">
+          <!-- 听写模式 -->
+          <DictationMode
+            v-if="currentMode === 'dictation'"
+            :item="currentItem"
+            @next="handleNext"
+            @answer="handleAnswer"
+          />
+
+          <!-- 跟读模式 -->
+          <FollowMode
+            v-else-if="currentMode === 'follow'"
+            :item="currentItem"
+            @next="handleNext"
+            @answer="handleAnswer"
+          />
+
+          <!-- 翻译模式 -->
+          <TranslationMode
+            v-else-if="currentMode === 'translation'"
+            :item="currentItem"
+            @next="handleNext"
+            @answer="handleAnswer"
+          />
+
+          <!-- 模仿模式 -->
+          <ImitationMode
+            v-else-if="currentMode === 'imitation'"
+            :item="currentItem"
+            @next="handleNext"
+            @answer="handleAnswer"
+          />
+        </div>
+      </main>
+
+      <aside class="practice-side">
+        <el-card class="coach-card">
+          <TeachingFeedbackPanel
+            title="学习助手"
+            :loading="feedbackState.loading.value ?? false"
+            :error="feedbackState.error.value ?? ''"
+            :feedback="feedbackState.feedback.value ?? null"
+            placeholder="提交答案后，这里会显示 AI 教学反馈与下一步建议。"
+          />
+        </el-card>
+      </aside>
+    </div>
+
+    <!-- 练习结果 -->
+    <el-dialog
+      v-model="showResultDialog"
+      title="练习完成"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <div class="result-content">
+        <el-result
+          icon="success"
+          title="恭喜完成练习！"
+        >
+          <template #sub-title>
+            <div class="result-stats">
+              <div class="stat-item">
+                <span class="stat-label">总题数</span>
+                <span class="stat-value">{{ totalItems }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">正确数</span>
+                <span class="stat-value correct">{{ correctCount }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">错误数</span>
+                <span class="stat-value incorrect">{{ incorrectCount }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">准确率</span>
+                <span class="stat-value">{{ accuracy }}%</span>
+              </div>
+            </div>
+          </template>
+          <template #extra>
+            <el-space>
+              <el-button @click="handleRetry">重新练习</el-button>
+              <el-button type="primary" @click="handleFinish">完成</el-button>
+            </el-space>
+          </template>
+        </el-result>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, defineAsyncComponent, provide } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Headset, Microphone, DocumentCopy, Film, ArrowLeft } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { useCourseStore } from '../stores/courseStore'
+import type { LessonItem, PracticeMode } from '../../shared/types/course'
+import { useTeachingFeedback, teachingFeedbackKey } from '../composables/useTeachingFeedback'
+import { practiceAttemptContextKey } from '../composables/practiceAttemptContext'
+const DictationMode = defineAsyncComponent(() => import('../components/practice/DictationMode.vue'))
+const FollowMode = defineAsyncComponent(() => import('../components/practice/FollowMode.vue'))
+const TranslationMode = defineAsyncComponent(() => import('../components/practice/TranslationMode.vue'))
+const ImitationMode = defineAsyncComponent(() => import('../components/practice/ImitationMode.vue'))
+const TeachingFeedbackPanel = defineAsyncComponent(() => import('../components/practice/TeachingFeedbackPanel.vue'))
+
+const route = useRoute()
+const router = useRouter()
+const courseStore = useCourseStore()
+
+// 容器级教学反馈上下文：各 mode 通过 inject 复用（不改变 UI，仅收敛状态与调用）
+const feedbackState = useTeachingFeedback()
+provide(teachingFeedbackKey, feedbackState)
+
+// 路由参数
+const courseId = computed(() => route.query.courseId as string)
+const lessonId = computed(() => (route.query.lessonId || route.params.lessonId) as string)
+
+// 容器级练习事件上下文：各 mode 在提交点写入 PracticeAttemptEvent
+provide(practiceAttemptContextKey, { courseId, lessonId })
+
+// 状态
+const practiceStarted = ref(false)
+const currentMode = ref<PracticeMode | ''>('')
+const currentIndex = ref(0)
+const lessonItems = ref<LessonItem[]>([])
+const lessonTitle = ref('')
+const answers = ref<Array<{ itemId: string; correct: boolean; answer?: string }>>([])
+const showResultDialog = ref(false)
+
+// 练习模式列表
+const practiceModeslist = [
+  {
+    value: 'dictation' as PracticeMode,
+    label: '听写模式',
+    description: '听音频，输入英文',
+    icon: Headset
+  },
+  {
+    value: 'follow' as PracticeMode,
+    label: '跟读模式',
+    description: '跟随音频朗读',
+    icon: Microphone
+  },
+  {
+    value: 'translation' as PracticeMode,
+    label: '翻译模式',
+    description: '看中文，写英文',
+    icon: DocumentCopy
+  },
+  {
+    value: 'imitation' as PracticeMode,
+    label: '模仿模式',
+    description: '模仿音频发音',
+    icon: Film
+  }
+]
+
+// 计算属性
+const currentItem = computed(() => lessonItems.value[currentIndex.value])
+const totalItems = computed(() => lessonItems.value.length)
+const progress = computed(() => totalItems.value > 0 ? (currentIndex.value / totalItems.value) * 100 : 0)
+const correctCount = computed(() => answers.value.filter(a => a.correct).length)
+const incorrectCount = computed(() => answers.value.filter(a => !a.correct).length)
+const accuracy = computed(() => {
+  if (answers.value.length === 0) return 0
+  return Math.round((correctCount.value / answers.value.length) * 100)
+})
+
+// 加载课时数据
+onMounted(async () => {
+  if (!courseId.value || !lessonId.value) {
+    ElMessage.error('缺少课程或课时信息')
+    router.back()
+    return
+  }
+  
+  // 加载课程数据
+  await courseStore.loadCourseById(courseId.value)
+  
+  // 查找课时
+  const lesson = courseStore.currentCourse?.lessons.find(l => l.id === lessonId.value)
+  if (!lesson) {
+    ElMessage.error('课时不存在')
+    router.back()
+    return
+  }
+  
+  lessonTitle.value = lesson.title
+  lessonItems.value = lesson.items || []
+  
+  if (lessonItems.value.length === 0) {
+    ElMessage.warning('该课时暂无练习内容')
+  }
+  
+  // 标记开始学习
+  await courseStore.startLesson(courseId.value, lessonId.value)
+})
+
+// 获取模式标签
+function getModeLabel(mode: PracticeMode | '') {
+  const modeObj = practiceModeslist.find(m => m.value === mode)
+  return modeObj?.label || '未选择'
+}
+
+// 开始练习
+function startPractice() {
+  if (!currentMode.value) {
+    ElMessage.warning('请先选择练习模式')
+    return
+  }
+  
+  if (lessonItems.value.length === 0) {
+    ElMessage.warning('该课时暂无练习内容')
+    return
+  }
+  
+  feedbackState.reset()
+  practiceStarted.value = true
+  currentIndex.value = 0
+  answers.value = []
+}
+
+// 处理答案
+function handleAnswer(correct: boolean, answer?: string) {
+  answers.value.push({
+    itemId: currentItem.value.id,
+    correct,
+    answer
+  })
+}
+
+// 下一题
+function handleNext() {
+  if (currentIndex.value < totalItems.value - 1) {
+    currentIndex.value++
+  } else {
+    // 练习完成
+    finishPractice()
+  }
+}
+
+// 完成练习
+async function finishPractice() {
+  // 记录练习结果
+  await courseStore.recordPractice({
+    courseId: courseId.value,
+    lessonId: lessonId.value,
+    mode: currentMode.value as PracticeMode,
+    accuracy: accuracy.value,
+    duration: 0, // TODO: 记录实际耗时
+    incorrectItemIds: answers.value.filter(a => !a.correct).map(a => a.itemId)
+  })
+  
+  // 如果准确率达到80%，标记课时完成
+  if (accuracy.value >= 80) {
+    await courseStore.completeLesson(courseId.value, lessonId.value)
+  }
+  
+  showResultDialog.value = true
+}
+
+// 重新练习
+function handleRetry() {
+  showResultDialog.value = false
+  feedbackState.reset()
+  currentIndex.value = 0
+  answers.value = []
+}
+
+// 完成并返回
+function handleFinish() {
+  router.back()
+}
+
+// 返回
+function handleBack() {
+  if (practiceStarted.value && answers.value.length > 0) {
+    ElMessage.warning('练习尚未完成，请先完成或放弃')
+    return
+  }
+  router.back()
+}
+</script>
+
+<style lang="scss" scoped>
+.lesson-practice-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: calc(100vh - 40px);
+}
+
+.practice-topbar {
+  display: grid;
+  grid-template-columns: 140px 1fr 140px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 20px;
+  border-bottom: 1px solid var(--border-color-light);
+  margin-bottom: 24px;
+}
+
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.topbar-right {
+  justify-content: flex-end;
+}
+
+.topbar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.lesson-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-text {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+.practice-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+
+.practice-main {
+  min-width: 0;
+}
+
+.practice-side {
+  min-width: 0;
+}
+
+.coach-card {
+  border-radius: 16px;
+  border: 1px solid var(--border-color-light);
+}
+
+.mode-selector {
+  .start-button-container {
+    text-align: center;
+    margin-top: 32px;
+  }
+}
+
+.mode-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color-light);
+  background: var(--card-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.mode-card:hover {
+  border-color: var(--border-color);
+}
+
+.mode-card.active {
+  border-color: var(--primary-color);
+}
+
+.mode-card-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--el-fill-color-light);
+}
+
+.mode-card-right {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mode-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.mode-desc {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+.practice-area {
+  min-height: 500px;
+}
+
+@media (max-width: 1024px) {
+  .practice-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.result-content {
+  .result-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      background-color: var(--el-fill-color-light);
+      border-radius: 8px;
+      
+      .stat-label {
+        font-size: 14px;
+        color: var(--el-text-color-secondary);
+        margin-bottom: 8px;
+      }
+      
+      .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--el-text-color-primary);
+        
+        &.correct {
+          color: var(--el-color-success);
+        }
+        
+        &.incorrect {
+          color: var(--el-color-danger);
+        }
+      }
+    }
+  }
+}
+</style>

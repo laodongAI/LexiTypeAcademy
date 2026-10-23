@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sherpa-Onnx TTS Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #status { margin-top: 20px; white-space: pre-wrap; background: #f0f0f0; padding: 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Sherpa-Onnx TTS Model Test</h1>
+    <p>Model: <code>sherpa-onnx-zipvoice-distill-zh-en-emilia</code></p>
+    
+    <div>
+        <button id="initBtn">1. Initialize Engine</button>
+        <button id="speakBtn" disabled>2. Speak "Hello World"</button>
+        <button id="speakZhBtn" disabled>3. Speak "你好世界"</button>
+    </div>
+
+    <div id="status">Ready to test. Click Initialize.</div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const initBtn = document.getElementById('initBtn');
+        const speakBtn = document.getElementById('speakBtn');
+        const speakZhBtn = document.getElementById('speakZhBtn');
+        
+        let worker = null;
+        let audioCtx = null;
+
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            statusEl.innerHTML += `\n[${timestamp}] ${msg}`;
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+            statusEl.scrollTop = statusEl.scrollHeight;
+        }
+
+        function error(msg) {
+            log(msg, 'error');
+            statusEl.innerHTML += ` <span class="error">FAILED</span>`;
+        }
+
+        function success(msg) {
+            log(msg, 'success');
+            statusEl.innerHTML += ` <span class="success">OK</span>`;
+        }
+
+        initBtn.onclick = async () => {
+            initBtn.disabled = true;
+            log("Initializing Worker...");
+            
+            try {
+                // Initialize AudioContext
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create Worker
+                // Note: We use the same worker file as the main app
+                worker = new Worker('/src/services/tts/sherpa-worker.js', { type: 'module' });
+
+                worker.onmessage = (e) => {
+                    const { type, audio, error: errMsg } = e.data;
+                    if (type === 'init-success') {
+                        success("Engine Initialized Successfully!");
+                        speakBtn.disabled = false;
+                        speakZhBtn.disabled = false;
+                    } else if (type === 'init-error') {
+                        error("Init Error: " + errMsg);
+                        initBtn.disabled = false;
+                    } else if (type === 'audio-generated') {
+                        success("Audio Generated! Playing...");
+                        playAudio(audio);
+                    } else if (type === 'speak-error') {
+                        error("Speak Error: " + errMsg);
+                    }
+                };
+
+                // Send Init Config
+                const modelBase = '/sherpa/sherpa-onnx-zipvoice-distill-zh-en-emilia';
+                const config = {
+                    type: 'init',
+                    payload: {
+                        modelBaseUrl: modelBase,
+                        files: [
+                            'text_encoder.onnx',
+                            'fm_decoder.onnx',
+                            'vocos_24khz.onnx',
+                            'tokens.txt',
+                            'espeak-ng-data/phontab',
+                            'espeak-ng-data/phonindex',
+                            'espeak-ng-data/phondata',
+                            'espeak-ng-data/intonations',
+                            'espeak-ng-data/en_dict',
+                            'espeak-ng-data/cmn_dict',
+                        ],
+                        config: {
+                            offlineTts: {
+                                model: {
+                                    matcha: {
+                                        acousticModel: 'text_encoder.onnx',
+                                        vocoder: 'vocos_24khz.onnx',
+                                        lexicon: '',
+                                        tokens: 'tokens.txt',
+                                        dataDir: 'espeak-ng-data',
+                                        dictDir: '',
+                                    },
+                                    numThreads: 1,
+                                    debug: 1,
+                                    provider: 'cpu',
+                                },
+                                ruleFsts: '',
+                                maxNumSentences: 1,
+                            }
+                        }
+                    }
+                };
+                
+                log("Sending configuration to worker...");
+                worker.postMessage(config);
+
+            } catch (e) {
+                error("Setup failed: " + e.message);
+                initBtn.disabled = false;
+            }
+        };
+
+        speakBtn.onclick = () => {
+            log("Generating English audio...");
+            worker.postMessage({ type: 'speak', payload: { text: "Hello, this is a test of the offline text to speech system.", speed: 1.0 } });
+        };
+
+        speakZhBtn.onclick = () => {
+            log("Generating Chinese audio...");
+            worker.postMessage({ type: 'speak', payload: { text: "你好，这是一个离线语音合成系统的测试。", speed: 1.0 } });
+        };
+
+        function playAudio(audioData) {
+            if (!audioCtx) return;
+            const buffer = audioCtx.createBuffer(1, audioData.samples.length, audioData.sampleRate);
+            buffer.getChannelData(0).set(audioData.samples);
+            
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start();
+        }
+    </script>
+</body>
+</html>

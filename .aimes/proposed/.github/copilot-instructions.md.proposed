@@ -1,0 +1,5 @@
+# AIMES instructions for GitHub Copilot
+
+Authoritative governance core: [`../docs/_governance/AIMES-CORE-V1.2.md`](../docs/_governance/AIMES-CORE-V1.2.md) (repository-relative: `docs/_governance/AIMES-CORE-V1.2.md`).
+
+For project-changing work, inspect existing changes first, respect project instructions, define acceptance criteria, use configured verification commands, and record evidence. Never report a task as verified unless the relevant checks actually ran and passed. When uncertain about a tool capability or conflicting rule, report the limitation rather than inventing behavior.

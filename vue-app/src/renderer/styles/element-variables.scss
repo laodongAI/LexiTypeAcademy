@@ -1,0 +1,99 @@
+/**
+ * Element Plus 主题变量覆盖
+ * 
+ * 支持两套主题色：
+ * - 蓝色主题（默认）
+ * - 浅色主题
+ */
+
+// ===================== 蓝色主题（默认） =====================
+// 主色调
+$--el-color-primary: #409eff !default;
+$--el-color-primary-light-3: #79bbff !default;
+$--el-color-primary-light-5: #a0cfff !default;
+$--el-color-primary-light-7: #c6e2ff !default;
+$--el-color-primary-light-8: #d9ecff !default;
+$--el-color-primary-light-9: #ecf5ff !default;
+$--el-color-primary-dark-2: #337ecc !default;
+
+// 成功色
+$--el-color-success: #67c23a !default;
+$--el-color-success-light-3: #95d475 !default;
+$--el-color-success-light-5: #b3e19d !default;
+$--el-color-success-light-7: #d1edc4 !default;
+$--el-color-success-light-8: #e1f3d8 !default;
+$--el-color-success-light-9: #f0f9eb !default;
+$--el-color-success-dark-2: #529b2e !default;
+
+// 警告色
+$--el-color-warning: #e6a23c !default;
+$--el-color-warning-light-3: #eebe77 !default;
+$--el-color-warning-light-5: #f3d19e !default;
+$--el-color-warning-light-7: #f8e3c5 !default;
+$--el-color-warning-light-8: #faecd8 !default;
+$--el-color-warning-light-9: #fdf6ec !default;
+$--el-color-warning-dark-2: #b88230 !default;
+
+// 危险色
+$--el-color-danger: #f56c6c !default;
+$--el-color-danger-light-3: #f89898 !default;
+$--el-color-danger-light-5: #fab6b6 !default;
+$--el-color-danger-light-7: #fcd3d3 !default;
+$--el-color-danger-light-8: #fde2e2 !default;
+$--el-color-danger-light-9: #fef0f0 !default;
+$--el-color-danger-dark-2: #c45656 !default;
+
+// 信息色
+$--el-color-info: #909399 !default;
+
+// 背景色
+$--el-bg-color: #ffffff !default;
+$--el-bg-color-page: #f2f3f5 !default;
+$--el-bg-color-overlay: #ffffff !default;
+
+// 文字颜色
+$--el-text-color-primary: #303133 !default;
+$--el-text-color-regular: #606266 !default;
+$--el-text-color-secondary: #909399 !default;
+$--el-text-color-placeholder: #a8abb2 !default;
+
+// 边框颜色
+$--el-border-color: #dcdfe6 !default;
+$--el-border-color-light: #e4e7ed !default;
+$--el-border-color-lighter: #ebeef5 !default;
+$--el-border-color-extra-light: #f2f6fc !default;
+
+// 圆角
+$--el-border-radius-base: 4px !default;
+$--el-border-radius-small: 2px !default;
+$--el-border-radius-round: 20px !default;
+$--el-border-radius-circle: 100% !default;
+
+// 字体
+$--el-font-size-extra-large: 20px !default;
+$--el-font-size-large: 18px !default;
+$--el-font-size-medium: 16px !default;
+$--el-font-size-base: 14px !default;
+$--el-font-size-small: 13px !default;
+$--el-font-size-extra-small: 12px !default;
+
+// 导出 Element Plus 需要的变量
+@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+  $colors: (
+    'primary': (
+      'base': $--el-color-primary,
+    ),
+    'success': (
+      'base': $--el-color-success,
+    ),
+    'warning': (
+      'base': $--el-color-warning,
+    ),
+    'danger': (
+      'base': $--el-color-danger,
+    ),
+    'info': (
+      'base': $--el-color-info,
+    ),
+  )
+);

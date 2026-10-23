@@ -1,0 +1,168 @@
+{
+  "manifest_version": 1,
+  "aimes_cli_version": "0.8.7",
+  "governance_version": "1.2",
+  "created_at": "2026-10-23T07:41:22+00:00",
+  "managed_files": [
+    {
+      "path": ".aimes/adapters/README.md",
+      "sha256": "05c1d2f30bc794db490fae08363bde03174683630589b583017bf1e7e3ddd0b8",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/adapters/qcode/README.md",
+      "sha256": "dfda54c9545ee830c1c2850f45c08274f4f29b35590a7ceb5775bedbc08fe385",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/adapters/zcode/README.md",
+      "sha256": "5b1f731ed9458c35e4e046a1ae55207fa05b85d00e91a103a5c3bf71ff146a93",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/config.yaml",
+      "sha256": "47843d3c939a3db5758ff4253a98a5a8dee3bf84b7f7bab39a1ba0efb9978fd1",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/architecture-contract-review/SKILL.md",
+      "sha256": "88b5084e77603f91ee6badf9fb27f066f6cddf908e7b6a5cbd0d0d82de59110e",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/change-impact-analysis/SKILL.md",
+      "sha256": "4e18404742d25340f8a28894ce634bd5cf736d609d5ab755d5c5539d383f533c",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/controlled-implementation/SKILL.md",
+      "sha256": "8f9ec28bdaf802f1cb6b66a14fe3fc3b67be597f55a367f58ebc176a88e881b4",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/customer-journey-mapping/SKILL.md",
+      "sha256": "6fdf164303ad5f88fc20c30159f2ded65abfb2bb988cb3e2a947ada6f1c3aafa",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/design-system-governance/SKILL.md",
+      "sha256": "a9a64b4e7bb24efa2136f335b48a2c889d5b10832338a674a545fd265ea8910d",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/financial-evaluation/SKILL.md",
+      "sha256": "f858f0867dd20397ef50a904050fdc51a8c662bb74eb6bb62117ba9279e9a394",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/frontend-design/SKILL.md",
+      "sha256": "5a2b06b223a4d8302d045607133b117978e6d64729fc41b868044b12dde5ddcf",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/market-analysis/SKILL.md",
+      "sha256": "5a1f7ee99cdd76657c2af1efba2ce649a31c749154f3dd058e5fa97a10bdb9e7",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/opportunity-solution-tree/SKILL.md",
+      "sha256": "252cfadd7f91c57a1b6806e31059d73c3148dab4c031e56014a0879933249a64",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/product-analysis/SKILL.md",
+      "sha256": "7297eb90f878c1fd268775a852922f852cdfa871e764dc22dd0f8140635cc08b",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/product-manager/SKILL.md",
+      "sha256": "41b409dbf8d959468ba60fd7c14852f8c6975a8480da27108b76e3f22cf99314",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/project-knowledge-reuse/SKILL.md",
+      "sha256": "d3dee2dcc8b228323600ad31ba914083ed0abfec719a012a2b06e44e76b885a0",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/project-onboarding/SKILL.md",
+      "sha256": "dbfd5e8f8bc60d9840a7f43e5b8a1b6f3f83ea8055694fb096f358e6bcf68af5",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/prompt-optimization/SKILL.md",
+      "sha256": "97935664ca22c90710542e426f39779b37b0c7261fd11a6cf1fa30a428b961c8",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/registry.yaml",
+      "sha256": "cc63ee7c79eef0fbc6e6c08b670e56360a894258ec0b11c2cec9cbe762b29a6a",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/requirement-cognition/SKILL.md",
+      "sha256": "f740feac0514f76e9294c363775e46253b328674572374dbd852aef23373a510",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/requirement-driven-testing/SKILL.md",
+      "sha256": "91b64f90dbb0e589906e180201d29e6d66b12982dad00e96b5cd3897c97faa72",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/strategic-positioning/SKILL.md",
+      "sha256": "303cab7785de71d074e3ed3f49f86a8dbf098a26fa4075a0eefe4e827280019a",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/ui-implementation-validation/SKILL.md",
+      "sha256": "1df6bfa00e7fcc1519432285ffda78844d5c032e2446139b817278724a4e3002",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/ui-quality-governance-suite.yaml",
+      "sha256": "a594a67308fd0a715d7406113a36544640f6f48e5b106dae2b197c922de95d4a",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/skills/ui-quality-review/SKILL.md",
+      "sha256": "176188e01bcf1f70707292453a03d742f9342e23e1ab488aa0dacd6e8f399243",
+      "status": "managed"
+    },
+    {
+      "path": ".aimes/tool-capabilities.yaml",
+      "sha256": "aed7273211b89d00e2d9f2766ddbdb918b509307336387974b11d22e6a8c154b",
+      "status": "managed"
+    },
+    {
+      "path": ".trae/rules/00-aimes-governance.md",
+      "sha256": "393039a29463a207bdc36647154cd0e9e76973d05fd368e20faf54423afe7717",
+      "status": "managed"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "1fd0b63060d91958c5221d0a844c1fbf6f26a8efdab16b3a031f42efb4e8a78d",
+      "status": "managed"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "427c2b2ce0891ce74b956135fb67f1ec9087d2e114a139b33d7e5e9a4edc8e8f",
+      "status": "managed"
+    },
+    {
+      "path": "docs/_governance/AIMES-CORE-V1.2.md",
+      "sha256": "12eaa0c1174141c124148202621eb224cafbffc80e115a1a5f034cc1e95f115a",
+      "status": "managed"
+    }
+  ],
+  "selected_tools": [
+    "trae-code",
+    "vscode-codex",
+    "vscode-claude-code",
+    "vscode-copilot",
+    "zcode",
+    "qcode",
+    "claude-code",
+    "codex-cli"
+  ]
+}

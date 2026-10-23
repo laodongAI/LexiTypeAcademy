@@ -1,0 +1,80 @@
+# ============================================================================
+# LexiType Academy - Git 忽略规则
+# 说明：本文件用于止血，避免将构建产物、依赖、运行时数据与模型资产提交进仓库。
+# ============================================================================
+
+# ---------- Node / 前端依赖与构建产物 ----------
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# 前端与 Electron 构建输出
+dist/
+out/
+release/
+build/
+vue-app/out/
+vue-app/.vite/
+.vite/
+
+# ---------- Python 后端 ----------
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# ---------- 运行时数据（本地单机数据，绝不入库） ----------
+# 旧版 Electron/前端运行产生的音频、缓存、临时文件
+data/
+logs/
+*.log
+error.log
+*.wav
+*.mp3
+
+# 新后端运行时数据：SQLite 数据库、上传件、语料缓存
+backend/data/
+backend/logs/
+backend/tmp/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ---------- 模型资产（体积大，用户本地复制，不入库） ----------
+# 统一模型根目录，完整目录整体忽略；提交 backend/models/manifest.json 之前需单独放行
+backend/models/
+# 旧版前端仍在使用的 sherpa 运行时与模型
+public/sherpa/
+
+# ---------- 环境变量与密钥 ----------
+.env
+.env.*
+# 放行非敏感的开发环境默认配置与示例
+!.env.example
+!.env.development
+*.pem
+*.key
+secrets.json
+
+# ---------- 编辑器与系统文件 ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 临时归档与草稿 ----------
+src_bak/
+uidesigen/
+*.tmp
+*.bak
+*.orig

@@ -1,0 +1,341 @@
+schema_version: 1
+registry_id: AIMES-PRODUCT-REQUIREMENTS-UI-SKILLS
+description: "项目级需求、产品分析与 UI 能力路由注册表；由 AIMES 初始化部署到 .aimes/skills/registry.yaml"
+skills:
+  - id: SKL-CORE-UI-DESIGN-001
+    name: frontend-design
+    version: 1.0.0
+    file: .aimes/skills/frontend-design/SKILL.md
+    purpose: "将产品目标转化为具有明确视觉方向、可实现且可验证的界面设计"
+    triggers: [frontend_design, new_page, page_redesign, dashboard_design, complex_ui, visual_direction, design_prototype]
+    inputs: [task_id, product_goal, target_users, primary_user_tasks, project_context]
+    outputs: [design_brief, visual_direction, page_structure, component_plan, state_matrix, verification_plan]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [design-system-governance]
+    validation_status: UNKNOWN
+    evaluation_suite: AIMES-UI-QUALITY-GOVERNANCE
+    evidence: []
+  - id: SKL-CORE-UI-SYSTEM-001
+    name: design-system-governance
+    version: 1.0.0
+    file: .aimes/skills/design-system-governance/SKILL.md
+    purpose: "盘点并治理设计 Token、组件契约、主题与跨页面一致性"
+    triggers: [design_system, design_tokens, component_library, theme_change, shared_component_change, visual_consistency, design_standard_missing]
+    inputs: [task_id, project_context, ui_paths, existing_design_assets]
+    outputs: [design_system_inventory, approved_rules, proposed_tokens, component_contracts, consistency_findings, migration_plan]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: AIMES-UI-QUALITY-GOVERNANCE
+    evidence: []
+  - id: SKL-CORE-UI-001
+    name: ui-quality-review
+    version: 1.0.0
+    file: .aimes/skills/ui-quality-review/SKILL.md
+    purpose: "对 UI/UX 规范、交互、布局和实现进行证据化审查并提出受控修复"
+    triggers: [ui_design, frontend_implementation, ui_review, visual_regression, responsive_layout, accessibility_review, component_style_change, ui_bug_fix, form_interaction_change]
+    inputs: [task_id, task_scope, project_context, relevant_ui_paths_or_runtime_target]
+    outputs: [ui_baseline, ui_scope, ui_findings, change_plan, verification_matrix, ui_review_report]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: AIMES-UI-QUALITY-GOVERNANCE
+    evidence: []
+  - id: SKL-CORE-UI-VERIFY-001
+    name: ui-implementation-validation
+    version: 1.0.0
+    file: .aimes/skills/ui-implementation-validation/SKILL.md
+    purpose: "验证前端实现的构建、交互、响应式、可访问性和视觉回归"
+    triggers: [ui_implementation, responsive_layout, accessibility_review, visual_regression, form_interaction_change, frontend_build, browser_verification]
+    inputs: [task_id, changed_ui_paths, acceptance_criteria, project_context]
+    outputs: [verification_matrix, commands_executed, browser_evidence, viewport_results, accessibility_findings, final_status]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [ui-quality-review]
+    validation_status: UNKNOWN
+    evaluation_suite: AIMES-UI-QUALITY-GOVERNANCE
+    evidence: []
+
+  - id: SKL-CORE-REQ-001
+    name: requirement-cognition
+    version: 1.0.0
+    file: .aimes/skills/requirement-cognition/SKILL.md
+    purpose: "将自然语言需求转化为可确认、可设计、可实施、可测试、可追溯的结构化需求"
+    triggers: [new_feature, requirement_change, ambiguous_request, acceptance_review, feature_scope, requirement_analysis]
+    inputs: [task_id, requirement_source, project_context]
+    outputs: [requirement_cognition_record, open_questions, review_report, approval_gates]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_approval]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-PRODUCT-001
+    name: product-analysis
+    version: 1.0.0
+    file: .aimes/skills/product-analysis/SKILL.md
+    purpose: "按任务选择市场分析、战略定位、客户旅程和机会-解决方案树等产品分析方法"
+    triggers: [product_analysis, market_analysis, competitor_analysis, market_entry, strategic_positioning, customer_journey, opportunity_solution_tree, product_discovery]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [analysis_scope, evidence_ledger, key_findings, options_and_tradeoffs, open_questions, decision_recommendation]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-MKT-001
+    name: market-analysis
+    version: 0.2.0
+    file: .aimes/skills/market-analysis/SKILL.md
+    purpose: "市场、行业结构、竞争环境与市场进入分析"
+    triggers: [market_analysis, competitor_analysis, market_entry, industry_analysis]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [market_scope, five_forces, pestel_swot, evidence_ledger, market_recommendation]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [product-analysis]
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-FIN-001
+    name: financial-evaluation
+    version: 0.2.0
+    file: .aimes/skills/financial-evaluation/SKILL.md
+    purpose: "产品/项目的财务可行性、成本收益与投资回报评估"
+    triggers: [financial_evaluation, cost_benefit, roi_analysis, business_case]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [assumptions, cost_model, benefit_model, sensitivity_analysis, financial_recommendation]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [product-analysis]
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-STRATEGY-001
+    name: strategic-positioning
+    version: 0.2.0
+    file: .aimes/skills/strategic-positioning/SKILL.md
+    purpose: "产品定位、目标客户、差异化与战略选择"
+    triggers: [strategic_positioning, product_positioning, differentiation]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [target_segments, positioning_statement, differentiation_evidence, strategic_options]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [product-analysis]
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-OST-001
+    name: opportunity-solution-tree
+    version: 0.2.0
+    file: .aimes/skills/opportunity-solution-tree/SKILL.md
+    purpose: "从用户机会到解决方案、实验与优先级的结构化探索"
+    triggers: [opportunity_solution_tree, opportunity_discovery, solution_prioritization]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [opportunity_tree, solution_options, experiments, prioritization]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [product-analysis]
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-CJM-001
+    name: customer-journey-mapping
+    version: 0.2.0
+    file: .aimes/skills/customer-journey-mapping/SKILL.md
+    purpose: "客户旅程、体验痛点、关键时刻与改进机会分析"
+    triggers: [customer_journey, journey_mapping, experience_pain_points]
+    inputs: [product_or_market, decision_to_support, project_context]
+    outputs: [personas, journey_stages, pain_points, opportunities, action_plan]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [fabricate_sources, overwrite_user_changes, fabricate_verification]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [product-analysis]
+    validation_status: UNKNOWN
+    evidence: []
+  - id: SKL-CORE-ONB-001
+    name: project-onboarding
+    version: 0.3.0
+    file: .aimes/skills/project-onboarding/SKILL.md
+    purpose: "以当前仓库事实恢复项目目标、结构、状态和任务上下文，不依赖旧聊天作为唯一来源。"
+    triggers: [new_project, task_handoff, session_start]
+    inputs: [project_path, task_id, task_context]
+    outputs: [project_brief, evidence_map, open_questions, next_steps]
+    applies_to: [all]
+    risk_level: low
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+  - id: SKL-CORE-KNOW-001
+    name: project-knowledge-reuse
+    version: 0.3.0
+    file: .aimes/skills/project-knowledge-reuse/SKILL.md
+    purpose: "从项目代码、设计、测试、缺陷和历史任务中发现候选资产，评估适用性后决定复用、适配、模式迁移或不复用。"
+    triggers: [feature_implementation, bug_fix, similar_problem, refactoring]
+    inputs: [task_id, problem_statement, project_context]
+    outputs: [candidate_assets, reuse_decision_record, verification_plan]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+  - id: SKL-CORE-IMPACT-001
+    name: change-impact-analysis
+    version: 0.3.0
+    file: .aimes/skills/change-impact-analysis/SKILL.md
+    purpose: "在实施前识别变更对需求、模块、接口、数据、安全、测试、文档、部署和回滚的影响。"
+    triggers: [before_implementation, requirement_change, dependency_upgrade, bug_fix]
+    inputs: [task_id, change_description, project_context]
+    outputs: [impact_matrix, affected_assets, verification_plan, approval_items]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+  - id: SKL-CORE-ARCH-001
+    name: architecture-contract-review
+    version: 0.3.0
+    file: .aimes/skills/architecture-contract-review/SKILL.md
+    purpose: "检查方案是否符合既有架构边界、接口契约、数据模型、ADR、安全边界和兼容性要求。"
+    triggers: [architecture_change, public_api_change, data_model_change, integration_design]
+    inputs: [task_id, design_or_diff, project_context]
+    outputs: [contract_findings, decision_options, required_approvals, verification_plan]
+    applies_to: [all]
+    risk_level: high
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+  - id: SKL-CORE-IMPL-001
+    name: controlled-implementation
+    version: 0.3.0
+    file: .aimes/skills/controlled-implementation/SKILL.md
+    purpose: "按已批准需求和明确范围实施最小必要变更，保护用户修改并以真实证据报告结果。"
+    triggers: [approved_task, bug_fix, feature_implementation]
+    inputs: [task_id, approved_requirements, impact_analysis, project_context]
+    outputs: [implementation_diff, verification_results, traceability_updates, delivery_report]
+    applies_to: [all]
+    risk_level: high
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+  - id: SKL-CORE-TEST-001
+    name: requirement-driven-testing
+    version: 0.3.0
+    file: .aimes/skills/requirement-driven-testing/SKILL.md
+    purpose: "从批准需求和风险出发设计可判定的测试，覆盖主流程、边界、异常和回归，并如实记录执行证据。"
+    triggers: [new_feature, bug_fix, release_validation, requirement_change]
+    inputs: [task_id, approved_requirements, implementation_context]
+    outputs: [test_matrix, test_cases, execution_report, coverage_gaps]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [overwrite_user_changes, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+
+  - id: SKL-CORE-PROMPT-001
+    name: prompt-optimization
+    version: 1.0.0
+    file: .aimes/skills/prompt-optimization/SKILL.md
+    purpose: "优化提示词、项目指令、Agent/Skill 提示词和上下文工程，同时保留必要约束与硬门禁"
+    triggers: [prompt_optimization, prompt_review, prompt_refactoring, instruction_design, system_prompt, agent_prompt, skill_prompt, context_engineering, token_optimization, prompt_quality_audit]
+    inputs: [original_prompt, target_tool_and_mode, task_goal, acceptance_criteria, protected_constraints]
+    outputs: [diagnostic_findings, preservation_matrix, optimized_prompt, change_log, evaluation_plan, risk_and_unknowns]
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [delete_required_constraints, fabricate_token_usage, fabricate_verification, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: []
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []
+
+  - id: SKL-CORE-PM-001
+    name: product-manager
+    version: 1.0.0
+    file: .aimes/skills/product-manager/SKILL.md
+    purpose: 基于当前项目知识进行产品问题分析、用户价值与范围取舍，并生成包含项目事实、Skill 路由、执行步骤、门禁和验收标准的深度引导词。
+    triggers:
+    - generate_guidance_prompt
+    - deep_guidance
+    - product_discovery
+    - new_product_idea
+    - feature_ideation
+    - product_requirement
+    - project_knowledge_guidance
+    - premature_spec_detection
+    inputs:
+    - user_intent
+    - project_context
+    - relevant_project_knowledge
+    - target_tool_and_mode
+    outputs:
+    - product_problem_analysis
+    - project_knowledge_map
+    - options_and_tradeoffs
+    - open_questions
+    - skill_routing_plan
+    - deep_guidance_prompt
+    applies_to: [all]
+    risk_level: medium
+    required_capabilities: [read_project_files]
+    forbidden_actions: [assumption_as_fact, fabricate_project_evidence, premature_implementation, bypass_quality_gate]
+    prerequisites: [project_rules_loaded, git_state_checked]
+    dependencies: [project-onboarding, project-knowledge-reuse, requirement-cognition]
+    validation_status: UNKNOWN
+    evaluation_suite: EVAL-AIMES-PROMPT-BASELINE-V1
+    evidence: []

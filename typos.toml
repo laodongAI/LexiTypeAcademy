@@ -1,0 +1,2 @@
+[files]
+extend-exclude = ["docs/task-tracking.md", "docs/development/course-editor-function-map.md"]

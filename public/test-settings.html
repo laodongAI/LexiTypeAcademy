@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音频设置测试 - LexiType Academy</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+
+    .section h2 {
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+
+    .test-group {
+      margin-bottom: 20px;
+    }
+
+    .test-group h3 {
+      color: #555;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 5px 5px 5px 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    button.success {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    button.danger {
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+
+    .output {
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .output .log-item {
+      padding: 8px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      border-left: 3px solid #667eea;
+      background: #f8f9fa;
+    }
+
+    .output .log-time {
+      color: #999;
+      font-size: 11px;
+      margin-right: 10px;
+    }
+
+    .output .log-success {
+      border-left-color: #28a745;
+      background: #d4edda;
+    }
+
+    .output .log-error {
+      border-left-color: #dc3545;
+      background: #f8d7da;
+    }
+
+    .output .log-info {
+      border-left-color: #17a2b8;
+      background: #d1ecf1;
+    }
+
+    .config-display {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .config-display pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .badge-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .badge-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .badge-warning {
+      background: #ffc107;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎙️ 音频设置测试工具</h1>
+      <p>测试 AudioSettingsService 的配置管理功能</p>
+    </div>
+
+    <div class="content">
+      <!-- TTS测试 -->
+      <div class="section">
+        <h2>📢 TTS配置测试 <span class="badge badge-primary">语音合成</span></h2>
+        
+        <div class="test-group">
+          <h3>Provider切换测试</h3>
+          <button onclick="testTTSProvider('sherpa-onnx')">切换到 Sherpa-ONNX</button>
+          <button onclick="testTTSProvider('edge')">切换到 Edge TTS</button>
+          <button onclick="testTTSProvider('system')">切换到 System TTS</button>
+        </div>
+
+        <div class="test-group">
+          <h3>Sherpa配置测试</h3>
+          <button onclick="testSherpaSpeaker(0)">说话人 ID: 0</button>
+          <button onclick="testSherpaSpeaker(5)">说话人 ID: 5</button>
+          <button onclick="testSherpaSpeaker(10)">说话人 ID: 10</button>
+          <button onclick="testSherpaSpeed(1.0)" class="secondary">语速: 1.0x</button>
+          <button onclick="testSherpaSpeed(1.5)" class="secondary">语速: 1.5x</button>
+          <button onclick="testSherpaSpeed(0.8)" class="secondary">语速: 0.8x</button>
+        </div>
+
+        <div class="test-group">
+          <h3>读取TTS配置</h3>
+          <button onclick="loadTTSConfig()" class="success">📖 获取TTS配置</button>
+        </div>
+      </div>
+
+      <!-- ASR测试 -->
+      <div class="section">
+        <h2>🎤 ASR配置测试 <span class="badge badge-warning">语音识别</span></h2>
+        
+        <div class="test-group">
+          <h3>Provider切换测试</h3>
+          <button onclick="testASRProvider('sherpa-onnx')">切换到 Sherpa-ONNX</button>
+          <button onclick="testASRProvider('api')">切换到 API服务</button>
+        </div>
+
+        <div class="test-group">
+          <h3>语言配置测试</h3>
+          <button onclick="testASRLanguage('en-US')" class="secondary">English (US)</button>
+          <button onclick="testASRLanguage('zh-CN')" class="secondary">中文 (简体)</button>
+        </div>
+
+        <div class="test-group">
+          <h3>读取ASR配置</h3>
+          <button onclick="loadASRConfig()" class="success">📖 获取ASR配置</button>
+        </div>
+      </div>
+
+      <!-- 完整配置测试 -->
+      <div class="section">
+        <h2>⚙️ 完整配置管理 <span class="badge badge-success">导入/导出</span></h2>
+        
+        <div class="test-group">
+          <h3>配置操作</h3>
+          <button onclick="loadAllSettings()" class="success">📖 查看完整配置</button>
+          <button onclick="exportSettings()" class="secondary">💾 导出配置</button>
+          <button onclick="resetSettings()" class="danger">🔄 重置为默认</button>
+        </div>
+      </div>
+
+      <!-- 输出区域 -->
+      <div class="section">
+        <h2>📝 测试输出</h2>
+        <div id="output" class="output">
+          <div class="log-item log-info">
+            <span class="log-time">READY</span>
+            系统就绪,请开始测试...
+          </div>
+        </div>
+      </div>
+
+      <!-- 配置显示区域 -->
+      <div class="section">
+        <h2>🔍 配置详情</h2>
+        <div id="configDisplay" class="config-display">
+          <pre>等待加载配置...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // 导入AudioSettingsService
+    import { getAudioSettingsService } from '/src/infrastructure/audio/settings/index.ts';
+
+    const service = getAudioSettingsService();
+    let output = document.getElementById('output');
+    let configDisplay = document.getElementById('configDisplay');
+
+    // 日志函数
+    function log(message, type = 'info') {
+      const time = new Date().toLocaleTimeString('zh-CN');
+      const logItem = document.createElement('div');
+      logItem.className = `log-item log-${type}`;
+      logItem.innerHTML = `<span class="log-time">${time}</span>${message}`;
+      output.appendChild(logItem);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function displayConfig(config, title = '配置') {
+      configDisplay.innerHTML = `<pre><strong>${title}:</strong>\n\n${JSON.stringify(config, null, 2)}</pre>`;
+    }
+
+    // TTS Provider切换
+    window.testTTSProvider = function(provider) {
+      try {
+        service.updateTTSConfig({ provider });
+        log(`✅ TTS Provider已切换到: ${provider}`, 'success');
+        loadTTSConfig();
+      } catch (error) {
+        log(`❌ 切换失败: ${error.message}`, 'error');
+      }
+    };
+
+    // Sherpa说话人测试
+    window.testSherpaSpeaker = function(speakerId) {
+      try {
+        const currentConfig = service.getTTSConfig();
+        if (currentConfig.sherpa) {
+          service.updateTTSConfig({
+            sherpa: { speakerId, speed: currentConfig.sherpa.speed }
+          });
+          log(`✅ Sherpa说话人ID已设置为: ${speakerId}`, 'success');
+          loadTTSConfig();
+        } else {
+          log(`⚠️ 请先切换到Sherpa-ONNX提供者`, 'error');
+        }
+      } catch (error) {
+        log(`❌ 设置失败: ${error.message}`, 'error');
+      }
+    };
+
+    // Sherpa语速测试
+    window.testSherpaSpeed = function(speed) {
+      try {
+        const currentConfig = service.getTTSConfig();
+        if (currentConfig.sherpa) {
+          service.updateTTSConfig({
+            sherpa: { speakerId: currentConfig.sherpa.speakerId, speed }
+          });
+          log(`✅ Sherpa语速已设置为: ${speed}x`, 'success');
+          loadTTSConfig();
+        } else {
+          log(`⚠️ 请先切换到Sherpa-ONNX提供者`, 'error');
+        }
+      } catch (error) {
+        log(`❌ 设置失败: ${error.message}`, 'error');
+      }
+    };
+
+    // 加载TTS配置
+    window.loadTTSConfig = function() {
+      try {
+        const config = service.getTTSConfig();
+        log(`📖 TTS配置加载成功`, 'info');
+        displayConfig(config, 'TTS配置');
+      } catch (error) {
+        log(`❌ 加载失败: ${error.message}`, 'error');
+      }
+    };
+
+    // ASR Provider切换
+    window.testASRProvider = function(provider) {
+      try {
+        service.updateASRConfig({ provider });
+        log(`✅ ASR Provider已切换到: ${provider}`, 'success');
+        loadASRConfig();
+      } catch (error) {
+        log(`❌ 切换失败: ${error.message}`, 'error');
+      }
+    };
+
+    // ASR语言测试
+    window.testASRLanguage = function(language) {
+      try {
+        service.updateASRConfig({ language });
+        log(`✅ ASR语言已设置为: ${language}`, 'success');
+        loadASRConfig();
+      } catch (error) {
+        log(`❌ 设置失败: ${error.message}`, 'error');
+      }
+    };
+
+    // 加载ASR配置
+    window.loadASRConfig = function() {
+      try {
+        const config = service.getASRConfig();
+        log(`📖 ASR配置加载成功`, 'info');
+        displayConfig(config, 'ASR配置');
+      } catch (error) {
+        log(`❌ 加载失败: ${error.message}`, 'error');
+      }
+    };
+
+    // 加载所有配置
+    window.loadAllSettings = function() {
+      try {
+        const settings = service.storage.load();
+        log(`📖 完整配置加载成功`, 'info');
+        displayConfig(settings, '完整应用配置');
+      } catch (error) {
+        log(`❌ 加载失败: ${error.message}`, 'error');
+      }
+    };
+
+    // 导出配置
+    window.exportSettings = function() {
+      try {
+        const json = service.exportConfig();
+        log(`💾 配置已导出`, 'success');
+        
+        // 创建下载
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lexitype-settings-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        log(`📥 配置文件已下载`, 'success');
+      } catch (error) {
+        log(`❌ 导出失败: ${error.message}`, 'error');
+      }
+    };
+
+    // 重置配置
+    window.resetSettings = function() {
+      if (confirm('确定要重置所有配置吗?')) {
+        try {
+          service.resetAll();
+          log(`🔄 配置已重置为默认值`, 'success');
+          loadAllSettings();
+        } catch (error) {
+          log(`❌ 重置失败: ${error.message}`, 'error');
+        }
+      }
+    };
+
+    // 初始化
+    log(`✨ AudioSettingsService已加载`, 'success');
+    loadAllSettings();
+  </script>
+</body>
+</html>

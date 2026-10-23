@@ -1,0 +1,36 @@
+# 前端代码索引（renderer）
+
+- vue-app/src/renderer/layouts/MainLayout.vue：应用主壳（左侧导航 + 内容区）；内容区使用 max-width 容器与更接近原型的 sidebar 视觉（白底/细边框/轻量高亮）。
+- vue-app/src/renderer/views/SettingsPage.vue：设置页；从左侧 Tabs 改为单页分段（外观/TTS/ASR/打字/AI/学习/关于），并对齐“页面 header + 底边框输入风格”。
+- vue-app/src/renderer/views/LearningPlansPage.vue：学习计划页；已挂载路由 /plans 与侧边栏入口，当前仅做 UI 对齐原型（数据模型/调度待实现）。
+- vue-app/src/renderer/views/AIToolsOptimizedPage.vue：AI 生成课程入口页；页面 header + 生成方式选择 + 内嵌流程区（不再使用弹窗）；仍读取 query.tab 兼容旧路由。
+- vue-app/src/renderer/components/ai/AudioImportPanel.vue：音频上传→ASR 分段识别→AI 生成课程→保存。
+- vue-app/src/renderer/components/ai/CourseGeneratorPanel.vue：中文→英文翻译→AI 生成课程→保存。
+- vue-app/src/renderer/services/courseGenerationService.ts：课程生成服务层（中文→翻译→生成→CourseDraft 标准化），降低组件对 AIService 的耦合。
+- vue-app/src/renderer/services/ttsPrecacheService.ts：TTS 预缓存服务（生成后可选预缓存关键单元音频，后台执行，控制并发与上限）。
+- vue-app/src/renderer/components/ai/TextbookImportPanel.vue：出版社/系列/教材/单元引导→生成词汇课程→保存。
+- vue-app/src/renderer/views/CourseRepositoryPage.vue：课程仓库；加入学习/导入导出；可跳编辑器。
+- vue-app/src/renderer/views/MyLearningPage.vue：我的学习；继续学习跳课程详情；避免空路由。
+- vue-app/src/renderer/views/CourseDetailPage.vue：课程详情；路由参数 courseId；添加/编辑课时跳转编辑器（query.addLesson / query.lessonId）。
+- vue-app/src/renderer/views/CourseEditorPage.vue：课程编辑器；支持从详情页携带 query 定位课时/新增课时；保存回仓库。
+- vue-app/src/renderer/components/practice/DictationMode.vue：听写模式；接入 Teaching Engine 判定+提示 Level；可选 AI 教学反馈面板。
+- vue-app/src/renderer/components/practice/ImitationMode.vue：模仿/跟读模式；评分后接入 Teaching Engine 提示；可选 AI 教学反馈面板。
+- vue-app/src/renderer/components/practice/FollowMode.vue：跟读模式；评分后接入 Teaching Engine 提示；可选 AI 教学反馈面板。
+- vue-app/src/renderer/components/practice/TranslationMode.vue：翻译模式；提交后接入 Teaching Engine 相似度/提示；可选 AI 教学反馈面板。
+- vue-app/src/renderer/components/practice/TeachingFeedbackPanel.vue：教学反馈复用面板；统一渲染 summary/strengths/issues/nextSteps 与 nextHint。
+- vue-app/src/renderer/composables/useTeachingFeedback.ts：复用 AI 教学反馈状态与调用；对未配置 AI 自动降级。
+- vue-app/src/renderer/plugins/messageDefaults.ts：全局提示默认值；3s+可关闭+appendTo body。
+- vue-app/src/renderer/utils/aiCourseDraft.ts：AI 返回结构→CourseDraft 转换，统一课程落库形态。
+- vue-app/src/shared/utils/hash.ts：通用哈希/稳定 ID 工具（供生成单元与缓存 key 复用）。
+- vue-app/src/shared/services/ttsApiService.ts：TTS API 客户端；内存缓存 + IndexedDB(tssCacheItems) 持久化缓存，命中后返回 blob: URL。
+- vue-app/src/renderer/components/ai/AISettingsPanel.vue：AI 设置面板；按“页面 header + 分段 section + 底边框输入风格”对齐 uidesigen Settings 原型，保留现有字段与行为。
+- vue-app/src/renderer/router/index.ts：/ai、/ailab 兼容重定向到 /ai-tools?tab=audio（移除对话页）。
+- vue-app/src/renderer/views/LessonPracticePage.vue：练习页容器；顶部为沉浸式栏（返回/标题/进度/模式），主体为两栏（主练习区 + 右侧学习助手），右侧复用 TeachingFeedbackPanel 展示容器级教学反馈；provide 教学反馈上下文给各 mode 复用。
+- vue-app/src/renderer/composables/practiceAttemptContext.ts：练习事件上下文（courseId/lessonId）InjectionKey；供各模式在提交点落库。
+
+- vue-app/src/shared/services/teaching/teachingEngine.ts：教学引擎规则层；听写相似度/提示层级/发音评分提示。
+- vue-app/src/shared/services/ai/prompts/teachingFeedback.ts：教学反馈 Prompt；强制 JSON schema 便于稳定渲染。
+- vue-app/src/shared/services/practiceAttemptEventService.ts：PracticeAttemptEvent 写入服务；失败静默降级，不阻塞 UI。
+- vue-app/src/shared/database/repositories/practiceAttemptEventRepository.ts：practiceAttemptEvents 表的最小写入仓库。
+- vue-app/src/shared/services/unitReviewService.ts：消费 PracticeAttemptEvent，更新 unitId+mode 维度的 SM2 掌握度与 due 队列。
+- vue-app/src/shared/database/repositories/unitReviewRepository.ts：unitMasteryItems/unitReviewLogs 的读写仓库。

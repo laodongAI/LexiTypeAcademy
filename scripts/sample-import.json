@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Sample Course A",
+    "description": "Existing course to cause a duplicate",
+    "tags": ["demo"],
+    "difficulty": "beginner",
+    "type": "text",
+    "lessons": [
+      { "content": "Hello world.", "contentTranslation": "你好，世界。", "language": "en" }
+    ]
+  },
+  {
+    "title": "Imported Course B",
+    "description": "A new course",
+    "tags": ["imported"],
+    "difficulty": "custom",
+    "type": "text",
+    "lessons": [
+      { "content": "This is an imported lesson.", "contentTranslation": "这是导入的课时。", "language": "en" },
+      { "content": "Another sentence here.", "contentTranslation": "另一句在这里。", "language": "en" }
+    ]
+  }
+]

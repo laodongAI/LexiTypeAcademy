@@ -1,0 +1,204 @@
+# 英语课程体系建设功能设计文档
+
+结合系统现有的功能，开始开发新的功能，结合AI实验室，和英语课程两个功能模块，来实现英语课程体系建设。通过AI分层解析教材体系，最终生成适配系统课程类型的标准化内容。
+
+## 🧩 一、整体业务流程（分层递进式）
+
+1. **教材体系选择** → 2. **教材列表解析** → 3. **单元结构分析** → 4. **内容生成与课程构建**
+
+## 📚 二、分步操作设计（教师端）
+
+### Step 1：选择教材体系（可保存复用）
+**界面元素**：
+- 下拉菜单：出版社 → 教材系列 → 适用学段
+- 示例：
+    - 出版社：人民教育出版社
+    - 教材系列：PEP英语
+    - 适用学段：小学（G1-G6）
+- 操作按钮：[保存常用组合]（教师可命名保存，如“人教PEP小学”）
+
+**AI调用**：
+- 触发条件：选择教材系列后自动调用
+- 提示词：
+    > “请列出人民教育出版社PEP英语小学阶段的所有教材名称，按年级和学期排列，输出JSON格式：...”
+
+### Step 2：解析教材单元结构
+**界面元素**：
+- 树形控件：展示已选教材的单元列表（支持展开/折叠）
+- 示例：
+    ```text
+    英语三年级上册
+    ├─ Unit 1: Hello
+    ├─ Unit 2: Colours
+    └─ Unit 3: Animals
+    ```
+- 操作按钮：[解析单元]（针对单本教材）或[批量解析]（针对多本）
+
+**AI调用**：
+- 提示词（动态填充）：
+    > “请分析《人教PEP英语三年级上册》的目录结构，列出所有单元编号、标题及核心词汇主题，输出JSON：...”
+
+### Step 3：生成课程内容（按单元+课程类型）
+**界面元素**：
+- 多选矩阵：
+    - 横向：勾选单元（如Unit 1, Unit 2）
+    - 纵向：勾选课程类型（单词课、句子课、音标课）
+- 高级选项：
+    - 生成粒度：基础词汇 / 拓展词汇（单词课）
+    - 句型难度：简单对话 / 复杂句型（句子课）
+
+**AI提示词模板（按课程类型区分）**：
+- **单词课**：
+    > “基于《人教PEP英语三年级上册》Unit 1，生成以下内容：1. 核心词汇表... 2. 拓展词汇表... 3. 每词配1个教材例句”
+- **句子课**：
+    > “提取Unit 1的核心句型（5句），每句包含：英文原句、中文翻译、适用场景标签、1个替换练习示例”
+- **音标课（新增）**：
+    > “针对Unit 1中的单词（如apple, cat），生成音标练习内容：1. 目标音标... 2. 3个例词... 3. 1组最小对立对...”
+
+## ⚙️ 三、技术实现要点
+
+### 1. AI提示词工程
+- **变量动态填充**：
+    - `{publisher}`：出版社
+    - `{series}`：教材系列
+    - `{grade}`：年级
+    - `{semester}`：学期
+    - `{unit}`：单元号
+- **输出标准化**：
+    - 强制要求JSON格式
+    - 字段命名与数据库一致（如word, phonetic）
+
+### 2. 系统集成
+- **课程类型适配**：
+    - 单词表+例句 → 单词课程 → 复用 `word_course` 模型
+    - 句型+翻译 → 句子课程 → 复用 `sentence_course` 模型
+    - 音标+例词 → 自然拼读课程 → 复用 `phonics_course` 模型
+- **元数据绑定**：
+    - 自动关联教材、单元、知识点标签
+    - 生成课程名：`[{series} {grade}{semester}] U{unit}-{type}`
+
+### 3. 实现对齐（当前代码）
+
+- **中文生成入口**：renderer 侧通过服务函数统一“中文→翻译→生成→CourseDraft 标准化”，避免组件直接耦合 AIService 的具体 API 命名。
+  - 入口：vue-app/src/renderer/services/courseGenerationService.ts
+  - UI：vue-app/src/renderer/components/ai/CourseGeneratorPanel.vue
+- **教材体系生成入口**：保持四步 UI 不变，但收紧 AIService 返回类型与 options 传参，减少 any 并提升可维护性。
+  - UI：vue-app/src/renderer/components/ai/TextbookCourseSystemBuilder.vue
+  - AI：vue-app/src/shared/services/ai/aiService.ts（generateTextbookCourseContent 增加 overload）
+- **学习单元稳定 ID**：生成的 Lesson/LessonItem 使用基于内容的稳定 ID（用于 unitId 维度事件/复习的长期一致性）。
+  - 转换：vue-app/src/renderer/utils/aiCourseDraft.ts
+  - 工具：vue-app/src/shared/utils/hash.ts
+
+### 4. 音频生成与缓存策略（对齐 REQ）
+
+- **统一缓存写入**：TTS 生成成功后会把音频写入 IndexedDB（ttsCacheItems），用于重复播放与快速获取。
+  - 实现：vue-app/src/shared/services/ttsApiService.ts（先查内存，再查 IndexedDB，命中后返回 blob: URL）
+- **可选预缓存**：生成课程后可按需触发预缓存关键单元音频（默认关闭，后台执行，不阻塞生成）。
+  - 实现：vue-app/src/renderer/services/ttsPrecacheService.ts
+  - 入口：vue-app/src/renderer/services/courseGenerationService.ts（params.precacheTTS / precacheLimit）
+- **降级策略**：音频缺失或缓存写入失败时不阻塞学习流程；仍可进行翻译/听写文本类练习。
+
+## 🖥️ 四、界面交互优化
+
+### 1. 进度可视化
+- **分步进度条**：`[✓] 选择教材 → [✓] 解析单元 → [⚙️] 生成内容 → [✓] 完成`
+- **实时日志**：
+    ```text
+    日志：
+    → 2025-11-30 12:00：开始解析《人教PEP英语三年级上册》
+    → 2025-11-30 12:01：识别到6个单元
+    → 2025-11-30 12:02：正在生成Unit 1单词课...
+    ```
+
+### 2. 结果管理
+- **生成结果页**：
+    ```text
+    ✅ 成功生成18门课程
+    ├─ 单词课程：G3上-U1, U2, U3
+    ├─ 句子课程：G3上-U1, U2
+    └─ 音标课程：G3上-U1
+    [批量发布] [导出JSON] [返回修改]
+    ```
+- 支持单条内容编辑
+
+## 🔐 五、质量控制与容错
+
+| 风险 | 应对方案 |
+| --- | --- |
+| AI生成内容超纲 | 预置课标词库校验（过滤非课标词汇） |
+| 音标标注错误 | 接入权威音标数据库（如Cambridge Dictionary API）二次校验 |
+| 单元解析遗漏 | 提供“手动补充单元”入口（防AI漏识别） |
+| 生成中断 | 自动保存草稿，支持断点续生成 |
+
+## 🚀 六、价值总结
+
+- **效率提升**：1小时完成传统需1周的课程开发
+- **精准适配**：严格对齐教材单元与课标要求
+- **多模态支持**：覆盖单词、句子、音标全课程类型
+- **教师减负**：从“内容生产者”转型为“教学设计师”
+
+## 📝 提示词模板库
+
+### 1. 教材体系解析
+```json
+{
+  "prompt": "请列出{publisher}{series}教材的完整目录结构，按年级和学期输出教材名称，JSON格式：\n{\n  \"textbooks\": [\n    {\"grade\": \"G1\", \"semester\": \"上册\", \"name\": \"英语一年级上册\"},\n    {\"grade\": \"G1\", \"semester\": \"下册\", \"name\": \"英语一年级下册\"}\n  ]\n}",
+  "output_schema": {
+    "textbooks": [
+      { "grade": "年级", "semester": "学期", "name": "教材全称" }
+    ]
+  }
+}
+```
+
+### 2. 单元结构解析
+```json
+{
+  "prompt": "请分析《{textbook_name}》的目录，列出所有单元信息，JSON格式：\n{\n  \"units\": [\n    {\"unit_num\": 1, \"title\": \"Hello\", \"topics\": [\"greetings\", \"introductions\"]}\n  ]\n}",
+  "output_schema": {
+    "units": [
+      { "unit_num": "单元序号", "title": "单元标题", "topics": ["核心主题标签"] }
+    ]
+  }
+}
+```
+
+### 3. 课程内容生成
+
+#### 单词课程
+```json
+{
+  "prompt": "基于《{textbook_name}》{unit_title}，生成：\n1. 核心词汇表（{core_count}词）：英文单词、国际音标、词性、中文释义\n2. 拓展词汇表（{extra_count}词）：同主题关联词\n3. 每词配1个教材例句",
+  "output_schema": {
+    "core_words": [ { "word": "单词", "phonetic": "音标", "pos": "词性", "zh": "中文", "example": "例句" } ],
+    "extra_words": [ { "word": "拓展词", "phonetic": "音标", "pos": "词性", "zh": "中文", "example": "例句" } ]
+  }
+}
+```
+
+#### 句子课程
+```json
+{
+  "prompt": "提取《{textbook_name}》{unit_title}的核心句型（{sentence_count}句），每句包含：\n- 英文原句\n- 中文翻译\n- 适用场景标签\n- 1个替换练习示例",
+  "output_schema": {
+    "sentences": [ { "en": "英文句", "zh": "中文翻译", "scene": "场景标签", "substitution": "替换示例" } ]
+  }
+}
+```
+
+#### 音标课程
+```json
+{
+  "prompt": "针对《{textbook_name}》{unit_title}中的单词（如{sample_words}），生成音标练习：\n1. 目标音标及发音要领\n2. 3个例词及音标分解\n3. 1组最小对立对辨音练习",
+  "output_schema": {
+    "phonics": [
+      {
+        "target_sound": "目标音标",
+        "pronunciation": "发音要领",
+        "examples": [ { "word": "例词", "phonetic_breakdown": "音标分解" } ],
+        "minimal_pairs": [ { "word1": "对比词1", "word2": "对比词2", "explanation": "辨音说明" } ]
+      }
+    ]
+  }
+}
+```

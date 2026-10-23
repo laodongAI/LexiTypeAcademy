@@ -1,0 +1,747 @@
+<template>
+  <div class="textbook-builder">
+    <el-steps :active="activeStep" align-center>
+      <el-step title="教材选择" />
+      <el-step title="单元解析" />
+      <el-step title="内容生成" />
+      <el-step title="结果预览" />
+    </el-steps>
+
+    <el-alert
+      v-if="errorText"
+      type="error"
+      :closable="true"
+      show-icon
+      class="error-alert"
+      @close="errorText = ''"
+    >
+      {{ errorText }}
+    </el-alert>
+
+    <div class="step-content">
+      <div v-if="activeStep === 0" class="step-panel">
+        <el-form label-width="100px">
+          <el-form-item label="预设">
+            <div class="preset-row">
+              <el-select v-model="selectedPresetName" placeholder="选择预设" clearable style="min-width: 260px">
+                <el-option v-for="p in presets" :key="p.name" :label="p.name" :value="p.name" />
+              </el-select>
+              <el-button :disabled="!selectedPresetName" @click="applyPreset">应用</el-button>
+              <el-button plain @click="savePreset">保存为预设</el-button>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="出版社">
+            <el-input v-model="publisher" placeholder="例如：人民教育出版社" />
+          </el-form-item>
+
+          <el-form-item label="学段">
+            <el-input v-model="gradeLevel" placeholder="例如：小学（G1-G6）" />
+          </el-form-item>
+
+          <el-form-item label="教材系列">
+            <div class="inline-row">
+              <el-select v-model="series" filterable placeholder="自动获取/选择系列" style="width: 100%">
+                <el-option v-for="s in availableSeries" :key="s" :label="s" :value="s" />
+              </el-select>
+              <el-button :loading="loading" @click="refreshSeries">刷新</el-button>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="教材">
+            <div class="inline-row">
+              <el-select v-model="selectedTextbookName" filterable placeholder="自动获取/选择教材" style="width: 100%">
+                <el-option
+                  v-for="tb in textbooks"
+                  :key="tb.name"
+                  :label="`${tb.grade} ${tb.semester} - ${tb.name}`"
+                  :value="tb.name"
+                />
+              </el-select>
+              <el-button :loading="loading" @click="refreshTextbooks" :disabled="!publisher || !series">
+                刷新
+              </el-button>
+            </div>
+          </el-form-item>
+
+          <el-form-item>
+            <el-button type="primary" :disabled="!selectedTextbookName" @click="goNext">
+              下一步：解析单元
+            </el-button>
+          </el-form-item>
+        </el-form>
+
+        <el-divider content-position="left">缓存</el-divider>
+        <div class="cache-row">
+          <el-button size="small" @click="exportCache">导出缓存</el-button>
+          <el-button size="small" @click="importCache">导入缓存</el-button>
+          <el-button size="small" type="danger" plain @click="clearCache">清空缓存</el-button>
+        </div>
+      </div>
+
+      <div v-else-if="activeStep === 1" class="step-panel">
+        <div class="step-toolbar">
+          <el-button type="primary" :loading="loading" @click="parseUnits(false)" :disabled="!selectedTextbookName">解析单元</el-button>
+          <el-button :loading="loading" @click="parseUnits(true)" :disabled="!selectedTextbookName">强制刷新</el-button>
+        </div>
+
+        <el-table :data="units" stripe style="width: 100%">
+          <el-table-column label="选择" width="70">
+            <template #default="scope">
+              <el-checkbox v-model="scope.row.selected" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="unit_num" label="#" width="60" />
+          <el-table-column prop="title" label="单元标题" />
+          <el-table-column label="话题">
+            <template #default="scope">
+              <span>{{ (scope.row.topics || []).join('、') }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="scope">
+              <el-tag v-if="scope.row.generated" type="success">已生成</el-tag>
+              <el-tag v-else type="info">未生成</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-alert v-if="units.length === 0" type="info" :closable="false" show-icon style="margin-top: 12px;">
+          解析结果为空时，可尝试更换教材名称或系列。
+        </el-alert>
+
+        <div class="step-actions">
+          <el-button @click="goPrev">上一步</el-button>
+          <el-button type="primary" :disabled="selectedUnitsCount === 0" @click="goNext">下一步：生成内容</el-button>
+        </div>
+      </div>
+
+      <div v-else-if="activeStep === 2" class="step-panel">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-card>
+              <template #header>生成选项</template>
+
+              <el-form label-width="120px">
+                <el-form-item label="课程类型">
+                  <el-checkbox-group v-model="selectedCourseTypes">
+                    <el-checkbox label="words">单词（Words）</el-checkbox>
+                    <el-checkbox label="sentences">句子/课文（Sentences）</el-checkbox>
+                    <el-checkbox label="phonics">音标（Phonics）</el-checkbox>
+                  </el-checkbox-group>
+                </el-form-item>
+
+                <el-form-item v-if="selectedCourseTypes.includes('words')" label="核心词汇数">
+                  <el-input-number v-model="generationOptions.coreCount" :min="3" :max="30" />
+                </el-form-item>
+
+                <el-form-item v-if="selectedCourseTypes.includes('words')" label="拓展词汇数">
+                  <el-input-number v-model="generationOptions.extraCount" :min="0" :max="30" />
+                </el-form-item>
+
+                <el-form-item v-if="selectedCourseTypes.includes('phonics')" label="示例单词">
+                  <el-input v-model="generationOptions.sampleWords" placeholder="例如：apple, cat" />
+                </el-form-item>
+
+                <el-form-item>
+                  <el-button
+                    type="primary"
+                    :loading="generating"
+                    :disabled="selectedCourseTypes.length === 0 || selectedUnitsCount === 0"
+                    @click="startGenerate"
+                  >
+                    开始生成
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+
+          <el-col :span="12">
+            <el-card class="log-card">
+              <template #header>生成日志</template>
+              <div class="log-box">
+                <div v-if="generationLogs.length === 0" class="log-empty">等待开始...</div>
+                <div v-for="(l, idx) in generationLogs" :key="idx" class="log-line">{{ l }}</div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <div class="step-actions">
+          <el-button :disabled="generating" @click="goPrev">上一步</el-button>
+          <el-button type="primary" :disabled="!hasGenerated" @click="goNext">下一步：结果预览</el-button>
+        </div>
+      </div>
+
+      <div v-else class="step-panel">
+        <el-result
+          icon="success"
+          title="已生成预览"
+          sub-title="已按老版流程逐层获取并生成内容，接下来可在页面下方保存为课程。"
+        />
+
+        <div class="step-actions">
+          <el-button @click="activeStep = 2">返回修改生成选项</el-button>
+          <el-button type="primary" @click="restart">重新开始</el-button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { courseSystemStore, type TextbookMeta, type TextbookUnitMeta } from '../../../shared/services/courseSystemStore'
+import { ContentShape } from '../../../shared/types/course'
+import type { Course, Lesson, LessonItem } from '../../../shared/types/course'
+import type { AIService } from '../../../shared/services/ai'
+import { createStableId } from '../../../shared/utils/hash'
+
+type PendingCourseData = Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'lessonCount'>
+
+type CourseType = 'words' | 'sentences' | 'phonics'
+
+const props = defineProps<{ aiService: AIService | null; isAIConfigured: boolean }>()
+const emit = defineEmits<{
+  (e: 'preview', course: PendingCourseData): void
+  (e: 'require-config'): void
+}>()
+
+const activeStep = ref(0)
+const loading = ref(false)
+const generating = ref(false)
+const errorText = ref('')
+
+const publisher = ref('人民教育出版社')
+const gradeLevel = ref('小学（G1-G6）')
+const series = ref('')
+const availableSeries = ref<string[]>([])
+
+const textbooks = ref<TextbookMeta[]>([])
+const selectedTextbookName = ref('')
+
+type UnitRow = TextbookUnitMeta & { selected: boolean }
+const units = ref<UnitRow[]>([])
+
+const selectedCourseTypes = ref<CourseType[]>(['words'])
+const generationOptions = ref({
+  coreCount: 8,
+  extraCount: 5,
+  sampleWords: 'apple, cat'
+})
+
+const generationLogs = ref<string[]>([])
+const hasGenerated = ref(false)
+
+type Preset = { name: string; publisher: string; series: string; grade: string }
+const presets = ref<Preset[]>([])
+const selectedPresetName = ref<string>('')
+
+const selectedUnitsCount = computed(() => units.value.filter(u => u.selected).length)
+
+function getAIOrNull(): AIService | null {
+  if (!props.isAIConfigured || !props.aiService) {
+    emit('require-config')
+    return null
+  }
+  return props.aiService
+}
+
+function addLog(message: string) {
+  const ts = new Date().toLocaleTimeString()
+  generationLogs.value.push(`[${ts}] ${message}`)
+}
+
+function loadPresets() {
+  try {
+    const raw = localStorage.getItem('course_builder_presets')
+    presets.value = raw ? JSON.parse(raw) : []
+  } catch {
+    presets.value = []
+  }
+}
+
+function savePresets() {
+  try {
+    localStorage.setItem('course_builder_presets', JSON.stringify(presets.value))
+  } catch {
+    // ignore
+  }
+}
+
+function applyPreset() {
+  const preset = presets.value.find(p => p.name === selectedPresetName.value)
+  if (!preset) return
+  publisher.value = preset.publisher
+  gradeLevel.value = preset.grade
+  series.value = preset.series
+}
+
+async function savePreset() {
+  try {
+    const name = await ElMessageBox.prompt('请输入组合名称（如：人教PEP小学）', '保存预设', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消'
+    })
+    const presetName = (name.value || '').trim()
+    if (!presetName) return
+
+    presets.value = [...presets.value, { name: presetName, publisher: publisher.value, series: series.value, grade: gradeLevel.value }]
+    savePresets()
+    selectedPresetName.value = presetName
+    ElMessage.success('预设已保存')
+  } catch {
+    // canceled
+  }
+}
+
+async function loadSeries(forceRefresh = false) {
+  if (!publisher.value) return
+  const aiService = getAIOrNull()
+  if (!aiService) return
+
+  loading.value = true
+  errorText.value = ''
+  try {
+    if (!forceRefresh) {
+      const cached = courseSystemStore.getSeries(publisher.value)
+      if (cached && cached.length > 0) {
+        availableSeries.value = cached
+        if (!series.value) series.value = cached[0]
+        return
+      }
+    } else {
+      courseSystemStore.clearSeries(publisher.value)
+    }
+
+    const result = await aiService.fetchSeriesList(publisher.value)
+    const list = (result?.series || []).filter((s: any) => typeof s === 'string' && s.trim())
+    availableSeries.value = list
+    courseSystemStore.saveSeries(publisher.value, list)
+    if (!series.value && list.length > 0) series.value = list[0]
+  } catch (e: any) {
+    errorText.value = e?.message || '获取系列失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadTextbooks(forceRefresh = false) {
+  if (!publisher.value || !series.value) return
+  const aiService = getAIOrNull()
+  if (!aiService) return
+
+  loading.value = true
+  errorText.value = ''
+  textbooks.value = []
+  selectedTextbookName.value = ''
+
+  try {
+    const cached = forceRefresh ? null : courseSystemStore.getTextbooks(publisher.value, series.value, gradeLevel.value)
+    if (cached && cached.length > 0) {
+      textbooks.value = cached
+      selectedTextbookName.value = cached[0].name
+      return
+    }
+
+    if (forceRefresh) {
+      courseSystemStore.clearTextbooks(publisher.value, series.value, gradeLevel.value)
+    }
+
+    const result = await aiService.fetchTextbookList(publisher.value, series.value, gradeLevel.value)
+    const list = (result?.textbooks || []).filter((t: any) => t && t.name)
+    textbooks.value = list
+    courseSystemStore.saveTextbooks(publisher.value, series.value, list, gradeLevel.value)
+    if (list.length > 0) selectedTextbookName.value = list[0].name
+  } catch (e: any) {
+    errorText.value = e?.message || '获取教材失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function parseUnits(forceRefresh: boolean) {
+  if (!publisher.value || !series.value || !selectedTextbookName.value) {
+    ElMessage.warning('请先选择教材')
+    return
+  }
+  const aiService = getAIOrNull()
+  if (!aiService) return
+
+  loading.value = true
+  errorText.value = ''
+  try {
+    const cached = forceRefresh ? null : courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value)
+    if (cached && cached.length > 0) {
+      units.value = cached.map(u => ({ ...u, selected: true }))
+      return
+    }
+
+    if (forceRefresh) {
+      courseSystemStore.clearUnits(publisher.value, series.value, selectedTextbookName.value)
+    }
+
+    const result = await aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value)
+    const list: TextbookUnitMeta[] = (result?.units || []).map((u: any) => ({
+      unit_num: Number(u.unit_num) || 0,
+      title: String(u.title || '').trim(),
+      topics: Array.isArray(u.topics) ? u.topics.map((t: any) => String(t)) : [],
+      generated: false
+    })).filter((u: TextbookUnitMeta) => !!u.title)
+
+    courseSystemStore.saveUnits(publisher.value, series.value, selectedTextbookName.value, list)
+    units.value = list.map(u => ({ ...u, selected: true }))
+  } catch (e: any) {
+    errorText.value = e?.message || '解析单元失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function refreshSeries() {
+  loadSeries(true)
+}
+
+function refreshTextbooks() {
+  loadTextbooks(true)
+}
+
+function exportCache() {
+  const data = courseSystemStore.exportData()
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `course-system-cache-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function importCache() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  input.onchange = (e: any) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = evt => {
+      const content = String(evt.target?.result || '')
+      if (courseSystemStore.importData(content)) {
+        ElMessage.success('缓存导入成功')
+        loadSeries(false)
+        loadTextbooks(false)
+      } else {
+        ElMessage.error('缓存导入失败（格式错误）')
+      }
+    }
+    reader.readAsText(file)
+  }
+  input.click()
+}
+
+async function clearCache() {
+  try {
+    await ElMessageBox.confirm('确定要清空教材导入缓存吗？', '确认', {
+      confirmButtonText: '清空',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    courseSystemStore.clearAll()
+    availableSeries.value = []
+    textbooks.value = []
+    units.value = []
+    series.value = ''
+    selectedTextbookName.value = ''
+    ElMessage.success('缓存已清空')
+  } catch {
+    // canceled
+  }
+}
+
+async function startGenerate() {
+  const aiService = getAIOrNull()
+  if (!aiService) return
+  if (!selectedTextbookName.value) {
+    ElMessage.warning('请选择教材')
+    return
+  }
+
+  const selectedUnits = units.value.filter(u => u.selected)
+  if (selectedUnits.length === 0) {
+    ElMessage.warning('请至少选择一个单元')
+    return
+  }
+
+  const alreadyGenerated = selectedUnits.filter(u => u.generated)
+  if (alreadyGenerated.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `以下单元在缓存中标记为已生成：${alreadyGenerated.map(u => `Unit ${u.unit_num}`).join('、')}。仍要继续生成吗？`,
+        '重复生成确认',
+        { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+      )
+    } catch {
+      return
+    }
+  }
+
+  generating.value = true
+  hasGenerated.value = false
+  generationLogs.value = []
+
+  const lessons: Lesson[] = []
+
+  try {
+    addLog(`开始生成内容：教材《${selectedTextbookName.value}》，单元数 ${selectedUnits.length}`)
+
+    for (const unit of selectedUnits) {
+      const unitLabel = `Unit ${unit.unit_num}: ${unit.title}`
+      addLog(`处理 ${unitLabel}`)
+
+      for (const type of selectedCourseTypes.value) {
+        addLog(`  -> 生成 ${type}`)
+
+        try {
+          const now = Date.now()
+
+          if (type === 'words') {
+            const result = await aiService.generateTextbookCourseContent(
+              selectedTextbookName.value,
+              unitLabel,
+              'words',
+              { coreCount: generationOptions.value.coreCount, extraCount: generationOptions.value.extraCount }
+            )
+
+            const words = [...result.core_words, ...result.extra_words]
+            const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'words')
+
+            const items: LessonItem[] = words
+              .map((w, idx) => ({
+                id: createStableId('tb_word', lessonId, idx, String(w.word || '').trim()),
+                english: String(w.word || '').trim(),
+                chinese: String(w.zh || '').trim(),
+                phonetic: w.phonetic,
+                partOfSpeech: w.pos,
+                examples: w.example ? [String(w.example)] : undefined
+              }))
+              .filter((it) => !!it.english)
+
+            lessons.push({
+              id: lessonId,
+              title: `Unit ${unit.unit_num} 词汇`,
+              description: unit.title,
+              contentShape: ContentShape.Word,
+              items,
+              createdAt: now,
+              updatedAt: now
+            })
+          }
+
+          if (type === 'sentences') {
+            const result = await aiService.generateTextbookCourseContent(
+              selectedTextbookName.value,
+              unitLabel,
+              'sentences'
+            )
+
+            const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'sentences')
+            const items: LessonItem[] = result.sentences
+              .map((s, idx) => ({
+                id: createStableId('tb_sentence', lessonId, idx, String(s.en || '').trim()),
+                english: String(s.en || '').trim(),
+                chinese: String(s.zh || '').trim(),
+                examples: Array.isArray(s.keywords) ? s.keywords.map((k) => String(k)) : undefined
+              }))
+              .filter((it) => !!it.english)
+
+            lessons.push({
+              id: lessonId,
+              title: `Unit ${unit.unit_num} 课文`,
+              description: result.title ? String(result.title) : unit.title,
+              contentShape: ContentShape.Sentence,
+              items,
+              createdAt: now,
+              updatedAt: now
+            })
+          }
+
+          if (type === 'phonics') {
+            const result = await aiService.generateTextbookCourseContent(
+              selectedTextbookName.value,
+              unitLabel,
+              'phonics',
+              { sampleWords: generationOptions.value.sampleWords }
+            )
+
+            for (const p of result.phonics) {
+              const minimalPairs = Array.isArray(p.minimal_pairs)
+                ? p.minimal_pairs.map((mp) => `min-pair: ${mp.word1}/${mp.word2}${mp.explanation ? ` (${mp.explanation})` : ''}`)
+                : []
+
+              const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'phonics', p.target_sound)
+              const items: LessonItem[] = p.examples
+                .map((ex, idx) => ({
+                  id: createStableId('tb_phonics_word', lessonId, idx, String(ex.word || '').trim()),
+                  english: String(ex.word || '').trim(),
+                  chinese: p.pronunciation ? String(p.pronunciation) : '',
+                  phonetic: ex.phonetic_breakdown,
+                  examples: minimalPairs.length > 0 ? minimalPairs : undefined
+                }))
+                .filter((it) => !!it.english)
+
+              lessons.push({
+                id: lessonId,
+                title: `Unit ${unit.unit_num} 音标 ${p.target_sound}`,
+                description: String(p.pronunciation || ''),
+                contentShape: ContentShape.Word,
+                items,
+                createdAt: now,
+                updatedAt: now
+              })
+            }
+          }
+
+          addLog(`  ✓ ${type} 生成成功`)
+        } catch (e: any) {
+          addLog(`  ✗ ${type} 生成失败：${e?.message || String(e)}`)
+        }
+      }
+
+      // 标记该单元已生成（缓存层）
+      courseSystemStore.markUnitAsGenerated(publisher.value, series.value, selectedTextbookName.value, unit.title)
+      units.value = units.value.map(u => (u.title === unit.title ? { ...u, generated: true } : u))
+    }
+
+    addLog('全部任务完成')
+
+    const pendingCourse: PendingCourseData = {
+      title: `${publisher.value}${series.value}《${selectedTextbookName.value}》`,
+      description: `教材导入生成（${gradeLevel.value}，单元数：${selectedUnits.length}，类型：${selectedCourseTypes.value.join(', ')}）`,
+      category: 'special',
+      difficulty: 'intermediate',
+      lessons,
+      tags: ['教材', publisher.value, series.value, gradeLevel.value, 'AI'].filter(Boolean)
+    }
+
+    emit('preview', pendingCourse)
+    hasGenerated.value = true
+    activeStep.value = 3
+  } finally {
+    generating.value = false
+  }
+}
+
+function goNext() {
+  if (activeStep.value < 3) activeStep.value++
+}
+
+function goPrev() {
+  if (activeStep.value > 0) activeStep.value--
+}
+
+function restart() {
+  activeStep.value = 0
+  hasGenerated.value = false
+  generationLogs.value = []
+}
+
+watch(publisher, async () => {
+  availableSeries.value = []
+  textbooks.value = []
+  units.value = []
+  series.value = ''
+  selectedTextbookName.value = ''
+  hasGenerated.value = false
+  await loadSeries(false)
+})
+
+watch([publisher, series, gradeLevel], async () => {
+  if (!publisher.value || !series.value) return
+  await loadTextbooks(false)
+})
+
+watch(selectedTextbookName, async () => {
+  if (!selectedTextbookName.value) return
+  if (activeStep.value >= 1) {
+    await parseUnits(false)
+  }
+})
+
+onMounted(async () => {
+  loadPresets()
+  await loadSeries(false)
+})
+</script>
+
+<style scoped lang="scss">
+.textbook-builder {
+  margin-top: 8px;
+}
+
+.error-alert {
+  margin: 12px 0;
+}
+
+.step-content {
+  margin-top: 16px;
+}
+
+.step-panel {
+  padding: 8px 0;
+}
+
+.inline-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cache-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.step-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.step-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.log-card {
+  height: 100%;
+}
+
+.log-box {
+  height: 260px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.log-empty {
+  color: var(--text-color-placeholder);
+}
+
+.log-line {
+  white-space: pre-wrap;
+}
+</style>

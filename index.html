@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: http: ws: wss:; img-src 'self' data:; media-src 'self' blob: data: http: https:; worker-src 'self' blob:;">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>键语学苑 - LexiType Academy</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <!-- Fonts: Inter & Noto Sans SC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    window.addEventListener('error', function(event) {
+      console.error('Early Global Error:', event.error);
+      if (window.electron && window.electron.log) {
+        window.electron.log('error', `Early Global Error: ${event.message}\nStack: ${event.error?.stack}`);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('Early Unhandled Rejection:', event.reason);
+      if (window.electron && window.electron.log) {
+        window.electron.log('error', `Early Unhandled Rejection: ${event.reason}`);
+      }
+    });
+  </script>
+</head>
+<body class="bg-white">
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+</html>
