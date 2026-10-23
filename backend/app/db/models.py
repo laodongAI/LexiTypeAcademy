@@ -1,7 +1,9 @@
-"""业务数据模型（14 张表）。
+"""业务数据模型（17 张表）。
 
 来源：
-    由前端 Dexie（IndexedDB 库 LexiTypeAcademyDB）的 15 个 objectStore 1:1 映射而来。
+    由前端 Dexie（IndexedDB 库 LexiTypeAcademyDB）的 15 个 objectStore 1:1 映射而来，
+    另新增 3 张学习计划表（study_plans / study_plan_tasks / study_plan_checkins），
+    属于后端独有能力，不对应任何 Dexie 集合。
     按既定决策跳过 ttsCacheItems（音频 Blob 可重建，且换引擎后缓存键失效）。
 
 约定：
@@ -15,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Boolean, Float, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -392,8 +394,107 @@ class UnitReviewLog(Base):
     extra: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
 
+class StudyPlan(Base):
+    """学习计划表（后端独有能力，无 Dexie 对应集合）。
+
+    说明：
+        一个计划可关联多个课程，并按每日时长目标安排学习；
+        计划的「课时任务」不落库，由课程进度动态派生，避免出现第二事实源。
+    """
+
+    __tablename__ = "study_plans"
+
+    # 计划 ID（字符串主键，由前端生成 UUID）
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # 计划标题
+    title: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
+    # 计划描述（可选）
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 关联课程 ID 数组（JSON，顺序即学习优先级）
+    course_ids: Mapped[Optional[list[Any]]] = mapped_column(JSON, nullable=True)
+    # 每日学习时长目标（分钟）
+    daily_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    # 计划开始时间（毫秒时间戳）
+    start_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # 计划目标完成时间（毫秒时间戳，可选）
+    target_at: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 计划状态：active（进行中）/ paused（已暂停）/ completed（已完成）
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="active", index=True
+    )
+    # 是否开启页面内提醒（今日学习时长未达标时展示横幅）
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # 创建时间（毫秒时间戳）
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # 更新时间（毫秒时间戳）
+    updated_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+
+class StudyPlanTask(Base):
+    """学习计划自定义每日任务表。
+
+    说明：
+        只保存用户自建的额外任务；课时任务实时派生，不写入本表。
+        due_date 为空表示「每天重复」，否则只在指定日期出现。
+    """
+
+    __tablename__ = "study_plan_tasks"
+
+    # 任务 ID（字符串主键）
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # 所属计划 ID（删除计划时级联清理）
+    plan_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    # 任务标题
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    # 计划执行日期（毫秒，当天 00:00；为空表示每天重复）
+    due_date: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    # 完成时间（毫秒时间戳；为空表示未完成）
+    done_at: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 创建时间（毫秒时间戳）
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # 更新时间（毫秒时间戳）
+    updated_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+
+class StudyPlanCheckin(Base):
+    """学习计划每日打卡快照表。
+
+    说明：
+        打卡时把当日学习结果固化为快照，历史回顾读取快照而不是实时重算，
+        避免后续练习记录被删除导致历史数据失真。
+        (plan_id, checkin_date) 唯一：同一天重复打卡按覆盖处理。
+    """
+
+    __tablename__ = "study_plan_checkins"
+
+    # 打卡记录的约束：同计划同一天只能有一条
+    __table_args__ = (
+        UniqueConstraint("plan_id", "checkin_date", name="uq_study_plan_checkins_plan_date"),
+    )
+
+    # 打卡记录 ID（字符串主键）
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # 所属计划 ID
+    plan_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    # 打卡日期（毫秒，当天 00:00，用于唯一约束与倒推连续天数）
+    checkin_date: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # 当日学习时长快照（分钟）
+    minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 当日完成课时数快照
+    lesson_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 当日完成自定义任务数快照
+    custom_task_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 当日复习单词数快照
+    review_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 打卡备注（可选）
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 创建时间（毫秒时间戳）
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+
 # 前端 Dexie 集合名 → ORM 模型 的映射表
 # 说明：迁移导入按此映射逐表处理，新增表时必须同步维护
+# 注意：学习计划三张表是后端独有能力，无 Dexie 来源，故不登记在此映射中
 TABLE_MODEL_MAP: dict[str, type[Base]] = {
     "courses": Course,
     "lessons": Lesson,

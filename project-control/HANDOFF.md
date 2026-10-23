@@ -8,13 +8,13 @@
 - 已完成：真实存量数据迁移（旧 React 版 `LexiTypeDB` v80：27 条掌握度 + 142 条复习日志），17/17 校验 PASS。
 - 已完成：批次B（后端业务 CRUD + 前端仓储切 HTTP）。后端新增 `courses/practice/review/records` 四组路由；前端新增 `apiClient.ts`，5 个仓储改为 HTTP，页面与服务不再直连 Dexie（TTS Blob 缓存除外）。
 - 已完成：批次C 切片1（统计页真实聚合）。练习记录新增 `totalItems/correctItems/wpm`（Alembic `c1a2b3d4e5f6` 已应用），练习页采集真实耗时/题量/WPM，统计页去除随机数，进步曲线“完成度”改为“题量”。
+- 已完成：批次C 切片2（学习计划完整版）。新增 `study_plans/study_plan_tasks/study_plan_checkins` 三表（Alembic `d4b5c6e7f8a9` 已应用）与 `/api/study-plans`、`/api/study-plan-tasks`、`/api/study-plan-checkins` 三组路由；`LearningPlansPage.vue` 重写为多计划列表 + 详情看板 + 打卡 + 历史回顾，派生口径只在 `GET /api/study-plans/{id}/dashboard` 实现。
 
 ## 下一步
 
-1. 批次C 切片2：学习计划需求与数据模型设计（已提交用户确认，确认后再实现）。
-2. AI 能力后端化前，先确认用户使用的模型服务商与密钥管理方式。
-3. 设置页数据管理接入后端 `/api/migration/import` 后，下线 `shared/database/dataMigration.ts`。
-4. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB），需该端口释放后执行。
+1. 批次D：AI 能力后端化。先确认用户使用的模型服务商与密钥管理方式，再实现统一代理（密钥只留在本地后端）。
+2. 设置页数据管理接入后端 `/api/migration/import` 后，下线 `shared/database/dataMigration.ts`。
+3. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB），需该端口释放后执行。
 
 ## 环境事实
 

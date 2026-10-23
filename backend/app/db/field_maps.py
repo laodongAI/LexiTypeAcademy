@@ -3,6 +3,7 @@
 职责：
 - 声明「前端 Dexie camelCase 字段」→「SQLite snake_case 列」的映射关系
 - 同时供数据迁移导入（app/services/migration/importer.py）与业务 REST API 使用
+- 学习计划三张表为后端独有能力、无 Dexie 来源，映射条目仅服务 REST 契约
 
 说明：
     字段映射是前后端契约的一部分，必须只有一处定义。
@@ -182,5 +183,41 @@ FIELD_MAPS: dict[str, dict[str, str]] = {
         "level": "level",
         "weakDimensions": "weak_dimensions",
         "extra": "extra",
+    },
+    # ------------------------------------------------------------------
+    # 学习计划（后端独有能力）：前端字段 → 数据库列
+    # ------------------------------------------------------------------
+    "studyPlans": {
+        "id": "id",
+        "title": "title",
+        "description": "description",
+        "courseIds": "course_ids",
+        "dailyMinutes": "daily_minutes",
+        "startAt": "start_at",
+        "targetAt": "target_at",
+        "status": "status",
+        "reminderEnabled": "reminder_enabled",
+        "createdAt": "created_at",
+        "updatedAt": "updated_at",
+    },
+    "studyPlanTasks": {
+        "id": "id",
+        "planId": "plan_id",
+        "title": "title",
+        "dueDate": "due_date",
+        "doneAt": "done_at",
+        "createdAt": "created_at",
+        "updatedAt": "updated_at",
+    },
+    "studyPlanCheckins": {
+        "id": "id",
+        "planId": "plan_id",
+        "checkinDate": "checkin_date",
+        "minutes": "minutes",
+        "lessonCount": "lesson_count",
+        "customTaskCount": "custom_task_count",
+        "reviewCount": "review_count",
+        "note": "note",
+        "createdAt": "created_at",
     },
 }

@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 0 | .gitignore、git 基线、旧版归档到 `legacy/` | DONE |
 | 1 | 前后端骨架：`frontend/`（Vue3+Vite）、`backend/`（FastAPI）、`scripts/` | DONE |
-| 2 | 数据层：14 张业务表 ORM、Alembic、IndexedDB 导出/导入与 17 项校验 | DONE |
+| 2 | 数据层：14 张业务表 ORM、Alembic、IndexedDB 导出/导入与 17 项校验（批次C 扩展至 17 张） | DONE |
 | 3 | 语音后端化：`/api/tts/*`、`/api/asr/*`、模型懒加载、缓存 | DONE |
 
 ## 二、当前迭代（阶段4 · 批次A：可交付性修复）
@@ -71,6 +71,26 @@
 - 测试记录已删除，`GET /api/practice-records` → `{"items":[],"total":0}`
 - 前端 `npm run build` → `✓ built in 36.19s`；后端 `compileall` → exit=0
 
+## 三·补二、阶段4 · 批次C 切片2：学习计划完整版（DONE）
+
+| 交付物 | 状态 | 证据 |
+| --- | --- | --- |
+| 后端三张表与迁移 | DONE | `StudyPlan/StudyPlanTask/StudyPlanCheckin`（`models.py`）；Alembic `d4b5c6e7f8a9` 已应用，含 `(plan_id, checkin_date)` 唯一约束 |
+| 字段映射唯一来源扩展 | DONE | `field_maps.py` 新增 `studyPlans/studyPlanTasks/studyPlanCheckins` 三组 camel→snake 映射 |
+| 学习计划 REST | DONE | `backend/app/api/routers/study_plans.py`：计划 CRUD、自定义任务 CRUD、打卡 upsert、看板聚合；`main.py` 注册三组路由 |
+| 派生口径唯一实现 | DONE | 课时任务由 `lessons + course_progress` 派生（最多 3 个）；今日分钟/课时数取当日练习记录；到期复习与 `/api/review/stats` 同口径；连续打卡由打卡日期倒推 |
+| 前端类型与仓储 | DONE | `shared/types/studyPlan.ts`、`shared/database/repositories/studyPlanRepository.ts`（全部走 `apiClient`） |
+| 学习计划页面 | DONE | `LearningPlansPage.vue` 重写：计划卡片（进度/今日目标/状态/剩余天数）、新建编辑对话框（多课程/每日分钟/起止日期/提醒）、详情（课时任务一键开始、到期复习入口、自定义任务、打卡、历史回顾、页面内提醒横幅） |
+
+### 批次C 切片2 实测证据（2026-10-24，后端 8010）
+
+- `POST /api/study-plans` → 201（返回完整字段与默认值）；`GET/PUT/DELETE` → 2xx；删除时级联清理 `deleted_tasks=1`、`deleted_checkins=1`
+- 派生校验：写入一条 30 分钟练习记录（`duration=1800000`）+ 完成 1 个自定义任务后，`GET /dashboard` 返回 `minutes=30, goalPercent=100, lessonCount=1, customTaskDone=1, dueReviewCount=27`
+- 打卡：首次 POST 自动固化 `minutes=30, lessonCount=1, customTaskCount=1, reviewCount=0`；同日再次 POST 覆盖 `minutes=35` 且保留原 `id/createdAt`；`streakDays=1`、`weekCompletionRate=0.14`
+- 浏览器实测 `/plans`：空状态 → 新建计划 → 卡片与详情渲染 → 添加并完成任务（摘要 1/1）→ 打卡（按钮变“今日已打卡”、历史出现记录）→ 暂停/恢复，全部通过；无应用级控制台错误，无 4xx/5xx
+- 测试数据已全部清理：`GET /api/study-plans` → `{"items":[],"total":0}`，测试练习记录已删除
+- 前端 `npm run build` → `✓ built in 36.62s`；后端 `compileall` → exit=0
+
 ## 四、未完成功能清单（按学习闭环优先级）
 
 | 优先级 | 功能 | 现状 | 关键依据 |
@@ -79,7 +99,7 @@
 | ~~P0~~ | ~~前端数据源与后端统一~~ 已完成 | 5 个仓储全部走 HTTP；仅 TTS Blob 缓存留在 IndexedDB | `shared/services/apiClient.ts`、`shared/database/repositories/*` |
 | ~~P0~~ | ~~真实存量数据迁移~~ 已完成 | 27 条掌握度 + 142 条复习日志已入库，17/17 校验通过 | 见“真实迁移证据” |
 | ~~P1~~ | ~~统计页真实数据~~ 已完成（批次C 切片1） | 练习记录补齐 `totalItems/correctItems/wpm`，统计页去除随机数与模拟完成度 | 见“批次C 切片1 实测证据” |
-| P1 | 学习计划页 | 页面占位，无数据模型；需求与建模待用户确认 | `LearningPlansPage.vue`、`router` 注释“数据模型待实现” |
+| ~~P1~~ | ~~学习计划页~~ 已完成（批次C 切片2） | 多计划、自定义每日任务、打卡快照、页面内提醒、历史回顾均已落地 | 见“批次C 切片2 实测证据” |
 | P1 | AI 对话/课程生成 | 前端直连模型服务；后端无 AI 代理 | `AIPage.vue` 为未挂载的旧页面 |
 | P1 | 资源工坊（YouTube 字幕导入） | 仅有旧的 mock 导入逻辑，无后端 | `AILabPage.vue`（未挂载） |
 | P2 | 游戏成绩持久化 | 结束不上报 | `GameCenterPage.vue` |
@@ -89,7 +109,7 @@
 
 ## 五、后续执行计划
 
-1. **批次C（P1）**：统计页真实聚合已完成；学习计划需求分析与建模待用户确认后实现。
+1. **批次C（P1）**：统计页真实聚合（切片1）与学习计划完整版（切片2）均已完成。
 2. **批次D（P1）**：AI 能力后端化（统一代理、密钥留在本地后端），再接前端。
 3. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
 4. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。
