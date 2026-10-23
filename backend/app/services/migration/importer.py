@@ -27,6 +27,7 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.db.base import ENGINE, session_scope
 from app.db.models import SKIPPED_COLLECTIONS, TABLE_MODEL_MAP, UnitMasteryItem, WordMasteryItem
+from app.services.migration.legacy_react import convert_legacy_payload, is_legacy_payload
 
 # 模块级日志器
 logger = get_logger(__name__)
@@ -663,12 +664,14 @@ def _write_report(report: dict[str, Any]) -> Path:
     return report_path
 
 
-def run_import(file_path: Path, mode: str = "replace") -> dict[str, Any]:
-    """执行完整迁移流程：读取 → 校验结构 → 备份 → 导入 → 校验 → 出报告。
+def run_import(file_path: Path, mode: str = "replace", adapter: str = "auto") -> dict[str, Any]:
+    """执行完整迁移流程：读取 → 适配 → 校验结构 → 备份 → 导入 → 校验 → 出报告。
 
     参数：
         file_path: 前端导出的 JSON 文件路径。
         mode: 导入模式，当前仅支持 replace。
+        adapter: 来源适配策略；auto 自动识别旧 React 版，none 不做适配，
+            legacy-react 强制按旧版规则转换。
 
     返回：
         完整报告字典。
@@ -681,10 +684,16 @@ def run_import(file_path: Path, mode: str = "replace") -> dict[str, Any]:
         datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
     )
 
-    logger.info("开始迁移，报告 ID=%s，文件=%s，模式=%s", report_id, file_path, mode)
+    logger.info("开始迁移，报告 ID=%s，文件=%s，模式=%s，适配=%s", report_id, file_path, mode, adapter)
 
     # 1. 读取与结构校验
     payload = load_export_payload(file_path)
+
+    # 1.1 旧版数据适配：把 LexiTypeDB 的字段映射为当前 schema
+    # 说明：适配后仍保留真实 dbName，便于报告回溯数据来源
+    if adapter == "legacy-react" or (adapter == "auto" and is_legacy_payload(payload)):
+        payload = convert_legacy_payload(payload)
+
     payload_info = validate_payload(payload)
 
     # 2. 备份现有数据库（可回滚）
@@ -716,6 +725,9 @@ def run_import(file_path: Path, mode: str = "replace") -> dict[str, Any]:
             "schema_version": payload_info["schema_version"],
         },
         "mode": mode,
+        "adapter": adapter,
+        # 旧版适配元数据：当前 schema 来源不包含该字段时为 None
+        "legacy_source": payload.get("legacySource"),
         "backup_path": str(backup_path),
         "skipped_collections": list(SKIPPED_COLLECTIONS),
         "warnings": payload_info["warnings"],

@@ -38,11 +38,17 @@ def main() -> int:
         choices=["replace"],
         help="导入模式（当前仅支持 replace：整表替换）",
     )
+    parser.add_argument(
+        "--adapter",
+        default="auto",
+        choices=["auto", "none", "legacy-react"],
+        help="来源适配：auto 自动识别旧 React 版（LexiTypeDB），none 不做适配",
+    )
     parser.add_argument("--json", action="store_true", help="以 JSON 输出完整报告")
     args = parser.parse_args()
 
     try:
-        report = run_import(args.file, mode=args.mode)
+        report = run_import(args.file, mode=args.mode, adapter=args.adapter)
     except MigrationError as exc:
         logger.error("迁移失败：%s", exc)
         return 1
@@ -54,6 +60,13 @@ def main() -> int:
         print("=" * 72)
         print(f"报告 ID   : {report['report_id']}")
         print(f"数据来源  : {report['source']['db_name']} / origin={report['source']['origin']}")
+        # 旧版适配信息：仅旧版数据迁移时存在
+        legacy_source = report.get("legacy_source")
+        if legacy_source:
+            print(f"适配器    : {legacy_source.get('adapter')}（源库 v{legacy_source.get('source_db_version')}）")
+            dropped = legacy_source.get("dropped_collections") or {}
+            if dropped:
+                print(f"丢弃集合  : {dropped}")
         print(f"备份文件  : {report['backup_path']}")
         print(f"报告文件  : {report.get('report_path', '(未写入)')}")
         print("-" * 72)

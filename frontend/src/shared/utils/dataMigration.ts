@@ -233,7 +233,9 @@ export class DataMigration {
       'perfect': 5,
       'correct': 4,
       'hard': 3,
-      'wrong': 0
+      'wrong': 0,
+      // 旧版实际使用的错答标记，必须显式映射为 0，否则会被下面的默认值当成 4
+      'incorrect': 0
     };
     return qualityMap[result] || 4;
   }
