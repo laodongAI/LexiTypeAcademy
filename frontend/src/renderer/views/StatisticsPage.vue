@@ -10,7 +10,7 @@
     <el-row :gutter="20" class="overview-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="总学习时长" :value="stats.totalHours" suffix="小时" :precision="1">
+          <el-statistic title="总学习时长" :value="stats.totalMinutes" suffix="分钟" :precision="0">
             <template #prefix>
               <el-icon color="#409EFF"><Clock /></el-icon>
             </template>
@@ -71,7 +71,7 @@
               <el-select v-model="progressMetric" size="small" @change="loadProgressChart">
                 <el-option label="准确率" value="accuracy" />
                 <el-option label="WPM" value="wpm" />
-                <el-option label="完成度" value="completion" />
+                <el-option label="题量" value="totalItems" />
               </el-select>
             </div>
           </template>
@@ -150,7 +150,7 @@ let timeChart: ECharts | null = null
 
 // 统计数据
 const stats = ref({
-  totalHours: 0,
+  totalMinutes: 0,
   totalPractice: 0,
   avgWpm: 0,
   avgAccuracy: 0,
@@ -169,12 +169,31 @@ async function loadStats() {
     
     if (allRecords.length > 0) {
       stats.value.totalPractice = allRecords.length
-      stats.value.totalHours = allRecords.reduce((sum, r) => sum + r.duration, 0) / 3600000 // 毫秒转小时
+      // 总学习时长：耗时字段单位毫秒，换算为分钟后四舍五入（Element Plus 的小数位是截断显示，分钟更直观）
+      stats.value.totalMinutes = Math.round(
+        allRecords.reduce((sum, r) => sum + r.duration, 0) / 60000
+      )
+      // 平均准确率：沿用记录中的原始口径（0-100）
       stats.value.avgAccuracy = allRecords.reduce((sum, r) => sum + r.accuracy, 0) / allRecords.length
-      
-      // 计算平均 WPM（假设有 WPM 数据）
-      // TODO: 需要扩展 PracticeRecord 类型包含 WPM
+
+      // 平均 WPM：只统计真实采集到 WPM 的记录，历史空值不参与平均，避免被 0 拉低
+      const wpmRecords = allRecords.filter(r => typeof r.wpm === 'number' && (r.wpm as number) > 0)
+      stats.value.avgWpm = wpmRecords.length > 0
+        ? wpmRecords.reduce((sum, r) => sum + (r.wpm as number), 0) / wpmRecords.length
+        : 0
+      console.debug(
+        '[statistics] 概览聚合完成：记录=%d，有 WPM 的记录=%d，平均 WPM=%s',
+        allRecords.length,
+        wpmRecords.length,
+        stats.value.avgWpm.toFixed(1)
+      )
+    } else {
+      // 无记录时显式清零，避免残留上一次的统计值
+      stats.value.totalPractice = 0
+      stats.value.totalMinutes = 0
+      stats.value.avgAccuracy = 0
       stats.value.avgWpm = 0
+      console.debug('[statistics] 暂无练习记录，概览统计显示为 0')
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
@@ -293,25 +312,36 @@ async function loadProgressChart() {
     
     records.reverse() // 按时间正序
     
-    const dates = records.map(r => new Date(r.completedAt).toLocaleDateString())
+    // 有效指标的记录与日期：只保留真实采集到对应字段的记录，避免空值被画成 0
+    let chartDates: string[] = []
     let data: number[] = []
     let yAxisName = ''
     
     switch (progressMetric.value) {
       case 'accuracy':
+        // 准确率：所有记录都有该字段
+        chartDates = records.map(r => new Date(r.completedAt).toLocaleDateString())
         data = records.map(r => r.accuracy)
         yAxisName = '准确率 (%)'
         break
-      case 'wpm':
-        // TODO: 需要 WPM 数据
-        data = records.map(() => Math.random() * 100 + 50) // 模拟数据
+      case 'wpm': {
+        // WPM：仅键盘输入类练习有值，语音类与历史记录为空
+        const wpmRecords = records.filter(r => typeof r.wpm === 'number' && (r.wpm as number) > 0)
+        chartDates = wpmRecords.map(r => new Date(r.completedAt).toLocaleDateString())
+        data = wpmRecords.map(r => Math.round((r.wpm as number) * 10) / 10)
         yAxisName = 'WPM'
+        console.debug('[statistics] WPM 进步曲线：有效记录=%d/%d', wpmRecords.length, records.length)
         break
-      case 'completion':
-        // TODO: 需要完成度数据
-        data = records.map(() => Math.random() * 100) // 模拟数据
-        yAxisName = '完成度 (%)'
+      }
+      case 'totalItems': {
+        // 题量：仅新采集的记录有值
+        const itemRecords = records.filter(r => typeof r.totalItems === 'number' && (r.totalItems as number) > 0)
+        chartDates = itemRecords.map(r => new Date(r.completedAt).toLocaleDateString())
+        data = itemRecords.map(r => r.totalItems as number)
+        yAxisName = '题量'
+        console.debug('[statistics] 题量进步曲线：有效记录=%d/%d', itemRecords.length, records.length)
         break
+      }
     }
     
     if (!progressChart) {
@@ -331,7 +361,7 @@ async function loadProgressChart() {
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: dates,
+        data: chartDates,
       },
       yAxis: {
         type: 'value',

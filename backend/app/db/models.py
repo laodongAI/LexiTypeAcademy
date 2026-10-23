@@ -118,6 +118,12 @@ class PracticeRecord(Base):
     completed_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     # 错误项目 ID 数组
     incorrect_item_ids: Mapped[Optional[list[Any]]] = mapped_column(JSON, nullable=True)
+    # 本次练习总题数（历史记录可能为空，表示未采集）
+    total_items: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 本次练习答对题数（历史记录可能为空，表示未采集）
+    correct_items: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 打字速度（词/分钟，按已输入字符数 / 5 / 分钟计算；语音类练习为空）
+    wpm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
 
 class LearningList(Base):

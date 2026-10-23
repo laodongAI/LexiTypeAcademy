@@ -203,6 +203,8 @@ const lessonItems = ref<LessonItem[]>([])
 const lessonTitle = ref('')
 const answers = ref<Array<{ itemId: string; correct: boolean; answer?: string }>>([])
 const showResultDialog = ref(false)
+// 本次练习开始时间（毫秒时间戳）：用于统计真实耗时与 WPM，未开始时为 0
+const practiceStartedAt = ref(0)
 
 // 练习模式列表
 const practiceModeslist = [
@@ -295,6 +297,9 @@ function startPractice() {
   practiceStarted.value = true
   currentIndex.value = 0
   answers.value = []
+  // 记录开始时刻：后续 finishPractice 用它计算真实耗时
+  practiceStartedAt.value = Date.now()
+  console.debug('[practice] 开始练习：课程=%s，课时=%s，模式=%s', courseId.value, lessonId.value, currentMode.value)
 }
 
 // 处理答案
@@ -318,15 +323,44 @@ function handleNext() {
 
 // 完成练习
 async function finishPractice() {
-  // 记录练习结果
+  // 完成时刻：与开始时刻配合得到真实耗时
+  const finishedAt = Date.now()
+  // 真实耗时（毫秒）：开始时刻缺失时退化为 0，避免出现负数污染统计
+  const duration = practiceStartedAt.value > 0
+    ? Math.max(0, finishedAt - practiceStartedAt.value)
+    : 0
+
+  // 已输入文本的总字符数：仅听写/翻译等键盘输入模式会产生 answer 文本
+  const typedCharacters = answers.value.reduce(
+    (sum, item) => sum + (item.answer ? item.answer.length : 0),
+    0
+  )
+  // 有效时长（分钟）：用于 WPM 换算
+  const minutes = duration / 60000
+  // WPM = 字符数 / 5 / 分钟；无输入文本或无有效耗时时不写入该字段
+  const wpm = typedCharacters > 0 && minutes > 0
+    ? Math.round((typedCharacters / 5 / minutes) * 10) / 10
+    : undefined
+
+  // 记录练习结果（含题量、正确数与打字速度）
   await courseStore.recordPractice({
     courseId: courseId.value,
     lessonId: lessonId.value,
     mode: currentMode.value as PracticeMode,
     accuracy: accuracy.value,
-    duration: 0, // TODO: 记录实际耗时
-    incorrectItemIds: answers.value.filter(a => !a.correct).map(a => a.itemId)
+    duration,
+    incorrectItemIds: answers.value.filter(a => !a.correct).map(a => a.itemId),
+    totalItems: totalItems.value,
+    correctItems: correctCount.value,
+    wpm
   })
+  console.info(
+    '[practice] 练习已完成：题目=%s，正确=%s，耗时=%sms，WPM=%s',
+    totalItems.value,
+    correctCount.value,
+    duration,
+    wpm ?? '无'
+  )
   
   // 如果准确率达到80%，标记课时完成
   if (accuracy.value >= 80) {
@@ -342,6 +376,8 @@ function handleRetry() {
   feedbackState.reset()
   currentIndex.value = 0
   answers.value = []
+  // 重置开始时刻：保证重练的耗时只统计本轮
+  practiceStartedAt.value = Date.now()
 }
 
 // 完成并返回

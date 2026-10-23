@@ -55,6 +55,22 @@
 - 后端 `compileall` → exit=0
 - 浏览器联调：首页、练习中心、统计页无 `[api]` 报错；写入测试课程后，课程仓库页与「我的学习」页均渲染出该课程（测试数据随后删除）
 
+## 三·补、阶段4 · 批次C 切片1：统计页真实聚合（DONE）
+
+| 交付物 | 状态 | 证据 |
+| --- | --- | --- |
+| 练习记录扩展字段 | DONE | `PracticeRecord` 新增 `total_items/correct_items/wpm`（可空）；`field_maps.py` 同步映射 |
+| Alembic 迁移 | DONE | `alembic/versions/20261024_1000_c1a2b3d4e5f6_practice_metrics.py`；`upgrade head` 执行成功，库内版本 `c1a2b3d4e5f6` |
+| 练习页采集真实指标 | DONE | `LessonPracticePage.vue`：真实耗时、总题数、正确数、WPM（字符数/5/分钟，语音模式无 WPM） |
+| 统计页去除模拟数据 | DONE | `StatisticsPage.vue`：平均 WPM 取真实值；进步曲线“完成度”改为“题量”，WPM/题量仅取有效记录；总时长改为分钟 |
+
+### 批次C 切片1 实测证据（2026-10-24，后端 8010）
+
+- `POST /api/practice-records`（含 `totalItems/correctItems/wpm`）→ 201，响应回显新字段；`GET /api/practice-records?limit=2` → 200，`totalItems/correctItems/wpm` 均正确返回（修复前旧进程会告警“存在未映射字段，已忽略”）
+- 浏览器实测 `/statistics`（2 条测试记录：60s+120s、WPM 42.5/45）：总学习时长 3 分钟、总练习次数 2、平均 WPM 43、平均准确率 87.5%；WPM 与题量曲线各 2 个真实数据点；控制台无 error/Vue 警告
+- 测试记录已删除，`GET /api/practice-records` → `{"items":[],"total":0}`
+- 前端 `npm run build` → `✓ built in 36.19s`；后端 `compileall` → exit=0
+
 ## 四、未完成功能清单（按学习闭环优先级）
 
 | 优先级 | 功能 | 现状 | 关键依据 |
@@ -62,8 +78,8 @@
 | ~~P0~~ | ~~后端业务 CRUD（课程/课时/进度/练习/复习）~~ 已完成 | 4 组业务路由已上线并实测 | 见“批次B 实测证据” |
 | ~~P0~~ | ~~前端数据源与后端统一~~ 已完成 | 5 个仓储全部走 HTTP；仅 TTS Blob 缓存留在 IndexedDB | `shared/services/apiClient.ts`、`shared/database/repositories/*` |
 | ~~P0~~ | ~~真实存量数据迁移~~ 已完成 | 27 条掌握度 + 142 条复习日志已入库，17/17 校验通过 | 见“真实迁移证据” |
-| P1 | 学习计划页 | 页面占位，无数据模型 | `router` 注释“数据模型待实现” |
-| P1 | 统计页真实数据 | WPM/完成率使用随机数；记录缺 WPM 字段 | `StatisticsPage.vue` |
+| ~~P1~~ | ~~统计页真实数据~~ 已完成（批次C 切片1） | 练习记录补齐 `totalItems/correctItems/wpm`，统计页去除随机数与模拟完成度 | 见“批次C 切片1 实测证据” |
+| P1 | 学习计划页 | 页面占位，无数据模型；需求与建模待用户确认 | `LearningPlansPage.vue`、`router` 注释“数据模型待实现” |
 | P1 | AI 对话/课程生成 | 前端直连模型服务；后端无 AI 代理 | `AIPage.vue` 为未挂载的旧页面 |
 | P1 | 资源工坊（YouTube 字幕导入） | 仅有旧的 mock 导入逻辑，无后端 | `AILabPage.vue`（未挂载） |
 | P2 | 游戏成绩持久化 | 结束不上报 | `GameCenterPage.vue` |
@@ -73,7 +89,7 @@
 
 ## 五、后续执行计划
 
-1. **批次C（P1）**：统计页真实聚合（补 WPM/完成度数据来源）；学习计划需求分析与建模。
+1. **批次C（P1）**：统计页真实聚合已完成；学习计划需求分析与建模待用户确认后实现。
 2. **批次D（P1）**：AI 能力后端化（统一代理、密钥留在本地后端），再接前端。
 3. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
 4. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。

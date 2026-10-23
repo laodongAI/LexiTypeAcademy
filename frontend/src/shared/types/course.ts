@@ -181,6 +181,12 @@ export interface PracticeRecord {
   completedAt: number;
   /** 错误的项目ID列表 */
   incorrectItemIds?: string[];
+  /** 本次练习总题数（未采集时为空） */
+  totalItems?: number;
+  /** 本次练习答对题数（未采集时为空） */
+  correctItems?: number;
+  /** 打字速度（词/分钟，仅键盘输入类练习有值） */
+  wpm?: number;
 }
 
 /**

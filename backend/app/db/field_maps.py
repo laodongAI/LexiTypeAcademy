@@ -58,6 +58,10 @@ FIELD_MAPS: dict[str, dict[str, str]] = {
         "duration": "duration",
         "completedAt": "completed_at",
         "incorrectItemIds": "incorrect_item_ids",
+        # 批次C 新增：真实统计所需的题量与打字速度字段
+        "totalItems": "total_items",
+        "correctItems": "correct_items",
+        "wpm": "wpm",
     },
     "learningList": {
         "courseId": "course_id",
