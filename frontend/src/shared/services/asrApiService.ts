@@ -6,7 +6,8 @@
 
 // API 配置
 const ASR_API_CONFIG = {
-  baseURL: import.meta.env.VITE_ASR_API_URL || 'http://localhost:3000',
+  // 本地单机后端默认地址；可在 .env 中通过 VITE_ASR_API_URL 覆盖
+  baseURL: import.meta.env.VITE_ASR_API_URL || 'http://127.0.0.1:8010',
   timeout: 60000,
   maxRetry: 2,
 }
@@ -85,7 +86,45 @@ export interface SegmentASRResponse {
   error?: string
 }
 
+// 健康检查响应接口
+export interface ASRHealthResponse {
+  /** 引擎标识 */
+  engine?: string
+  /** 模型文件是否就绪 */
+  modelReady?: boolean
+  /** 模型是否已加载到内存 */
+  loaded?: boolean
+  /** 采样率 */
+  sampleRate?: number
+  /** 识别语言配置 */
+  language?: string
+  /** 加载错误信息 */
+  error?: string | null
+}
+
 class ASRApiService {
+  /**
+   * 查询后端 ASR 健康状态
+   *
+   * 说明：
+   *   仅访问本地后端 /api/asr/health，不触发模型加载，
+   *   用于设置页“测试语音服务”按钮展示真实状态。
+   */
+  async health(): Promise<ASRHealthResponse> {
+    const url = `${ASR_API_CONFIG.baseURL}/api/asr/health`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    return (await response.json()) as ASRHealthResponse
+  }
+
   /**
    * 识别语音
    */

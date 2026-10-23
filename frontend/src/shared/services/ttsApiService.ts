@@ -10,7 +10,8 @@ import { databaseReady } from '../database'
 
 // API 配置
 const TTS_API_CONFIG = {
-  baseURL: import.meta.env.VITE_TTS_API_URL || 'http://localhost:3000',
+  // 本地单机后端默认地址；可在 .env 中通过 VITE_TTS_API_URL 覆盖
+  baseURL: import.meta.env.VITE_TTS_API_URL || 'http://127.0.0.1:8010',
   timeout: 30000,
   maxRetry: 3,
 }
@@ -44,6 +45,32 @@ export interface TTSResponse {
   error?: string
   /** 错误码 */
   code?: string
+  /** 实际使用的引擎标识（后端返回） */
+  engine?: string
+  /** 实际输出格式（后端返回，如 wav/mp3/ogg） */
+  format?: string
+  /** 采样率（后端返回） */
+  sampleRate?: number
+  /** 后端缓存键（后端返回） */
+  cacheKey?: string
+}
+
+// 健康检查响应接口
+export interface TTSHealthResponse {
+  /** 引擎标识 */
+  engine?: string
+  /** 引擎名称 */
+  engineName?: string
+  /** 模型文件是否就绪 */
+  modelReady?: boolean
+  /** 模型是否已加载到内存 */
+  loaded?: boolean
+  /** 采样率 */
+  sampleRate?: number
+  /** 单次合成字符上限 */
+  maxChars?: number
+  /** 加载错误信息 */
+  error?: string | null
 }
 
 // 缓存接口
@@ -361,6 +388,28 @@ class TTSApiService {
     }
   }
   
+  /**
+   * 查询后端 TTS 健康状态
+   *
+   * 说明：
+   *   仅访问本地后端 /api/tts/health，不触发模型加载，
+   *   用于设置页“测试语音服务”按钮展示真实状态。
+   */
+  async health(): Promise<TTSHealthResponse> {
+    const url = `${TTS_API_CONFIG.baseURL}/api/tts/health`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    return (await response.json()) as TTSHealthResponse
+  }
+
   /**
    * 清除缓存
    */

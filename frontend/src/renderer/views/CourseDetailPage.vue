@@ -138,20 +138,20 @@
               <el-button
                 type="primary"
                 size="small"
-                @click="handleStartPractice(row)"
+                @click="handleStartPractice(row as Lesson)"
               >
                 开始练习
               </el-button>
               <el-button
                 size="small"
                 :icon="Edit"
-                @click="handleEditLesson(row)"
+                @click="handleEditLesson(row as Lesson)"
               />
               <el-button
                 size="small"
                 type="danger"
                 :icon="Delete"
-                @click="handleDeleteLesson(row)"
+                @click="handleDeleteLesson(row as Lesson)"
               />
             </template>
           </el-table-column>

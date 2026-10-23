@@ -264,14 +264,14 @@
                 v-if="!row.inLearningList"
                 type="primary"
                 size="small"
-                @click="addToLearning(row)"
+                @click="addToLearning(row as Course)"
               >
                 加入学习
               </el-button>
-              <el-button size="small" @click="goToCourse(row)">
+              <el-button size="small" @click="goToCourse(row as Course)">
                 查看
               </el-button>
-              <el-dropdown @command="(cmd) => handleCourseAction(cmd, row)">
+              <el-dropdown @command="(cmd) => handleCourseAction(cmd, row as Course)">
                 <el-button size="small" text>
                   <el-icon><MoreFilled /></el-icon>
                 </el-button>

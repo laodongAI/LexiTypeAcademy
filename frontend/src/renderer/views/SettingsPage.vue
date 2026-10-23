@@ -64,7 +64,7 @@
         </el-form-item>
 
         <el-form-item v-if="settings.ttsProvider === 'http'" label="API 地址">
-          <el-input v-model="settings.ttsHttpEndpoint" placeholder="http://localhost:3000" />
+          <el-input v-model="settings.ttsHttpEndpoint" placeholder="http://127.0.0.1:8010" />
         </el-form-item>
 
         <el-form-item label="语音">
@@ -84,7 +84,9 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="testTTS">测试 TTS</el-button>
+          <el-button type="primary" :loading="ttsTesting" @click="testTTS">
+            {{ ttsTesting ? '测试中…' : '测试 TTS' }}
+          </el-button>
         </el-form-item>
       </el-form>
     </section>
@@ -104,7 +106,7 @@
         </el-form-item>
 
         <el-form-item v-if="settings.asrProvider === 'http'" label="API 地址">
-          <el-input v-model="settings.asrHttpEndpoint" placeholder="http://localhost:3000" />
+          <el-input v-model="settings.asrHttpEndpoint" placeholder="http://127.0.0.1:8010" />
         </el-form-item>
 
         <el-form-item label="识别语言">
@@ -115,7 +117,9 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="testASR">测试 ASR</el-button>
+          <el-button type="primary" :loading="asrTesting" @click="testASR">
+            {{ asrTesting ? '检查中…' : '测试 ASR' }}
+          </el-button>
         </el-form-item>
       </el-form>
     </section>
@@ -267,6 +271,9 @@ import { useSettingsStore, ThemeType } from '../stores'
 import { loadAIConfig, saveAIConfig, getDefaultConfig, getSupportedModels, resetAIConfig as resetAIConfigUtil } from '../../shared/services/ai/aiConfig'
 import type { AIProvider } from '../../shared/services/ai/aiTypes'
 import { getAIService, resetAIService } from '../../shared/services/ai'
+// 语音服务客户端：用于设置页真实连通性测试
+import { getTTSApiService } from '../../shared/services/ttsApiService'
+import { getASRApiService } from '../../shared/services/asrApiService'
 
 // 设置 store
 const settingsStore = useSettingsStore()
@@ -336,16 +343,103 @@ function handleProviderChange(provider: string) {
   settings.aiModel = defaultConfig.model || ''
 }
 
-// 测试 TTS
-function testTTS() {
-  // TODO: 调用 TTS API 测试
-  ElMessage.success('TTS 测试成功')
+// 语音测试中的状态：避免重复点击触发并发请求
+const ttsTesting = ref(false)
+const asrTesting = ref(false)
+
+// 测试 TTS：真实请求后端 /api/tts/generate 并播放返回音频
+async function testTTS() {
+  if (ttsTesting.value) {
+    return
+  }
+
+  ttsTesting.value = true
+
+  try {
+    const service = getTTSApiService()
+    // 使用与学习链路一致的短句，覆盖中英混读能力
+    const result = await service.generate({
+      text: '语音合成测试，欢迎使用键语学苑。',
+      language: 'zh',
+      rate: settings.ttsSpeed,
+    })
+
+    // 后端业务失败：按契约返回 success=false，给出具体原因
+    if (!result.success) {
+      ElMessage.error(`TTS 测试失败：${result.error || '未知错误'}`)
+      return
+    }
+
+    // 命中 IndexedDB 持久化缓存时只返回 blob URL，不返回 base64，两种形态都要支持
+    let playableSource = result.url || ''
+    if (result.audio) {
+      // 根据实际输出格式选择 MIME，避免浏览器无法解码 data URL
+      const mimeType =
+        result.format === 'mp3'
+          ? 'audio/mpeg'
+          : result.format === 'ogg'
+            ? 'audio/ogg'
+            : 'audio/wav'
+      playableSource = `data:${mimeType};base64,${result.audio}`
+    }
+
+    if (!playableSource) {
+      ElMessage.error('TTS 测试失败：未返回可播放音频')
+      return
+    }
+
+    // 播放合成结果；自动播放被浏览器拦截时不影响测试结论
+    const audio = new Audio(playableSource)
+    audio.volume = Math.min(Math.max(settings.ttsVolume, 0), 1)
+    await audio.play().catch(() => undefined)
+
+    ElMessage.success(
+      result.duration
+        ? `TTS 测试成功：${result.duration}s，引擎 ${result.engine || 'melo'}`
+        : `TTS 测试成功：引擎 ${result.engine || 'melo'}`
+    )
+  } catch (error) {
+    ElMessage.error(
+      `TTS 服务不可达：${error instanceof Error ? error.message : '未知错误'}`
+    )
+  } finally {
+    ttsTesting.value = false
+  }
 }
 
-// 测试 ASR
-function testASR() {
-  // TODO: 调用 ASR API 测试
-  ElMessage.success('ASR 测试成功')
+// 测试 ASR：检查本地后端识别模型是否就绪
+async function testASR() {
+  if (asrTesting.value) {
+    return
+  }
+
+  asrTesting.value = true
+
+  try {
+    const health = await getASRApiService().health()
+
+    // 模型加载失败或文件缺失时给出明确指引
+    if (health.error) {
+      ElMessage.error(`ASR 模型异常：${health.error}`)
+      return
+    }
+
+    if (!health.modelReady) {
+      ElMessage.error('ASR 模型文件未就绪，请检查 backend/models/asr/sensevoice')
+      return
+    }
+
+    ElMessage.success(
+      `ASR 服务正常：${health.engine || 'sensevoice'}，` +
+        `${health.sampleRate || 16000}Hz${health.loaded ? '（已加载）' : '（首次识别时加载）'}`
+    )
+  } catch (error) {
+    ElMessage.error(
+      `ASR 服务不可达：${error instanceof Error ? error.message : '未知错误'}`
+    )
+  } finally {
+    asrTesting.value = false
+  }
 }
 
 // 测试 AI 配置
