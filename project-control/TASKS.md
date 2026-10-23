@@ -91,6 +91,13 @@
 - 测试数据已全部清理：`GET /api/study-plans` → `{"items":[],"total":0}`，测试练习记录已删除
 - 前端 `npm run build` → `✓ built in 36.62s`；后端 `compileall` → exit=0
 
+## 三·补三、阶段4 · 批次D 需求与设计（DONE，待评审后实现）
+
+- 设计文档：`docs/design/ai-backend-proxy-v1.md`
+- 关键决策：密钥只进 `backend/.env`；后端提供 OpenAI 兼容透传 `/api/ai/chat`（含 SSE）；前端 `AIService` 接口不变，只替换 provider 为 `BackendAIProvider`；设置页改为只读状态 + 测试连接
+- 实施切片：D1 后端代理与单测 → D2 前端切换 → D3 设置页 → D4 清理与全链路验收
+- 待用户确认：默认沿用 DashScope OpenAI 兼容端点；是否具备真实 API Key（无 Key 时用 Mock 上游完成开发验收）
+
 ## 四、未完成功能清单（按学习闭环优先级）
 
 | 优先级 | 功能 | 现状 | 关键依据 |
@@ -100,7 +107,7 @@
 | ~~P0~~ | ~~真实存量数据迁移~~ 已完成 | 27 条掌握度 + 142 条复习日志已入库，17/17 校验通过 | 见“真实迁移证据” |
 | ~~P1~~ | ~~统计页真实数据~~ 已完成（批次C 切片1） | 练习记录补齐 `totalItems/correctItems/wpm`，统计页去除随机数与模拟完成度 | 见“批次C 切片1 实测证据” |
 | ~~P1~~ | ~~学习计划页~~ 已完成（批次C 切片2） | 多计划、自定义每日任务、打卡快照、页面内提醒、历史回顾均已落地 | 见“批次C 切片2 实测证据” |
-| P1 | AI 对话/课程生成 | 前端直连模型服务；后端无 AI 代理 | `AIPage.vue` 为未挂载的旧页面 |
+| P1 | AI 对话/课程生成 | 需求与设计已完成（批次D，`docs/design/ai-backend-proxy-v1.md`），待评审后实现 | 前端直连模型服务；后端无 AI 代理 |
 | P1 | 资源工坊（YouTube 字幕导入） | 仅有旧的 mock 导入逻辑，无后端 | `AILabPage.vue`（未挂载） |
 | P2 | 游戏成绩持久化 | 结束不上报 | `GameCenterPage.vue` |
 | P2 | 设置页数据导出/导入/清空 | 仅提示成功，未真正执行 | `AISettingsPanel` |
@@ -110,7 +117,7 @@
 ## 五、后续执行计划
 
 1. **批次C（P1）**：统计页真实聚合（切片1）与学习计划完整版（切片2）均已完成。
-2. **批次D（P1）**：AI 能力后端化（统一代理、密钥留在本地后端），再接前端。
+2. **批次D（P1）**：设计已产出，待评审；评审通过后按 D1 后端代理 → D2 前端切换 → D3 设置页 → D4 清理验收 实施。
 3. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
 4. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。
 5. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB）尚未导出，该端口被其它项目占用，待端口释放后执行。

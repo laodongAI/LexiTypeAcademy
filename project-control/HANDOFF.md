@@ -12,7 +12,7 @@
 
 ## 下一步
 
-1. 批次D：AI 能力后端化。先确认用户使用的模型服务商与密钥管理方式，再实现统一代理（密钥只留在本地后端）。
+1. 批次D：设计已产出（`docs/design/ai-backend-proxy-v1.md`），待评审；通过后按 D1 后端代理与单测 → D2 前端 `BackendAIProvider` 切换 → D3 设置页只读状态 → D4 清理与全链路验收实施。密钥只放 `backend/.env`。
 2. 设置页数据管理接入后端 `/api/migration/import` 后，下线 `shared/database/dataMigration.ts`。
 3. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB），需该端口释放后执行。
 
