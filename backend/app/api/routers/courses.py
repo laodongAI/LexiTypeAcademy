@@ -398,20 +398,23 @@ def create_lesson(course_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-@router.put("/{course_id}/lessons/{lesson_id}")
-def update_lesson(course_id: str, lesson_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """更新课时字段（部分更新）。
+def _apply_lesson_updates(
+    lesson_id: str,
+    payload: dict[str, Any],
+    course_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """更新课时字段的共用实现。
 
     参数：
-        course_id: 所属课程 ID。
         lesson_id: 课时 ID。
         payload: 需要更新的字段（camelCase）。
+        course_id: 提供时校验课时归属，避免跨课程修改。
 
     返回：
         更新后的课时字典。
 
     异常：
-        HTTPException: 课时不存在或不属于该课程时返回 404。
+        HTTPException: 课时不存在或归属不匹配时返回 404。
     """
     values, _ = extract_write_values("lessons", payload)
 
@@ -423,11 +426,13 @@ def update_lesson(course_id: str, lesson_id: str, payload: dict[str, Any]) -> di
 
     with session_scope() as session:
         lesson: Lesson | None = session.get(Lesson, lesson_id)
-        if lesson is None or lesson.course_id != course_id:
-            raise HTTPException(
-                status_code=404,
-                detail=f"课时不存在或不属于课程：{lesson_id}",
+        if lesson is None or (course_id is not None and lesson.course_id != course_id):
+            detail: str = (
+                f"课时不存在或不属于课程：{lesson_id}"
+                if course_id is not None
+                else f"课时不存在：{lesson_id}"
             )
+            raise HTTPException(status_code=404, detail=detail)
 
         for column, value in values.items():
             setattr(lesson, column, value)
@@ -439,27 +444,28 @@ def update_lesson(course_id: str, lesson_id: str, payload: dict[str, Any]) -> di
     return result
 
 
-@router.delete("/{course_id}/lessons/{lesson_id}")
-def delete_lesson(course_id: str, lesson_id: str) -> dict[str, Any]:
-    """删除课时，并清理该课时的练习记录。
+def _delete_lesson_with_records(lesson_id: str, course_id: Optional[str] = None) -> dict[str, Any]:
+    """删除课时并清理练习记录的共用实现。
 
     参数：
-        course_id: 所属课程 ID。
         lesson_id: 课时 ID。
+        course_id: 提供时校验课时归属，避免跨课程删除。
 
     返回：
         {"success": true, "deleted_practice_records": n}
 
     异常：
-        HTTPException: 课时不存在或不属于该课程时返回 404。
+        HTTPException: 课时不存在或归属不匹配时返回 404。
     """
     with session_scope() as session:
         lesson: Lesson | None = session.get(Lesson, lesson_id)
-        if lesson is None or lesson.course_id != course_id:
-            raise HTTPException(
-                status_code=404,
-                detail=f"课时不存在或不属于课程：{lesson_id}",
+        if lesson is None or (course_id is not None and lesson.course_id != course_id):
+            detail: str = (
+                f"课时不存在或不属于课程：{lesson_id}"
+                if course_id is not None
+                else f"课时不存在：{lesson_id}"
             )
+            raise HTTPException(status_code=404, detail=detail)
 
         practice_result = session.execute(
             delete(PracticeRecord).where(PracticeRecord.lesson_id == lesson_id)
@@ -469,6 +475,35 @@ def delete_lesson(course_id: str, lesson_id: str) -> dict[str, Any]:
 
     logger.info("课时已删除：%s，练习记录 %s 条", lesson_id, deleted_records)
     return {"success": True, "deleted_practice_records": deleted_records}
+
+
+@router.put("/{course_id}/lessons/{lesson_id}")
+def update_lesson(course_id: str, lesson_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """更新课时字段（校验课时归属）。
+
+    参数：
+        course_id: 所属课程 ID。
+        lesson_id: 课时 ID。
+        payload: 需要更新的字段（camelCase）。
+
+    返回：
+        更新后的课时字典。
+    """
+    return _apply_lesson_updates(lesson_id, payload, course_id=course_id)
+
+
+@router.delete("/{course_id}/lessons/{lesson_id}")
+def delete_lesson(course_id: str, lesson_id: str) -> dict[str, Any]:
+    """删除课时并清理练习记录（校验课时归属）。
+
+    参数：
+        course_id: 所属课程 ID。
+        lesson_id: 课时 ID。
+
+    返回：
+        {"success": true, "deleted_practice_records": n}
+    """
+    return _delete_lesson_with_records(lesson_id, course_id=course_id)
 
 
 @lesson_router.get("/{lesson_id}")
@@ -506,28 +541,9 @@ def update_lesson_by_id(lesson_id: str, payload: dict[str, Any]) -> dict[str, An
         HTTPException: 课时不存在时返回 404。
 
     说明：
-        供前端 updateLesson(lessonId, updates) 使用，与带课程路径的版本保持同等能力。
+        供前端 updateLesson(lessonId, updates) 使用，与带课程路径的版本共用同一实现。
     """
-    values, _ = extract_write_values("lessons", payload)
-
-    # 主键与所属课程不允许通过更新接口修改
-    values.pop("id", None)
-    values.pop("course_id", None)
-    values.setdefault("updated_at", _current_timestamp_ms())
-
-    with session_scope() as session:
-        lesson: Lesson | None = session.get(Lesson, lesson_id)
-        if lesson is None:
-            raise HTTPException(status_code=404, detail=f"课时不存在：{lesson_id}")
-
-        for column, value in values.items():
-            setattr(lesson, column, value)
-        session.flush()
-
-        result: dict[str, Any] = serialize_record("lessons", lesson)
-
-    logger.info("课时已更新（按 ID）：%s，字段=%s", lesson_id, ", ".join(values.keys()))
-    return result
+    return _apply_lesson_updates(lesson_id, payload)
 
 
 @lesson_router.delete("/{lesson_id}")
@@ -544,21 +560,9 @@ def delete_lesson_by_id(lesson_id: str) -> dict[str, Any]:
         HTTPException: 课时不存在时返回 404。
 
     说明：
-        供前端 deleteLesson(lessonId) 使用；带课程路径的版本用于校验归属。
+        供前端 deleteLesson(lessonId) 使用；带课程路径的版本额外校验归属。
     """
-    with session_scope() as session:
-        lesson: Lesson | None = session.get(Lesson, lesson_id)
-        if lesson is None:
-            raise HTTPException(status_code=404, detail=f"课时不存在：{lesson_id}")
-
-        practice_result = session.execute(
-            delete(PracticeRecord).where(PracticeRecord.lesson_id == lesson_id)
-        )
-        session.delete(lesson)
-        deleted_records: int = practice_result.rowcount or 0
-
-    logger.info("课时已删除（按 ID）：%s，练习记录 %s 条", lesson_id, deleted_records)
-    return {"success": True, "deleted_practice_records": deleted_records}
+    return _delete_lesson_with_records(lesson_id)
 
 
 @progress_router.get("/{course_id}")
