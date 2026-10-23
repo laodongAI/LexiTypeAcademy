@@ -11,5 +11,9 @@ uvicorn[standard]>=0.32.0
 pydantic>=2.9.0
 pydantic-settings>=2.6.0
 
+# 数据库与迁移（SQLite + Alembic）
+SQLAlchemy>=2.0.36
+alembic>=1.14.0
+
 # 表单/文件上传（资源工坊导入、音频上传需要）
 python-multipart>=0.0.9

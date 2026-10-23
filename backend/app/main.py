@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api.routers import health
+from app.api.routers import health, migration
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 
@@ -56,6 +56,9 @@ def create_app() -> FastAPI:
 
     # 注册健康检查路由，统一前缀 /api
     app.include_router(health.router, prefix="/api")
+
+    # 注册数据迁移路由（IndexedDB 导出导入与报告查询）
+    app.include_router(migration.router, prefix="/api")
 
     # 记录启动信息，便于确认实际生效的配置
     logger.info(

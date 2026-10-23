@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     # ---------- 监听地址 ----------
     # 监听主机：本地单机固定 127.0.0.1，不对外暴露
     host: str = Field(default="127.0.0.1", alias="APP_HOST")
-    # 监听端口，与前端代理目标保持一致
-    port: int = Field(default=8000, alias="APP_PORT")
+    # 监听端口：默认 8010，避开本机其它项目长期占用的 8000
+    port: int = Field(default=8010, alias="APP_PORT")
 
     # ---------- 日志 ----------
     # 日志级别：DEBUG / INFO / WARNING / ERROR
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # ---------- 前端跨域 ----------
     # 允许访问后端的前端来源列表，逗号分隔
     cors_origins_raw: str = Field(
-        default="http://localhost:5173,http://127.0.0.1:5173",
+        default="http://localhost:5183,http://127.0.0.1:5183",
         alias="CORS_ORIGINS",
     )
 

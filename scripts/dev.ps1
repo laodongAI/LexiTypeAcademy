@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # LexiType Academy 本地开发启动脚本（Windows / PowerShell）
 #
 # 作用：
@@ -111,6 +111,20 @@ function Initialize-BackendEnv {
         throw '后端依赖安装失败'
     }
     Write-Step '后端依赖就绪'
+
+    # 执行数据库迁移到最新版本（幂等，可重复执行）
+    Write-Step '同步数据库结构（alembic upgrade head）...'
+    Push-Location $BackendDir
+    try {
+        & $VenvPython -m alembic upgrade head
+        if ($LASTEXITCODE -ne 0) {
+            throw '数据库迁移失败'
+        }
+    }
+    finally {
+        Pop-Location
+    }
+    Write-Step '数据库结构已是最新'
 }
 
 # ---------------------------------------------------------------------------
@@ -136,7 +150,7 @@ function Invoke-ModelCheck {
 # 4. 启动服务
 # ---------------------------------------------------------------------------
 function Start-Backend {
-    Write-Step '启动后端：http://127.0.0.1:8000'
+    Write-Step '启动后端：http://127.0.0.1:8010'
     # 新窗口启动，便于单独观察后端日志与停止
     Start-Process -FilePath $VenvPython `
         -ArgumentList '-m', 'app.main' `
@@ -146,7 +160,7 @@ function Start-Backend {
 
 function Start-Frontend {
     Test-NodeAvailable
-    Write-Step '启动前端：http://localhost:5173'
+    Write-Step '启动前端：http://localhost:5183'
 
     # 首次运行：安装前端依赖
     $NodeModules = Join-Path $FrontendDir 'node_modules'
@@ -191,9 +205,9 @@ try {
 
     Write-Step '启动完成'
     Write-Host ''
-    Write-Host '  后端接口文档 : http://127.0.0.1:8000/docs' -ForegroundColor Green
-    Write-Host '  后端健康检查 : http://127.0.0.1:8000/api/health' -ForegroundColor Green
-    Write-Host '  前端页面     : http://localhost:5173' -ForegroundColor Green
+    Write-Host '  后端接口文档 : http://127.0.0.1:8010/docs' -ForegroundColor Green
+    Write-Host '  后端健康检查 : http://127.0.0.1:8010/api/health' -ForegroundColor Green
+    Write-Host '  前端页面     : http://localhost:5183' -ForegroundColor Green
     Write-Host ''
     Write-Step '停止服务：关闭对应命令行窗口，或按 Ctrl+C'
 }

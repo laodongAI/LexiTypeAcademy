@@ -15,11 +15,11 @@ import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import { resolve } from 'path';
 
-/** 前端开发服务器端口（与后端 CORS 白名单保持一致） */
-const DEV_SERVER_PORT = 5173;
+/** 前端开发服务器端口（与后端 CORS 白名单保持一致，避开本机 5173 被其它项目占用） */
+const DEV_SERVER_PORT = 5183;
 
-/** 后端服务地址（本地单机部署，固定 127.0.0.1:8000） */
-const BACKEND_ORIGIN = 'http://127.0.0.1:8000';
+/** 后端服务地址（本地单机部署，固定 127.0.0.1:8010） */
+const BACKEND_ORIGIN = 'http://127.0.0.1:8010';
 
 export default defineConfig({
   plugins: [
