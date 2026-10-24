@@ -10,7 +10,8 @@ import { courseRepository } from '../../shared/database/repositories/courseRepos
 interface ErrorItem {
   id: string
   unitId: string
-  title: string
+  itemId: string
+  title
   errorType: string
   frequency: number
   severity: number
@@ -90,6 +91,7 @@ export const useErrorStore = defineStore('error', () => {
             aggregates.set(key, {
               id: key,
               unitId: record.lessonId,
+              itemId,
               title: `练习题目 ${itemId}`,
               errorType: modeLabels[String(record.mode)] ?? String(record.mode),
               frequency: 1,
