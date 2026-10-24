@@ -1,135 +1,29 @@
 <template>
-  <div class="unit-learning-page">
-    <header class="learning-header">
-      <el-button text @click="goBack">← 返回单元</el-button>
-      <div class="header-copy">
-        <span class="eyebrow">UNIT LEARNING</span>
-        <h1>{{ course?.title || '单元整体学习' }}</h1>
-        <p>从整体理解到重点讲解，再到主动输出。你可以自己掌控节奏，也可以让 AI 老师全程带学。</p>
-      </div>
-      <div v-if="course" class="header-meta"><el-tag>{{ course.cefrLevel || course.difficulty }}</el-tag><span>{{ course.lessons.length }} 个内容课时</span></div>
-    </header>
-
-    <div v-if="loading"><el-skeleton :rows="8" animated /></div>
-    <div v-else-if="loadError" class="load-error"><h2>无法打开单元</h2><p>{{ loadError }}</p><el-button type="primary" @click="goBack">返回课程</el-button></div>
-    <div v-else-if="course">
-      <section class="mode-picker">
-        <div><span class="section-kicker">选择你的学习方式</span><h2>今天，你想怎么学？</h2></div>
-        <div class="mode-cards">
-          <button type="button" class="mode-card" :class="{ selected: learningMode === 'self' }" @click="learningMode = 'self'">
-            <span class="mode-icon">⌘</span><span class="mode-title">自主学习</span>
-            <span class="mode-description">自己点读、反复听、完成小测，随时查看真实作答反馈。</span>
-            <span class="mode-action">{{ learningMode === 'self' ? '正在使用' : '自己开始' }}</span>
-          </button>
-          <button type="button" class="mode-card teacher-mode" :class="{ selected: learningMode === 'teacher' }" @click="chooseTeacherMode">
-            <span class="mode-icon">✦</span><span class="mode-title">AI 老师带学</span>
-            <span class="mode-description">老师讲解、提问、等待你回答，再根据回答纠错并带你继续。</span>
-            <span class="mode-action">{{ teacherLoading ? '正在准备课堂…' : learningMode === 'teacher' ? '老师课堂中' : '请老师带我学' }}</span>
-          </button>
-        </div>
-      </section>
-
-      <div v-if="learningMode === 'self'">
-        <section class="progress-strip">
-          <div class="progress-copy"><strong>单元学习流程</strong><span>完成任意阶段后可继续，也可以稍后回来</span></div>
-          <el-progress :percentage="progressPercent" :stroke-width="8" />
-        </section>
-        <nav class="stage-nav" aria-label="单元学习阶段">
-          <button v-for="(stage, index) in stages" :key="stage.id" type="button" :class="{ active: currentStage === stage.id, done: completedStages.includes(stage.id) }" @click="currentStage = stage.id">
-            <span class="stage-number">{{ completedStages.includes(stage.id) ? '✓' : index + 1 }}</span><span>{{ stage.label }}</span>
-          </button>
-        </nav>
-        <div class="stage-layout">
-          <main class="stage-main">
-            <div class="stage-heading"><div><span class="section-kicker">STAGE {{ stageIndex + 1 }} / {{ stages.length }}</span><h2>{{ activeStage.label }}</h2><p>{{ activeStage.description }}</p></div><el-tag v-if="completedStages.includes(currentStage)" type="success">已完成</el-tag></div>
-
-            <div v-if="currentStage === 'intro'" class="intro-panel">
-              <span class="intro-symbol">A–Z</span><h3>先建立整单元的整体认识</h3>
-              <p>{{ course.description || '本单元将通过原文理解、重点句、词汇、语法和输出练习，逐步建立完整的语言能力。' }}</p>
-              <div class="overview-grid"><div><strong>{{ readingItems.length }}</strong><span>篇章/对话材料</span></div><div><strong>{{ sentenceItems.length }}</strong><span>重点句</span></div><div><strong>{{ vocabularyItems.length }}</strong><span>词汇/短语</span></div></div>
-            </div>
-
-            <div v-else-if="currentStage === 'reading'" class="material-list">
-              <article v-for="item in readingItems" :key="item.key" class="material-card">
-                <div class="material-label">{{ item.lessonTitle }}</div><h3>{{ item.english }}</h3>
-                <p v-if="showTranslations && item.chinese" class="translation">{{ item.chinese }}</p>
-                <div class="material-actions"><el-button type="primary" plain @click="playText(item.english, item.key)">▶ 朗读</el-button><el-button v-if="item.lessonId && item.practiceItemId" @click="openFollowRead(item)">跟读评分</el-button><el-button @click="showTranslations = !showTranslations">{{ showTranslations ? '隐藏翻译' : '显示翻译' }}</el-button></div>
-              </article>
-              <el-empty v-if="!readingItems.length" description="本单元暂时没有独立篇章或对话原文。可以先学习重点句子和词汇。" />
-            </div>
-
-            <div v-else-if="currentStage === 'sentences'" class="material-list">
-              <article v-for="(item, index) in sentenceItems" :key="item.key" class="material-card">
-                <div class="material-label">重点句 {{ index + 1 }} · {{ item.lessonTitle }}</div><h3>{{ item.english }}</h3><p v-if="item.chinese" class="translation">{{ item.chinese }}</p>
-                <div class="sentence-actions"><el-button type="primary" plain @click="playText(item.english, item.key)">▶ 听句子</el-button><el-button v-if="item.lessonId && item.practiceItemId" @click="openFollowRead(item)">跟读评分</el-button><el-button plain @click="playText(item.english, item.key + '-repeat')">再听一遍</el-button></div>
-              </article>
-              <el-empty v-if="!sentenceItems.length" description="本单元还没有可识别的完整句子，请检查教材内容或先完成篇章导入。" />
-            </div>
-
-            <div v-else-if="currentStage === 'vocabulary'" class="vocabulary-grid">
-              <article v-for="item in vocabularyItems" :key="item.key" class="vocabulary-card">
-                <div class="word-topline"><h3>{{ item.english }}</h3><el-button circle text @click="playText(item.english, item.key)" aria-label="朗读单词">▶</el-button></div>
-                <span v-if="item.phonetic" class="phonetic">{{ item.phonetic }}</span><p>{{ item.chinese || '暂无中文释义' }}</p>
-                <el-button v-if="item.lessonId && item.practiceItemId" text size="small" @click="openFollowRead(item)">进入跟读评分</el-button>
-                <small v-if="item.partOfSpeech">{{ item.partOfSpeech }}</small>
-                <div v-if="item.examples?.length" class="example"><p>{{ item.examples[0] }}</p><small>{{ item.exampleTranslations?.[0] || '' }}</small><el-button text size="small" @click="playText(item.examples[0], item.key + '-example')">听例句</el-button></div>
-              </article>
-              <el-empty v-if="!vocabularyItems.length" description="本单元暂无独立词汇课。请补充重点词条，不要把文章中的所有词都误当作重点词。" />
-            </div>
-
-            <div v-else-if="currentStage === 'grammar'" class="grammar-panel">
-              <div class="grammar-heading"><div><h3>从本单元真实句子中理解语法</h3><p>语法讲解由 AI 基于本单元材料生成，不会直接改写原教材。</p></div><el-button type="primary" :loading="grammarLoading" @click="generateGrammar">生成语法讲解</el-button></div>
-              <el-alert v-if="grammarError" type="warning" :title="grammarError" :closable="false" show-icon />
-              <div v-if="grammarContent" class="generated-content">{{ grammarContent }}</div>
-              <el-empty v-else description="点击“生成语法讲解”，老师会从本单元句子中挑选值得学习的语法点。" />
-            </div>
-
-            <div v-else-if="currentStage === 'output'">
-              <div v-if="quizItem" class="quiz-card">
-                <span class="section-kicker">主动回忆 · 不看答案先试试</span><h3>{{ quizItem.chinese || '请根据提示写出对应英文' }}</h3>
-                <p v-if="quizItem.kind === 'sentence'">请根据中文提示，写出完整英文句子。</p><p v-else>请根据中文释义，写出对应英文单词。</p>
-                <el-input v-model="quizAnswer" type="textarea" :rows="3" :placeholder="quizItem.kind === 'sentence' ? '输入英文句子…' : '输入英文单词…'" @keydown.ctrl.enter.prevent="submitQuiz" />
-                <div class="quiz-actions"><el-button type="primary" :disabled="!quizAnswer.trim()" @click="submitQuiz">提交答案</el-button><el-button @click="playText(quizItem.english, 'quiz-reference')">听参考发音</el-button></div>
-                <el-alert v-if="quizResult" :type="quizResult.correct ? 'success' : 'warning'" :title="quizResult.correct ? '回答正确' : '再试一次，看看参考答案'" :description="quizResult.message" :closable="false" show-icon />
-                <div v-if="quizResult" class="reference-answer"><span>参考答案</span><strong>{{ quizItem.english }}</strong></div><el-button v-if="quizResult" class="next-question" @click="nextQuiz">下一题</el-button>
-              </div>
-              <el-empty v-else description="本单元没有足够的句子或词汇来生成小测。请先补充学习材料。" />
-            </div>
-
-            <div v-else class="summary-panel">
-              <span class="summary-icon">✓</span><h3>本次单元学习记录</h3>
-              <p>完成 {{ completedStages.length }} / {{ stages.length }} 个阶段；小测提交 {{ quizAttempts }} 次，正确 {{ quizCorrect }} 次。</p>
-              <p>这份总结只统计本次真实操作，不把跳过的内容算作已掌握。</p><el-button type="primary" @click="resetUnitProgress">重新开始本单元流程</el-button>
-            </div>
-
-            <footer class="stage-footer"><el-button :disabled="stageIndex === 0" @click="moveStage(-1)">上一步</el-button><div class="stage-footer-right"><el-button v-if="currentStage !== 'summary'" @click="skipStage">跳过本阶段</el-button><el-button v-if="currentStage !== 'summary'" type="primary" @click="completeAndNext">完成并继续</el-button><el-button v-else type="primary" @click="goBack">返回单元详情</el-button></div></footer>
-          </main>
-          <aside class="stage-aside"><h3>本单元内容</h3>
-            <div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><span class="outline-dot" :class="lesson.contentShape"></span><div><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div></div>
-            <el-divider /><el-switch v-model="showTranslations" active-text="显示中文翻译" /><p class="aside-note">学习建议：先理解整体，再拆解重点，最后尝试独立输出。</p>
-          </aside>
-        </div>
-      </div>
-
-      <section v-else class="teacher-workspace">
-        <div class="teacher-intro"><div class="teacher-avatar">师</div><div><h2>AI 老师正在带你学习</h2><p>老师会一次讲一个重点，向你提问，并根据你的回答继续讲解。你可以用中文或英文回答。</p></div><el-button text @click="learningMode = 'self'">切换自主学习</el-button></div>
-        <el-alert v-if="teacherError" type="warning" :title="teacherError" :closable="false" show-icon />
-        <div class="teacher-messages" ref="messagesRef">
-          <el-empty v-if="!teacherSession?.messages.length && !teacherLoading" description="正在准备本单元课堂…" />
-          <article v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role">
-            <span class="message-avatar">{{ message.role === 'assistant' ? '师' : '我' }}</span>
-            <div class="message-body"><strong>{{ message.role === 'assistant' ? 'AI 老师' : '你' }}</strong><p>{{ message.content }}</p><small>{{ formatTime(message.createdAt) }}</small></div>
-            <el-button v-if="message.role === 'assistant'" text @click="playText(message.content, 'teacher-' + message.id, 'zh')">朗读老师讲解</el-button>
-          </article>
-          <div v-if="teacherLoading" class="teacher-thinking"><span></span><span></span><span></span> 老师正在思考…</div>
-        </div>
-        <form class="teacher-composer" @submit.prevent="sendTeacherAnswer">
-          <el-input v-model="teacherDraft" type="textarea" :rows="3" resize="none" placeholder="写下你的回答，也可以用中文提问…" :disabled="teacherLoading || !teacherSession || teacherSession.status !== 'active'" />
-          <div class="composer-footer"><span>老师会根据本单元材料回应，不会把未练习的内容算作已掌握。</span><el-button type="primary" native-type="submit" :loading="teacherLoading" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active'">回答老师</el-button></div>
-        </form>
-      </section>
-    </div>
-  </div>
+<div class="unit-learning-page">
+<header class="learning-header"><button class="back-link" type="button" @click="goBack">← 返回单元</button><div class="header-copy"><span class="eyebrow">UNIT LEARNING</span><h1>{{ course?.title || '单元整体学习' }}</h1><p>从整体理解到重点讲解，再到主动输出。你可以自己掌控节奏，也可以让 AI 老师全程带学。</p></div><div v-if="course" class="header-meta"><span>{{ course.cefrLevel || course.difficulty }}</span><span>{{ course.lessons.length }} 个内容课时</span></div></header>
+<div v-if="loading" class="loading-state">正在加载单元材料…</div>
+<div v-if="!loading && loadError" class="load-error"><h2>无法打开单元</h2><p>{{ loadError }}</p><button type="button" @click="goBack">返回课程</button></div>
+<div v-if="!loading && !loadError && course">
+<section class="mode-picker"><span class="section-kicker">选择你的学习方式</span><h2>今天，你想怎么学？</h2><div class="mode-cards">
+<button type="button" class="mode-card" :class="{ selected: learningMode === 'self' }" @click="learningMode = 'self'"><span class="mode-icon">⌘</span><strong>自主学习</strong><span class="mode-description">自己点读、反复听、完成小测，随时查看真实作答反馈。</span><span class="mode-action">{{ learningMode === 'self' ? '正在使用' : '自己开始' }}</span></button>
+<button type="button" class="mode-card teacher-mode" :class="{ selected: learningMode === 'teacher' }" @click="chooseTeacherMode"><span class="mode-icon">✦</span><strong>AI 老师带学</strong><span class="mode-description">老师讲解、提问、等待你回答，再根据回答纠错并带你继续。</span><span class="mode-action">{{ teacherLoading ? '正在准备课堂…' : learningMode === 'teacher' ? '老师课堂中' : '请老师带我学' }}</span></button>
+</div></section>
+<div v-if="learningMode === 'self'">
+<section class="progress-strip"><div class="progress-copy"><strong>单元学习流程</strong><span>可以按顺序学习，也可以自由选择阶段</span></div><div class="progress-track"><span :style="{ width: progressPercent + '%' }"></span></div><small>{{ progressPercent }}%</small></section>
+<nav class="stage-nav"><button v-for="(stage, index) in stages" :key="stage.id" type="button" :class="{ active: currentStage === stage.id, done: completedStages.includes(stage.id) }" @click="currentStage = stage.id"><span class="stage-number">{{ completedStages.includes(stage.id) ? '✓' : index + 1 }}</span>{{ stage.label }}</button></nav>
+<div class="stage-layout"><main class="stage-main"><div class="stage-heading"><div><span class="section-kicker">STAGE {{ stageIndex + 1 }} / {{ stages.length }}</span><h2>{{ activeStage.label }}</h2><p>{{ activeStage.description }}</p></div><span v-if="completedStages.includes(currentStage)" class="done-label">已完成</span></div>
+<div v-if="currentStage === 'intro'" class="intro-panel"><span class="intro-symbol">A–Z</span><h3>先建立整单元的整体认识</h3><p>{{ course.description || '本单元将通过原文理解、重点句、词汇、语法和输出练习，逐步建立完整的语言能力。' }}</p><div class="overview-grid"><div><strong>{{ readingItems.length }}</strong><span>篇章/对话材料</span></div><div><strong>{{ sentenceItems.length }}</strong><span>重点句</span></div><div><strong>{{ vocabularyItems.length }}</strong><span>词汇/短语</span></div></div></div>
+<div v-if="currentStage === 'reading'" class="material-list"><article v-for="item in readingItems" :key="item.key" class="material-card"><div class="material-label">{{ item.lessonTitle }}</div><h3>{{ item.english }}</h3><p v-if="showTranslations && item.chinese" class="translation">{{ item.chinese }}</p><div class="material-actions"><button type="button" @click="playText(item.english, item.key)">▶ 朗读</button><button v-if="item.lessonId && item.practiceItemId" type="button" @click="openFollowRead(item)">跟读评分</button><button type="button" @click="showTranslations = !showTranslations">{{ showTranslations ? '隐藏翻译' : '显示翻译' }}</button></div></article><p v-if="!readingItems.length" class="empty-note">本单元暂时没有独立篇章或对话原文。可以先学习重点句子和词汇。</p></div>
+<div v-if="currentStage === 'sentences'" class="material-list"><article v-for="(item, index) in sentenceItems" :key="item.key" class="material-card"><div class="material-label">重点句 {{ index + 1 }} · {{ item.lessonTitle }}</div><h3>{{ item.english }}</h3><p v-if="item.chinese" class="translation">{{ item.chinese }}</p><div class="material-actions"><button type="button" @click="playText(item.english, item.key)">▶ 听句子</button><button v-if="item.lessonId && item.practiceItemId" type="button" @click="openFollowRead(item)">跟读评分</button><button type="button" @click="playText(item.english, item.key + '-repeat')">再听一遍</button></div></article><p v-if="!sentenceItems.length" class="empty-note">本单元还没有可识别的完整句子，请检查教材内容。</p></div>
+<div v-if="currentStage === 'vocabulary'" class="vocabulary-grid"><article v-for="item in vocabularyItems" :key="item.key" class="vocabulary-card"><div class="word-topline"><h3>{{ item.english }}</h3><button type="button" @click="playText(item.english, item.key)">▶ 朗读</button></div><span v-if="item.phonetic" class="phonetic">{{ item.phonetic }}</span><p>{{ item.chinese || '暂无中文释义' }}</p><button v-if="item.lessonId && item.practiceItemId" type="button" @click="openFollowRead(item)">进入跟读评分</button><small v-if="item.partOfSpeech">{{ item.partOfSpeech }}</small><div v-if="item.examples?.length" class="example"><p>{{ item.examples[0] }}</p><small>{{ item.exampleTranslations?.[0] || '' }}</small><button type="button" @click="playText(item.examples[0], item.key + '-example')">听例句</button></div></article><p v-if="!vocabularyItems.length" class="empty-note">本单元暂无独立词汇课。请补充重点词条，不要把文章中的所有词都误当作重点词。</p></div>
+<div v-if="currentStage === 'grammar'" class="grammar-panel"><div class="grammar-heading"><div><h3>从本单元真实句子中理解语法</h3><p>语法讲解由 AI 基于本单元材料生成，不会直接改写原教材。</p></div><button type="button" :disabled="grammarLoading" @click="generateGrammar">{{ grammarLoading ? '生成中…' : '生成语法讲解' }}</button></div><p v-if="grammarError" class="error-note">{{ grammarError }}</p><div v-if="grammarContent" class="generated-content">{{ grammarContent }}</div><p v-else class="empty-note">点击“生成语法讲解”，老师会从本单元句子中挑选值得学习的语法点。</p></div>
+<div v-if="currentStage === 'output'"><div v-if="quizItem" class="quiz-card"><span class="section-kicker">主动回忆 · 不看答案先试试</span><h3>{{ quizItem.chinese || '请根据提示写出对应英文' }}</h3><p v-if="quizItem.kind === 'sentence'">请根据中文提示，写出完整英文句子。</p><p v-else>请根据中文释义，写出对应英文单词。</p><textarea v-model="quizAnswer" rows="3" :placeholder="quizItem.kind === 'sentence' ? '输入英文句子…' : '输入英文单词…'" @keydown.ctrl.enter.prevent="submitQuiz"></textarea><div class="material-actions"><button type="button" :disabled="!quizAnswer.trim()" @click="submitQuiz">提交答案</button><button type="button" @click="playText(quizItem.english, 'quiz-reference')">听参考发音</button></div><p v-if="quizResult" :class="quizResult.correct ? 'success-note' : 'error-note'">{{ quizResult.correct ? '回答正确。' : '还需要练习。' }} {{ quizResult.message }}</p><div v-if="quizResult" class="reference-answer"><span>参考答案</span><strong>{{ quizItem.english }}</strong></div><button v-if="quizResult" type="button" @click="nextQuiz">下一题</button></div><p v-else class="empty-note">本单元没有足够的句子或词汇来生成小测。请先补充学习材料。</p></div>
+<div v-if="currentStage === 'summary'" class="summary-panel"><span class="summary-icon">✓</span><h3>本次单元学习记录</h3><p>完成 {{ completedStages.length }} / {{ stages.length }} 个阶段；小测提交 {{ quizAttempts }} 次，正确 {{ quizCorrect }} 次。</p><p>本总结只统计真实操作，不把跳过的内容算作已掌握。</p><button type="button" @click="resetUnitProgress">重新开始本单元流程</button></div>
+<footer class="stage-footer"><button type="button" :disabled="stageIndex === 0" @click="moveStage(-1)">上一步</button><div><button v-if="currentStage !== 'summary'" type="button" @click="skipStage">跳过本阶段</button><button v-if="currentStage !== 'summary'" type="button" class="primary-action" @click="completeAndNext">完成并继续</button><button v-if="currentStage === 'summary'" type="button" class="primary-action" @click="goBack">返回单元详情</button></div></footer>
+</main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><span class="outline-dot" :class="lesson.contentShape"></span><div><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div></div><hr /><label class="translation-toggle"><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><p class="aside-note">学习建议：先理解整体，再拆解重点，最后尝试独立输出。</p></aside></div>
+</div>
+<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace"><div class="teacher-intro"><div class="teacher-avatar">师</div><div><h2>AI 老师正在带你学习</h2><p>老师会一次讲一个重点，向你提问，并根据你的回答继续讲解。你可以用中文或英文回答。</p></div><button type="button" @click="learningMode = 'self'">切换自主学习</button></div><p v-if="teacherError" class="error-note">{{ teacherError }}</p><div class="teacher-messages" ref="messagesRef"><p v-if="!teacherSession?.messages.length && !teacherLoading" class="empty-note">点击“AI 老师带学”后，老师会开始本单元导入。</p><article v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role"><span class="message-avatar">{{ message.role === 'assistant' ? '师' : '我' }}</span><div class="message-body"><strong>{{ message.role === 'assistant' ? 'AI 老师' : '你' }}</strong><p>{{ message.content }}</p><small>{{ formatTime(message.createdAt) }}</small></div><button v-if="message.role === 'assistant'" type="button" @click="playText(message.content, 'teacher-' + message.id, 'zh')">朗读老师讲解</button></article><p v-if="teacherLoading" class="teacher-thinking">老师正在思考…</p></div><form class="teacher-composer" @submit.prevent="sendTeacherAnswer"><textarea v-model="teacherDraft" rows="3" placeholder="写下你的回答，也可以用中文提问…" :disabled="teacherLoading || !teacherSession || teacherSession.status !== 'active'"></textarea><div class="composer-footer"><span>老师会根据本单元材料回应，不会把未练习的内容算作已掌握。</span><button type="submit" class="primary-action" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active' || teacherLoading">{{ teacherLoading ? '老师思考中…' : '回答老师' }}</button></div></form></section>
+</div>
 </template>
 
 <script setup lang="ts">
