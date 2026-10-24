@@ -218,7 +218,7 @@ export class CourseRepository {
         activityId: String(created.id),
         durationMs: created.duration,
         result: {
-          accuracy: created.accuracy,
+          accuracy: Math.max(0, Math.min(1, created.accuracy / 100)),
           correctCount: created.correctItems,
           totalCount: created.totalItems,
         },
