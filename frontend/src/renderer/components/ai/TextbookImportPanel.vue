@@ -116,7 +116,7 @@
             class="full-width"
             :disabled="loading"
           >
-            <el-option v-for="u in unitOptions" :key="u.title" :label="`Unit ${u.unit_num}: ${u.title}`" :value="u.title" />
+            <el-option v-for="u in unitOptions" :key="u.title" :label="`Unit ${u.unit_num}: ${u.title}${u.generatedTypes?.length ? '（已有：' + u.generatedTypes.join('、') + '）' : ''}`" :value="u.title" />
           </el-select>
         </el-form-item>
 
@@ -145,7 +145,7 @@
 
         <div v-if="generationProgress.active" class="generation-progress">
           <div class="progress-header">
-            <span>已完成生成任务：{{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
+            <span>已完成单元：{{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
             <span v-if="generationProgress.currentUnit" class="progress-detail">
               {{ generationProgress.currentUnit }}<span v-if="generationProgress.currentType"> · {{ generationProgress.currentType }}</span>
             </span>
@@ -857,27 +857,32 @@ async function generateCourseFromTextbook() {
 
 async function withAudioForItems(items: LessonItem[], kind: 'word' | 'sentence' | 'passage'): Promise<LessonItem[]> {
   const result: LessonItem[] = []
-  for (const item of items) {
-    const text = String(item.english || '').trim()
-    if (!text) {
-      result.push(item)
-      continue
-    }
-
-    // 显式沿用设置页当前音色，保证“生成课程时听到的声音”和学习时一致
-    const audioPath = await generateSpeech(text, 'en', {
-      engine: settingsStore.ttsEngine,
-      voice: settingsStore.ttsVoiceId,
-      rate: settingsStore.ttsSpeed,
-    })
-    result.push({
-      ...item,
-      audioPath: audioPath || undefined,
-    })
+  // 小批量并发避免逐条串行等待，同时限制并发数，降低本地 TTS / 后端压力。
+  for (let offset = 0; offset < items.length; offset += 3) {
+    const batch = items.slice(offset, offset + 3)
+    const completed = await Promise.all(batch.map(async item => {
+      const text = String(item.english || '').trim()
+      if (!text) return item
+      try {
+        const audioPath = await generateSpeech(text, 'en', {
+          engine: settingsStore.ttsEngine,
+          voice: settingsStore.ttsVoiceId,
+          rate: settingsStore.ttsSpeed,
+        })
+        return { ...item, audioPath: audioPath || undefined }
+      } catch (error) {
+        addDiagnosticLog('warning', 'textbook-course-generation', '单条 TTS 失败，继续生成课程内容', {
+          kind,
+          text: text.slice(0, 80),
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return item
+      }
+    }))
+    result.push(...completed)
   }
   return result
 }
-
 async function generateCoursesFromTextbook() {
   await generateCourseFromTextbook()
 }
