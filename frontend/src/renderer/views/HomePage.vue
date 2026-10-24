@@ -9,10 +9,15 @@
           <h2>欢迎来到 LexiType Academy</h2>
           <p>从一个英语单词、一句表达或一次听说练习开始，稳步积累你的英语能力。</p>
         </div>
-        <el-button type="primary" size="large" @click="navigateTo('/course-repository')">
-          <el-icon><Folder /></el-icon>
-          浏览英语课程
-        </el-button>
+        <div class="welcome-actions">
+          <el-button type="primary" size="large" @click="navigateTo('/course-repository')">
+            <el-icon><Folder /></el-icon>
+            浏览英语课程
+          </el-button>
+          <el-button size="large" @click="navigateTo('/conversation')">
+            AI 教学 / 英语面试
+          </el-button>
+        </div>
       </div>
     </el-card>
 
@@ -354,6 +359,7 @@ onMounted(() => {
   color: #fff;
   :deep(.el-card__body) { padding: 32px; }
 }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .welcome-content {
   display: flex;
   align-items: center;
