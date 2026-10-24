@@ -208,6 +208,7 @@ const toolMenuItems = [
 // 菜单项 - 数据与设置
 const settingsMenuItems = [
   { path: '/statistics', title: '学习数据', icon: DataLine },
+  { path: '/diagnostics', title: '运行诊断', icon: DataLine },
   { path: '/settings', title: '设置', icon: Setting },
 ]
 
