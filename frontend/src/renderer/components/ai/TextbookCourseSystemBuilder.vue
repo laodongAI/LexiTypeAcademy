@@ -20,7 +20,7 @@
 
     <el-alert v-if="recoverableCheckpoint && !generating" type="warning" :closable="false" show-icon class="error-alert">
       检测到未完成的教材生成任务（{{ recoverableCheckpoint.textbookName }}，已完成 {{ recoverableCheckpoint.completedKeys.length }} 项，待重试 {{ recoverableCheckpoint.failedKeys.length }} 项）。
-      <el-button size="small" type="primary" @click="startGenerate(recoverableCheckpoint)">继续/重试未完成任务</el-button>
+      <el-button size="small" type="primary" @click="() => startGenerate(recoverableCheckpoint)">继续/重试未完成任务</el-button>
     </el-alert>
 
     <div class="step-content">
@@ -153,7 +153,7 @@
                     type="primary"
                     :loading="generating"
                     :disabled="selectedCourseTypes.length === 0 || selectedUnitsCount === 0"
-                    @click="startGenerate"
+                    @click="() => startGenerate()"
                   >
                     开始生成
                   </el-button>
@@ -772,8 +772,8 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     activeStep.value = 3
   } catch (e: any) {
     task.status = 'failed'; task.error = e?.message || String(e); saveCheckpoint(task)
+    errorText.value = `任务中断，可继续执行：${task.error}`
     addLog(`任务中断，可继续执行：${task.error}`)
-    throw e
   } finally {
     runningGenerationTasks.delete(task.id)
     generating.value = false
