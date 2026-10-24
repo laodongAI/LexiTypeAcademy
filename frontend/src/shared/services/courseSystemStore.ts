@@ -100,8 +100,8 @@ class CourseSystemStore {
 
   getUnits(publisher: string, series: string, textbookName: string, grade?: string): TextbookUnitMeta[] | null {
     const key = this.unitsKey(publisher, series, textbookName, grade);
-    // Read old cache keys for backward compatibility; the next write moves them to the grade-scoped key.
-    return this.data.units[key] || this.data.units[this.unitsKey(publisher, series, textbookName)] || null;
+    // Never reuse an unscoped legacy unit cache for a grade-scoped request: it may belong to another edition.
+    return this.data.units[key] || null;
   }
 
   saveUnits(publisher: string, series: string, textbookName: string, units: TextbookUnitMeta[], grade?: string) {
@@ -122,8 +122,7 @@ class CourseSystemStore {
 
   markUnitTypeAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, contentType: string, grade?: string) {
     const key = this.unitsKey(publisher, series, textbookName, grade);
-    const legacyKey = this.unitsKey(publisher, series, textbookName);
-    const units = this.data.units[key] || this.data.units[legacyKey];
+    const units = this.data.units[key];
     if (!units) return;
     const unit = units.find(item => item.title === unitTitle);
     if (!unit) return;
@@ -136,7 +135,7 @@ class CourseSystemStore {
 
   markUnitAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, grade?: string) {
     const key = this.unitsKey(publisher, series, textbookName, grade);
-    const units = this.data.units[key] || this.data.units[this.unitsKey(publisher, series, textbookName)];
+    const units = this.data.units[key];
     if (units) {
       const unit = units.find(u => u.title === unitTitle);
       if (unit) {
