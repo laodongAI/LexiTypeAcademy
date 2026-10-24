@@ -251,6 +251,19 @@
           </el-form>
         </el-card>
         <el-alert
+          v-if="collectionLoadError"
+          type="error"
+          show-icon
+          :closable="false"
+          title="课程集合加载失败"
+          :description="collectionLoadError"
+          class="hierarchy-hint"
+        >
+          <template #default>
+            <el-button size="small" type="danger" plain @click="loadCollections">重试加载</el-button>
+          </template>
+        </el-alert>
+        <el-alert
           type="info"
           show-icon
           :closable="false"
@@ -632,6 +645,7 @@ const filteredTotal = computed(() => filteredCourses.value.length)
 // 教材三级分组：教材系列 → 年级册 → 单元课程
 const textbookGroups = computed(() => buildTextbookGroups(filteredCourses.value))
 const persistedCollections = ref<CourseCollection[]>([])
+const collectionLoadError = ref('')
 const showCreateCollectionForm = ref(false)
 const newCollectionName = ref('')
 const newCollectionParentId = ref('')
@@ -678,8 +692,15 @@ function getCollectionPath(collection: CourseCollection): string {
 }
 
 async function loadCollections() {
-  await courseCollectionService.migrateLegacyTags()
-  persistedCollections.value = await courseCollectionService.list()
+  collectionLoadError.value = ''
+  try {
+    // 迁移失败时不能继续把空结果呈现为正常状态；重试会再次执行幂等迁移。
+    await courseCollectionService.migrateLegacyTags()
+    persistedCollections.value = await courseCollectionService.list()
+  } catch (error) {
+    collectionLoadError.value = error instanceof Error ? error.message : '无法读取课程集合，请检查本地后端服务后重试。'
+    ElMessage.error('课程集合加载失败：' + collectionLoadError.value)
+  }
 }
 
 async function createCollection() {
