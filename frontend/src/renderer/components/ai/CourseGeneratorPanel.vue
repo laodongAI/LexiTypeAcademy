@@ -140,6 +140,7 @@ import { ElMessage } from 'element-plus'
 import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { generateCourseDraftFromChineseText } from '../../services/courseGenerationService'
 import { useCourseStore } from '../../stores/courseStore'
+import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 
 const router = useRouter()
 const courseStore = useCourseStore()
@@ -157,6 +158,7 @@ const form = reactive({
 })
 
 async function generateCourse() {
+  addDiagnosticLog('info', 'course-generation', '开始从中文生成课程', { lessonCount: form.lessonCount, wordsPerLesson: form.wordsPerLesson })
   error.value = ''
   savedId.value = ''
 
@@ -180,9 +182,11 @@ async function generateCourse() {
       tags: ['AI', 'Chinese']
     })
 
+    addDiagnosticLog('info', 'course-generation', '中文课程草稿生成成功', { lessons: pendingCourse.value.lessons.length })
     ElMessage.success('课程已生成，可预览后保存')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '生成失败'
+    addDiagnosticLog('error', 'course-generation', '中文课程生成失败', error.value)
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -201,6 +205,7 @@ async function saveCourse() {
   try {
     const id = await courseStore.createCourse(pendingCourse.value)
     savedId.value = id
+    addDiagnosticLog('info', 'course-generation', '课程保存成功', { courseId: id })
     ElMessage.success('课程已保存到课程仓库')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败'
