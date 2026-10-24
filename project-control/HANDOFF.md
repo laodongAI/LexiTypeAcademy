@@ -140,3 +140,5 @@
 - AI 模式：复用 `conversationCoreService` 的已持久化 `ai-tutor` 会话，关联课程与上下文，不新建消息/内容表。
 - 状态：Frontend quality PASS（TypeScript typecheck + production build，https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684942）；Backend quality PASS（https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684818）。浏览器 E2E 尚未运行。严禁宣称语音、ASR、AI 教学体验已通过端到端验证；CI 通过也不能替代实机验收。
 - 下一步：检查 GitHub Actions 的 frontend typecheck/build 与 backend quality；修复发现的类型/构建问题；验证会话恢复、空内容、跟读评分跳转、刷新检查点与窄屏布局；更新证据后再合并。
+
+- 单元整体学习续修分支 `fix/unit-learning-stage-state-2026-10-24`：跳过阶段不再计入完成率；原文提取句不再误用段落级翻译或链接整段跟读。待新分支 CI 完成后，仍需人工验证真实教材、多轮 AI 对话恢复、TTS/跟读跳转和刷新恢复。
