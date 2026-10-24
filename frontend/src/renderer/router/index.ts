@@ -72,6 +72,14 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/courses/:courseId/learn',
+    name: 'UnitLearning',
+    component: () => import('../views/UnitLearningPage.vue'),
+    meta: {
+      title: '单元整体学习',
+    },
+  },
+  {
     path: '/courses/:courseId/edit',
     name: 'CourseEditorEdit',
     component: () => import('../views/CourseEditorPage.vue'),
