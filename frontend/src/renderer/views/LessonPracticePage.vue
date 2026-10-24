@@ -166,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, defineAsyncComponent, provide } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, defineAsyncComponent, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Headset, Microphone, DocumentCopy, Film, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -174,6 +174,7 @@ import { useCourseStore } from '../stores/courseStore'
 import type { LessonItem, PracticeMode } from '../../shared/types/course'
 import { useTeachingFeedback, teachingFeedbackKey } from '../composables/useTeachingFeedback'
 import { practiceAttemptContextKey } from '../composables/practiceAttemptContext'
+import { learningEventService } from '../../shared/services/learningEventService'
 const DictationMode = defineAsyncComponent(() => import('../components/practice/DictationMode.vue'))
 const FollowMode = defineAsyncComponent(() => import('../components/practice/FollowMode.vue'))
 const TranslationMode = defineAsyncComponent(() => import('../components/practice/TranslationMode.vue'))
@@ -183,6 +184,10 @@ const TeachingFeedbackPanel = defineAsyncComponent(() => import('../components/p
 const route = useRoute()
 const router = useRouter()
 const courseStore = useCourseStore()
+
+let practiceVisitKey = ''
+let practiceVisitStartedAt = 0
+let practiceVisitFinished = false
 
 // 容器级教学反馈上下文：各 mode 通过 inject 复用（不改变 UI，仅收敛状态与调用）
 const feedbackState = useTeachingFeedback()
@@ -271,8 +276,19 @@ onMounted(async () => {
     ElMessage.warning('该课时暂无练习内容')
   }
   
-  // 标记开始学习
+  // 标记开始学习并记录本次课时访问；事件不参与学习时长/完成数统计。
   await courseStore.startLesson(courseId.value, lessonId.value)
+  practiceVisitStartedAt = Date.now()
+  practiceVisitKey = `${courseId.value}:${lessonId.value}:${practiceVisitStartedAt}`
+  practiceVisitFinished = false
+  void learningEventService.record({
+    eventId: `lesson-started-practice-${practiceVisitKey}`,
+    eventType: 'lesson_started',
+    occurredAt: practiceVisitStartedAt,
+    courseId: courseId.value,
+    lessonId: lessonId.value,
+    metadata: { entry: 'lesson-practice' },
+  }).catch(error => console.warn('记录课时开始事件失败:', error))
 })
 
 // 获取模式标签
@@ -365,8 +381,23 @@ async function finishPractice() {
   // 如果准确率达到80%，标记课时完成
   if (accuracy.value >= 80) {
     await courseStore.completeLesson(courseId.value, lessonId.value)
+    practiceVisitFinished = true
+    void learningEventService.record({
+      eventId: `lesson-completed-practice-${practiceVisitKey}`,
+      eventType: 'lesson_completed',
+      occurredAt: finishedAt,
+      courseId: courseId.value,
+      lessonId: lessonId.value,
+      durationMs: duration,
+      result: {
+        accuracy: accuracy.value / 100,
+        correctCount: correctCount.value,
+        totalCount: totalItems.value,
+      },
+      metadata: { entry: 'lesson-practice', mode: currentMode.value },
+    }).catch(error => console.warn('记录课时完成事件失败:', error))
   }
-  
+
   showResultDialog.value = true
 }
 
@@ -393,6 +424,19 @@ function handleBack() {
   }
   router.back()
 }
+
+onBeforeUnmount(() => {
+  if (!practiceVisitKey || practiceVisitFinished) return
+  void learningEventService.record({
+    eventId: `lesson-abandoned-practice-${practiceVisitKey}`,
+    eventType: 'lesson_abandoned',
+    occurredAt: Date.now(),
+    courseId: courseId.value,
+    lessonId: lessonId.value,
+    durationMs: Math.max(0, Date.now() - practiceVisitStartedAt),
+    metadata: { entry: 'lesson-practice' },
+  }).catch(error => console.warn('记录课时退出事件失败:', error))
+})
 </script>
 
 <style lang="scss" scoped>
