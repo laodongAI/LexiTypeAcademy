@@ -138,5 +138,5 @@
 - 入口：`frontend/src/renderer/views/CourseDetailPage.vue` 的“开始单元学习”；原有每个课时的“进入课堂”保留。
 - 自主模式：通读、重点句、重点词、AI 语法、输出小测、阶段进度检查点；跟读入口复用既有 `LessonPracticePage.vue?mode=follow`。
 - AI 模式：复用 `conversationCoreService` 的已持久化 `ai-tutor` 会话，关联课程与上下文，不新建消息/内容表。
-- 状态：尚未运行 CI / 浏览器 E2E。严禁宣称语音、ASR、AI 教学体验已通过端到端验证；CI 通过也不能替代实机验收。
+- 状态：Frontend quality PASS（TypeScript typecheck + production build，https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684942）；Backend quality PASS（https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684818）。浏览器 E2E 尚未运行。严禁宣称语音、ASR、AI 教学体验已通过端到端验证；CI 通过也不能替代实机验收。
 - 下一步：检查 GitHub Actions 的 frontend typecheck/build 与 backend quality；修复发现的类型/构建问题；验证会话恢复、空内容、跟读评分跳转、刷新检查点与窄屏布局；更新证据后再合并。
