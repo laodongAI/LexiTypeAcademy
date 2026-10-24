@@ -103,6 +103,7 @@
     <!-- Step 2: 单元 -> 生成 -->
     <div v-else-if="step === 2" class="step-content">
       <h4>选择单元并生成课程</h4>
+      <el-alert v-if="checkpointStatus" :title="checkpointStatus" type="info" :closable="false" show-icon class="error-alert" />
       <el-form :model="unitForm" label-position="top" class="step-form prototype-form">
         <el-form-item label="单元（可多选，支持批量生成）" required>
           <el-select
@@ -596,11 +597,22 @@ async function generateCourseFromTextbook() {
     const coreCount = unitForm.coreCount
     const extraCount = unitForm.extraCount
 
+    const key = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    const config = { unitTitles: selectedUnits, contentTypes: selectedTypes, withAudio, coreCount, extraCount }
+    let checkpoint = readGenerationCheckpoint()
+    const checkpointMatches = !!checkpoint && checkpoint.key === key && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
+    if (!checkpointMatches) {
+      checkpoint = { key, publisher: publisherForm.publisher.trim(), series: textbookForm.series.trim(), textbookName: textbookForm.textbookName.trim(), ...config, completedTasks: [], lessonsByUnit: {}, updatedAt: Date.now() }
+    }
+    const activeCheckpoint = checkpoint as TextbookGenerationCheckpoint
     generationProgress.totalUnits = selectedUnits.length
+    generationProgress.doneUnits = activeCheckpoint.completedTasks.filter(task => selectedUnits.includes(task)).length
+    activeCheckpoint.status = 'running'
+    persistGenerationCheckpoint(activeCheckpoint)
 
     for (const unitTitle of selectedUnits) {
       generationProgress.currentUnit = unitTitle
-      const lessons: Lesson[] = []
+      const lessons: Lesson[] = [...(activeCheckpoint.lessonsByUnit[unitTitle] || [])]
       // 教材分级标签：保留历史顺序（AI / Textbook / 出版社 / 系列 / 单元），
       // 追加显式分级标签，便于课程仓库按「教材 → 年级册 → 单元」稳定归组。
       const selectedTextbook = textbookOptions.value.find(tb => tb.name === textbookForm.textbookName)
@@ -617,9 +629,15 @@ async function generateCourseFromTextbook() {
         semesterTag ? `Semester:${semesterTag}` : '',
       ].filter(Boolean)
 
+      if (activeCheckpoint.completedTasks.includes(unitTitle)) {
+        if (lessons.length > 0) courses.push({ title: textbookForm.textbookName + ' - ' + unitTitle, description: publisherForm.publisher + ' / ' + textbookForm.series, category: 'special', difficulty: 'intermediate', lessons, tags: baseTags })
+        generationProgress.doneUnits += 1
+        continue
+      }
+      const existingTypes = getExistingTypes(getExistingCourseForUnit(unitTitle))
       let wordsForPhonics: WordEntry[] = []
 
-      if (selectedTypes.includes('words')) {
+      if (selectedTypes.includes('words') && !existingTypes.includes('words')) {
         generationProgress.currentType = 'words'
         const wordsContent = await ai.generateTextbookWordsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
           coreCount,
@@ -666,7 +684,7 @@ async function generateCourseFromTextbook() {
         })
       }
 
-      if (selectedTypes.includes('sentences')) {
+      if (selectedTypes.includes('sentences') && !existingTypes.includes('sentences')) {
         generationProgress.currentType = 'sentences'
         const sentencesContent = await ai.generateTextbookSentencesContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (sentencesContent.sentences || [])
@@ -696,7 +714,7 @@ async function generateCourseFromTextbook() {
         })
       }
 
-      if (selectedTypes.includes('passage')) {
+      if (selectedTypes.includes('passage') && !existingTypes.includes('passage')) {
         generationProgress.currentType = 'passage'
         const passageContent = await ai.generateTextbookPassageContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (passageContent.paragraphs || [])
@@ -726,7 +744,7 @@ async function generateCourseFromTextbook() {
         })
       }
 
-      if (selectedTypes.includes('grammar')) {
+      if (selectedTypes.includes('grammar') && !existingTypes.includes('grammar')) {
         generationProgress.currentType = 'grammar'
         const grammarContent = await ai.generateTextbookGrammarContent(textbookForm.textbookName.trim(), unitTitle.trim())
         const items: LessonItem[] = (grammarContent.points || [])
@@ -762,7 +780,7 @@ async function generateCourseFromTextbook() {
         })
       }
 
-      if (selectedTypes.includes('phonics')) {
+      if (selectedTypes.includes('phonics') && !existingTypes.includes('phonics')) {
         generationProgress.currentType = 'phonics'
         const sampleWords = wordsForPhonics.slice(0, 8).map((w) => String(w.word || '').trim()).filter(Boolean).join(', ')
         const phonicsContent = await ai.generateTextbookPhonicsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
@@ -800,7 +818,7 @@ async function generateCourseFromTextbook() {
       }
 
       const courseTitle = `${textbookForm.textbookName} - ${unitTitle}`
-      courses.push({
+      if (lessons.length > 0) courses.push({
         title: courseTitle,
         description: `${publisherForm.publisher} / ${textbookForm.series}`,
         category: 'special',
@@ -809,16 +827,25 @@ async function generateCourseFromTextbook() {
         tags: baseTags,
       })
 
+      activeCheckpoint.lessonsByUnit[unitTitle] = [...lessons]
+      if (!activeCheckpoint.completedTasks.includes(unitTitle)) activeCheckpoint.completedTasks.push(unitTitle)
+      activeCheckpoint.status = 'running'
+      persistGenerationCheckpoint(activeCheckpoint)
       generationProgress.doneUnits += 1
     }
 
+    if (courses.length === 0) throw new Error('所选单元的内容类型均已存在或没有新内容，请选择尚未生成的类型。')
+    activeCheckpoint.status = 'completed'
+    persistGenerationCheckpoint(activeCheckpoint)
     pendingCourses.value = courses
     addDiagnosticLog('info', 'textbook-course-generation', '教材课程草稿生成成功', { courses: courses.length, lessons: courses.reduce((sum, course) => sum + course.lessons.length, 0) })
     step.value = 3
     ElMessage.success('课程已生成，可预览后批量保存')
   } catch (e) {
+    const checkpoint = readGenerationCheckpoint()
+    if (checkpoint) { checkpoint.status = 'paused'; persistGenerationCheckpoint(checkpoint) }
     error.value = e instanceof Error ? e.message : '生成课程失败'
-    addDiagnosticLog('error', 'textbook-course-generation', '教材课程生成失败', error.value)
+    addDiagnosticLog('error', 'textbook-course-generation', '教材课程生成失败；已完成单元已保存，可断点继续', error.value)
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -916,6 +943,30 @@ function goToPractice() {
   if (savedIds.value.length) router.push(`/courses/${encodeURIComponent(savedIds.value[0])}`)
   else router.push('/course-repository')
 }
+
+onMounted(async () => {
+  const checkpoint = readGenerationCheckpoint()
+  if (!checkpoint) return
+  try {
+    publisherForm.publisher = checkpoint.publisher
+    await fetchSeries(false)
+    textbookForm.series = checkpoint.series
+    await fetchTextbooks(false)
+    textbookForm.textbookName = checkpoint.textbookName
+    await parseUnits()
+    unitForm.unitTitles = checkpoint.unitTitles
+    unitForm.contentTypes = checkpoint.contentTypes
+    unitForm.withAudio = checkpoint.withAudio
+    unitForm.coreCount = checkpoint.coreCount
+    unitForm.extraCount = checkpoint.extraCount
+    step.value = 2
+    checkpointStatus.value = checkpoint.status === 'running'
+      ? '教材生成任务已保存；已完成单元可恢复，当前请求若中断会从最近完成单元继续。'
+      : '发现教材生成断点，可点击“批量生成课程”继续未完成单元。'
+  } catch (e) {
+    console.warn('恢复教材生成任务上下文失败', e)
+  }
+})
 </script>
 
 <style lang="scss" scoped>
