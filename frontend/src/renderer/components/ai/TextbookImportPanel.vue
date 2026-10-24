@@ -872,7 +872,7 @@ async function withAudioForItems(items: LessonItem[], kind: 'word' | 'sentence' 
         })
         return { ...item, audioPath: audioPath || undefined }
       } catch (error) {
-        addDiagnosticLog('warning', 'textbook-course-generation', '单条 TTS 失败，继续生成课程内容', {
+        addDiagnosticLog('warn', 'textbook-course-generation', '单条 TTS 失败，继续生成课程内容', {
           kind,
           text: text.slice(0, 80),
           error: error instanceof Error ? error.message : String(error),
