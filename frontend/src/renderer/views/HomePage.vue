@@ -25,6 +25,9 @@
       title="部分学习数据暂时无法读取"
       :description="loadError"
     />
+    <div v-if="loadError && !loading" class="retry-row">
+      <el-button size="small" :loading="loading" @click="reloadDashboard">重新加载数据</el-button>
+    </div>
 
     <el-skeleton v-if="loading" :rows="5" animated />
 
@@ -312,7 +315,8 @@ function formatDate(timestamp: number) {
   })
 }
 
-onMounted(async () => {
+async function reloadDashboard() {
+  loading.value = true
   try {
     dashboard.value = await learningDashboardService.load()
   } catch (error) {
@@ -330,6 +334,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  void reloadDashboard()
 })
 </script>
 
@@ -357,7 +365,7 @@ onMounted(async () => {
   h2 { margin: 0 0 10px; font-size: 26px; line-height: 1.35; }
   p { max-width: 680px; margin: 0; line-height: 1.7; opacity: 0.92; }
 }
-.load-alert { margin-bottom: 20px; }
+.load-alert { margin-bottom: 10px; }\n.retry-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
