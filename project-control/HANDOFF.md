@@ -116,3 +116,14 @@
 - Frontend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139632)；Backend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139620)，对应代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532`。
 - 已修正完整单元计数逻辑；随后更新了审计报告，记录 CI 结果。
 - 继续工作前仍需浏览器/Windows 验证：页面切换时生成是否继续、异常/刷新后的断点恢复、增补内容是否正确合并、TTS 和真实模型耗时。当前断点机制是前端 localStorage 检查点，并非后端任务队列。
+
+
+## 学习方法兼容性实现交接（2026-10-24）
+
+- 分支：`feat/learning-method-compatibility-2026-10-24`。
+- 核心规则：`frontend/src/shared/utils/learningMethodCompatibility.ts`。
+- 修改文件：`frontend/src/renderer/components/classroom/ClassroomEntryDialog.vue`、`frontend/src/renderer/views/ClassroomPage.vue`。
+- 新设计文档：`docs/design/learning-method-compatibility-v1.md`。
+- 当前状态：代码已写入功能分支；尚未确认 GitHub Actions 结果，未做 Windows/浏览器 E2E，不应宣称 VERIFIED。
+- 下一步：检查 TypeScript 类型兼容与生产构建；修复 CI 发现的问题；确认入口/课堂/直接 URL 规则一致；再创建 PR 并记录准确的 workflow 结果。
+- 重要边界：当前仅做方法适配和不兼容阻断，不会自动提取文章中的词汇，不新增音素课堂，也不重分类历史课程。
