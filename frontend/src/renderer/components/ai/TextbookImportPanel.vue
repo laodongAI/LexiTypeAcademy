@@ -479,7 +479,7 @@ async function fetchSeries(forceRefresh = false) {
     let series = forceRefresh ? null : courseSystemStore.getSeries(publisher)
     if (!series?.length) {
       const ai = getAIService()
-      const result = await sharedCatalogRequest(`series:${publisher}`, () => ai.fetchSeriesList(publisher))
+      const result = await sharedCatalogRequest(`series:${publisher}${forceRefresh ? ':refresh' : ''}`, () => ai.fetchSeriesList(publisher))
       series = [...new Set((result.series || []).map((value) => String(value).trim()).filter(Boolean))]
       if (!series.length) throw new Error('未获取到教材系列，请检查出版社名称后重试')
       courseSystemStore.saveSeries(publisher, series)
@@ -599,7 +599,7 @@ async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false)
   if (forceRefresh) courseSystemStore.clearTextbooks(publisher, selectedSeries)
   let allTextbooks = forceRefresh ? null : courseSystemStore.getTextbooks(publisher, selectedSeries)
   if (!allTextbooks?.length) {
-    const result = await sharedCatalogRequest(`textbooks:${publisher}|${selectedSeries}`, () => ai.fetchTextbookList(publisher, selectedSeries))
+    const result = await sharedCatalogRequest(`textbooks:${publisher}|${selectedSeries}${forceRefresh ? ':refresh' : ''}`, () => ai.fetchTextbookList(publisher, selectedSeries))
     allTextbooks = (result.textbooks || [])
       .map((tb) => ({ grade: String(tb.grade || '').trim(), semester: String(tb.semester || '').trim(), name: String(tb.name || '').trim() }))
       .filter((tb) => tb.name)
@@ -1033,10 +1033,16 @@ async function saveCourses() {
       const draft = pendingCourses.value[index]
       const textbookTag = draft.tags?.find(tag => tag.startsWith('Textbook:'))
       const unitTag = draft.tags?.find(tag => draft.title.endsWith(' - ' + tag))
-      const existing = courseStore.courses.find(course =>
-        course.title === draft.title ||
-        (!!textbookTag && !!unitTag && course.tags?.includes(textbookTag) && course.tags.includes(unitTag))
-      )
+      const [draftPublisher = '', draftSeries = ''] = (draft.description || '').split(' / ')
+      const existing = courseStore.courses.find(course => {
+        const tags = course.tags || []
+        const identityMatch = !!textbookTag && !!unitTag &&
+          tags.includes(textbookTag) && tags.includes(unitTag) &&
+          tags.includes(draftPublisher) && tags.includes(draftSeries)
+        // Legacy records without full identity tags may only match when both title and edition description match exactly.
+        const safeLegacyMatch = course.title === draft.title && course.description === draft.description
+        return identityMatch || safeLegacyMatch
+      })
       let id: string
       if (existing) {
         const mergedLessons = mergeGeneratedLessons(existing.lessons || [], draft.lessons || [])
