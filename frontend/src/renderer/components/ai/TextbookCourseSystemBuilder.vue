@@ -375,7 +375,7 @@ async function parseUnits(forceRefresh: boolean) {
   try {
     const previousUnits = courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value) || []
     const cached = forceRefresh ? null : previousUnits
-    if (cached.length > 0) {
+    if (cached && cached.length > 0) {
       units.value = cached.map(u => ({ ...u, selected: true }))
       return
     }
