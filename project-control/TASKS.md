@@ -292,3 +292,11 @@ cd frontend; npm run build
 
 
 - 补充优化：`frontend/src/shared/services/apiClient.ts` 对同一路径/查询参数的并发 GET 做请求合并（不缓存已完成响应，避免陈旧数据）；手动补充单元写入年级隔离的目录缓存；保存课程时禁止仅凭同名标题跨出版社/系列合并。
+
+
+### 十三、教材生成任务验收状态更新（2026-10-24）
+
+- 最新功能代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532`：Frontend quality 和 Backend quality 均通过（前端包含 TypeScript typecheck 与 production build）。
+- 最新进度修正：完整单元数现在按该单元所选内容类型全部完成计算，不再把“单元标题”误当成内容类型任务键。
+- CI 仅证明自动化检查通过；浏览器切换页面持续运行、刷新/异常后恢复、真实模型耗时与 Windows E2E 仍为 NOT_RUN。
+- 详细报告：`docs/tasks/TEXTBOOK_GENERATION_AUDIT_2026-10-24.md`。
