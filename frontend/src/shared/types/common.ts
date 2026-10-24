@@ -117,7 +117,7 @@ export interface AITaskLog {
   /** 任务ID */
   id?: number;
   /** 任务类型 */
-  type: 'course_generation' | 'audio_import' | 'textbook_import' | 'weakword_remediation';
+  type: 'course_generation' | 'audio_import' | 'textbook_import' | 'weakword_remediation' | 'conversation_session' | 'learning_event';
   /** 任务状态 */
   status: 'pending' | 'running' | 'completed' | 'failed';
   /** 输入参数 */
