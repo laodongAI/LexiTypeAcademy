@@ -18,6 +18,11 @@
       {{ errorText }}
     </el-alert>
 
+    <el-alert v-if="recoverableCheckpoint && !generating" type="warning" :closable="false" show-icon class="error-alert">
+      检测到未完成的教材生成任务（{{ recoverableCheckpoint.textbookName }}，已完成 {{ recoverableCheckpoint.completedKeys.length }} 项，待重试 {{ recoverableCheckpoint.failedKeys.length }} 项）。
+      <el-button size="small" type="primary" @click="startGenerate(recoverableCheckpoint)">继续/重试未完成任务</el-button>
+    </el-alert>
+
     <div class="step-content">
       <div v-if="activeStep === 0" class="step-panel">
         <el-form label-width="100px">
@@ -241,6 +246,52 @@ const selectedPresetName = ref<string>('')
 
 const selectedUnitsCount = computed(() => units.value.filter(u => u.selected).length)
 
+// Deduplicate concurrent requests caused by overlapping reactive watchers.
+const pendingCatalogRequests = new Map<string, Promise<unknown>>()
+function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promise<T> {
+  const existing = pendingCatalogRequests.get(key)
+  if (existing) return existing as Promise<T>
+  const pending = request().finally(() => pendingCatalogRequests.delete(key))
+  pendingCatalogRequests.set(key, pending)
+  return pending
+}
+
+interface TextbookGenerationCheckpoint {
+  id: string
+  publisher: string
+  series: string
+  gradeLevel: string
+  textbookName: string
+  selectedUnits: TextbookUnitMeta[]
+  selectedTypes: CourseType[]
+  options: { coreCount: number; extraCount: number; sampleWords: string }
+  lessons: Lesson[]
+  completedKeys: string[]
+  failedKeys: string[]
+  status: 'running' | 'failed' | 'completed'
+  current?: string
+  startedAt: number
+  updatedAt: number
+  error?: string
+}
+const CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const recoverableCheckpoint = ref<TextbookGenerationCheckpoint | null>(null)
+function readCheckpoint(): TextbookGenerationCheckpoint | null {
+  try {
+    const raw = localStorage.getItem(CHECKPOINT_KEY)
+    if (!raw) return null
+    const task = JSON.parse(raw) as TextbookGenerationCheckpoint
+    return task && Array.isArray(task.selectedUnits) && Array.isArray(task.lessons) ? task : null
+  } catch { return null }
+}
+function saveCheckpoint(task: TextbookGenerationCheckpoint) {
+  task.updatedAt = Date.now()
+  try { localStorage.setItem(CHECKPOINT_KEY, JSON.stringify(task)) } catch (error) {
+    console.warn('[textbook-generation] checkpoint save failed', error)
+  }
+  recoverableCheckpoint.value = task.status === 'completed' ? null : task
+}
+
 function getAIOrNull(): AIService | null {
   if (!props.isAIConfigured || !props.aiService) {
     emit('require-config')
@@ -316,7 +367,7 @@ async function loadSeries(forceRefresh = false) {
       courseSystemStore.clearSeries(publisher.value)
     }
 
-    const result = await aiService.fetchSeriesList(publisher.value)
+    const result = await sharedCatalogRequest(`series:${publisher.value}`, () => aiService.fetchSeriesList(publisher.value))
     const list = (result?.series || []).filter((s: any) => typeof s === 'string' && s.trim())
     availableSeries.value = list
     courseSystemStore.saveSeries(publisher.value, list)
@@ -335,14 +386,11 @@ async function loadTextbooks(forceRefresh = false) {
 
   loading.value = true
   errorText.value = ''
-  textbooks.value = []
-  selectedTextbookName.value = ''
-
   try {
     const cached = forceRefresh ? null : courseSystemStore.getTextbooks(publisher.value, series.value, gradeLevel.value)
     if (cached && cached.length > 0) {
       textbooks.value = cached
-      selectedTextbookName.value = cached[0].name
+      if (!textbooks.value.some(item => item.name === selectedTextbookName.value)) selectedTextbookName.value = cached[0]?.name || ''
       return
     }
 
@@ -350,11 +398,11 @@ async function loadTextbooks(forceRefresh = false) {
       courseSystemStore.clearTextbooks(publisher.value, series.value, gradeLevel.value)
     }
 
-    const result = await aiService.fetchTextbookList(publisher.value, series.value, gradeLevel.value)
+    const result = await sharedCatalogRequest(`textbooks:${publisher.value}|${series.value}|${gradeLevel.value}`, () => aiService.fetchTextbookList(publisher.value, series.value, gradeLevel.value))
     const list = (result?.textbooks || []).filter((t: any) => t && t.name)
     textbooks.value = list
     courseSystemStore.saveTextbooks(publisher.value, series.value, list, gradeLevel.value)
-    if (list.length > 0) selectedTextbookName.value = list[0].name
+    if (!list.some(item => item.name === selectedTextbookName.value)) selectedTextbookName.value = list[0]?.name || ''
   } catch (e: any) {
     errorText.value = e?.message || '获取教材失败'
   } finally {
@@ -376,11 +424,11 @@ async function parseUnits(forceRefresh: boolean) {
     const previousUnits = courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value) || []
     const cached = forceRefresh ? null : previousUnits
     if (cached && cached.length > 0) {
-      units.value = cached.map(u => ({ ...u, selected: true }))
+      units.value = cached.map(u => ({ ...u, selected: false }))
       return
     }
 
-    const result = await aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value)
+    const result = await sharedCatalogRequest(`units:${publisher.value}|${series.value}|${selectedTextbookName.value}`, () => aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value))
     const list: TextbookUnitMeta[] = (result?.units || []).map((u: any) => {
       const unit_num = Number(u.unit_num) || 0
       const title = String(u.title || '').trim()
@@ -395,7 +443,7 @@ async function parseUnits(forceRefresh: boolean) {
     }).filter((u: TextbookUnitMeta) => !!u.title)
 
     courseSystemStore.saveUnits(publisher.value, series.value, selectedTextbookName.value, list)
-    units.value = list.map(u => ({ ...u, selected: true }))
+    units.value = list.map(u => ({ ...u, selected: false }))
   } catch (e: any) {
     errorText.value = e?.message || '解析单元失败'
   } finally {
@@ -464,7 +512,7 @@ async function clearCache() {
   }
 }
 
-async function startGenerate() {
+async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = null) {
   const aiService = getAIOrNull()
   if (!aiService) return
   if (!selectedTextbookName.value) {
@@ -472,13 +520,13 @@ async function startGenerate() {
     return
   }
 
-  const selectedUnits = units.value.filter(u => u.selected)
+  const selectedUnits = resumeTask ? resumeTask.selectedUnits : units.value.filter(u => u.selected)
   if (selectedUnits.length === 0) {
     ElMessage.warning('请至少选择一个单元')
     return
   }
 
-  const alreadyGenerated = selectedUnits.filter(u => u.generated)
+  const alreadyGenerated = resumeTask ? [] : selectedUnits.filter(u => u.generated && !(u.generatedTypes?.length))
   if (alreadyGenerated.length > 0) {
     try {
       await ElMessageBox.confirm(
@@ -495,7 +543,24 @@ async function startGenerate() {
   hasGenerated.value = false
   generationLogs.value = []
 
-  const lessons: Lesson[] = []
+  const task: TextbookGenerationCheckpoint = resumeTask || {
+    id: `textbook-${Date.now()}`,
+    publisher: publisher.value, series: series.value, gradeLevel: gradeLevel.value,
+    textbookName: selectedTextbookName.value,
+    selectedUnits: selectedUnits.map(({ unit_num, title, topics, generated, generatedTypes }) => ({ unit_num, title, topics, generated, generatedTypes })),
+    selectedTypes: [...selectedCourseTypes.value], options: { ...generationOptions.value },
+    lessons: [], completedKeys: [], failedKeys: [], status: 'running', startedAt: Date.now(), updatedAt: Date.now()
+  }
+  if (resumeTask) {
+    publisher.value = task.publisher; series.value = task.series; gradeLevel.value = task.gradeLevel
+    selectedTextbookName.value = task.textbookName
+    selectedCourseTypes.value = [...task.selectedTypes]
+    generationOptions.value = { ...task.options }
+  }
+  task.status = 'running'; task.error = undefined; saveCheckpoint(task)
+  const lessons: Lesson[] = [...task.lessons]
+  const completed = new Set(task.completedKeys)
+  task.failedKeys = []
 
   try {
     addLog(`开始生成内容：教材《${selectedTextbookName.value}》，单元数 ${selectedUnits.length}`)
@@ -504,9 +569,14 @@ async function startGenerate() {
       const unitLabel = `Unit ${unit.unit_num}: ${unit.title}`
       addLog(`处理 ${unitLabel}`)
 
-      for (const type of selectedCourseTypes.value) {
+      for (const type of task.selectedTypes) {
+        const taskKey = `${unit.unit_num}:${type}`
+        if (completed.has(taskKey)) { addLog(`  ↷ ${type} 已完成，跳过`); continue }
+        if ((unit.generatedTypes || []).includes(type)) { completed.add(taskKey); task.completedKeys = [...completed]; addLog(`  ↷ ${type} 已有生成记录，跳过增补`); saveCheckpoint(task); continue }
+        task.current = taskKey; saveCheckpoint(task)
         addLog(`  -> 生成 ${type}`)
-
+        const startedAt = Date.now()
+        const lessonCountBefore = lessons.length
         try {
           const now = Date.now()
 
@@ -607,18 +677,35 @@ async function startGenerate() {
             }
           }
 
-          addLog(`  ✓ ${type} 生成成功`)
+          if (lessons.length === lessonCountBefore) throw new Error('模型未返回可用内容，未将该类型标记为完成')
+          completed.add(taskKey)
+          task.completedKeys = [...completed]
+          task.lessons = [...lessons]
+          task.failedKeys = task.failedKeys.filter(key => key !== taskKey)
+          courseSystemStore.markUnitTypeAsGenerated(task.publisher, task.series, task.textbookName, unit.title, type)
+          addLog(`  ✓ ${type} 生成成功（${((Date.now() - startedAt) / 1000).toFixed(1)} 秒）`)
+          saveCheckpoint(task)
         } catch (e: any) {
-          addLog(`  ✗ ${type} 生成失败：${e?.message || String(e)}`)
+          const message = e?.message || String(e)
+          task.failedKeys = [...new Set([...task.failedKeys, taskKey])]
+          task.error = message
+          addLog(`  ✗ ${type} 生成失败（${((Date.now() - startedAt) / 1000).toFixed(1)} 秒）：${message}`)
+          saveCheckpoint(task)
         }
       }
 
-      // 标记该单元已生成（缓存层）
-      courseSystemStore.markUnitAsGenerated(publisher.value, series.value, selectedTextbookName.value, unit.title)
-      units.value = units.value.map(u => (u.title === unit.title ? { ...u, generated: true } : u))
+      const generatedTypes = [...new Set([...(unit.generatedTypes || []), ...task.selectedTypes.filter(type => completed.has(`${unit.unit_num}:${type}`))])]
+      if (generatedTypes.length) courseSystemStore.saveUnits(task.publisher, task.series, task.textbookName,
+        (courseSystemStore.getUnits(task.publisher, task.series, task.textbookName) || []).map(u => u.title === unit.title ? { ...u, generatedTypes, generated: true } : u))
+      units.value = units.value.map(u => (u.title === unit.title ? { ...u, generatedTypes, generated: generatedTypes.length > 0 } : u))
     }
 
-    addLog('全部任务完成')
+    task.lessons = [...lessons]
+    task.completedKeys = [...completed]
+    task.status = task.failedKeys.length ? 'failed' : 'completed'
+    task.current = undefined
+    saveCheckpoint(task)
+    addLog(task.failedKeys.length ? `本轮结束：${task.completedKeys.length} 项完成，${task.failedKeys.length} 项失败，可继续重试` : `全部任务完成，共 ${task.completedKeys.length} 项，耗时 ${((Date.now() - task.startedAt) / 1000).toFixed(1)} 秒`)
 
     const pendingCourse: PendingCourseData = {
       title: `${publisher.value}${series.value}《${selectedTextbookName.value}》`,
@@ -629,9 +716,14 @@ async function startGenerate() {
       tags: ['教材', publisher.value, series.value, gradeLevel.value, 'AI'].filter(Boolean)
     }
 
+    try { localStorage.setItem('textbook_generation_completed_draft_v1', JSON.stringify(pendingCourse)) } catch { /* checkpoint remains available */ }
     emit('preview', pendingCourse)
     hasGenerated.value = true
     activeStep.value = 3
+  } catch (e: any) {
+    task.status = 'failed'; task.error = e?.message || String(e); saveCheckpoint(task)
+    addLog(`任务中断，可继续执行：${task.error}`)
+    throw e
   } finally {
     generating.value = false
   }
@@ -675,6 +767,18 @@ watch(selectedTextbookName, async () => {
 
 onMounted(async () => {
   loadPresets()
+  const saved = readCheckpoint()
+  if (saved && saved.status !== 'completed') recoverableCheckpoint.value = saved
+  const completedDraft = localStorage.getItem('textbook_generation_completed_draft_v1')
+  if (completedDraft) {
+    try {
+      const draft = JSON.parse(completedDraft) as PendingCourseData
+      if (draft?.lessons?.length) {
+        emit('preview', draft)
+        if (saved?.status === 'completed') { hasGenerated.value = true; activeStep.value = 3 }
+      }
+    } catch { /* ignore invalid draft */ }
+  }
   await loadSeries(false)
 })
 </script>
