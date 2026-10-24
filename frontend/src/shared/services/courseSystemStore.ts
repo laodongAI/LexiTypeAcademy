@@ -17,6 +17,7 @@ export interface TextbookUnitMeta {
   title: string;
   topics: string[];
   generated?: boolean;
+  generatedTypes?: string[];
 }
 
 const STORAGE_KEY = 'course_system_data_v1';
@@ -110,6 +111,19 @@ class CourseSystemStore {
       delete this.data.units[key];
       this.save();
     }
+  }
+
+  markUnitTypeAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, contentType: string) {
+    const key = `${publisher}|${series}|${textbookName}`;
+    const units = this.data.units[key];
+    if (!units) return;
+    const unit = units.find(item => item.title === unitTitle);
+    if (!unit) return;
+    const types = new Set(unit.generatedTypes || []);
+    types.add(contentType);
+    unit.generatedTypes = [...types];
+    unit.generated = unit.generatedTypes.length > 0;
+    this.save();
   }
 
   markUnitAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string) {
