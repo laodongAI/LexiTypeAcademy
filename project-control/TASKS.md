@@ -304,7 +304,7 @@ cd frontend; npm run build
 
 ## 学习内容与学习方法兼容性（2026-10-24）
 
-- 状态：实现已提交到功能分支，CI/typecheck/build 尚待运行；浏览器 E2E NOT_RUN。
+- 状态：代码提交 `6bb6fab842e006e1f78bc8227cf9eb098d284d28` 的 Frontend quality 与 Backend quality 均 PASS；浏览器 E2E NOT_RUN。证据：[Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120807)、[Backend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120779)。
 - 新增统一规则：`frontend/src/shared/utils/learningMethodCompatibility.ts`，供课堂入口与课堂页共用。
 - 修复：入口弹窗按内容形态动态推荐；不适用的方法禁用并显示原因；课堂导航阻止不兼容切换；直接 URL 指定不兼容模式时回退到推荐模式。
 - 规则：word/phrase → 词燃尽；sentence → 句子燃尽（需有完整多词句）；passage/dialog → 精读，必须先拆分为独立句子后才能做句子燃尽；词根课堂要求单词课中至少两个词条共享明确 root/rootGroupId 分组。
