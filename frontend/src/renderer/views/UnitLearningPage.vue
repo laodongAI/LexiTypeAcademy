@@ -87,6 +87,7 @@
                   <p v-if="showTranslations && item.chinese" class="translation">{{ item.chinese }}</p>
                   <div class="material-actions">
                     <el-button type="primary" plain @click="playText(item.english, item.key)">▶ 朗读</el-button>
+                    <el-button v-if="item.lessonId && item.practiceItemId" @click="openFollowRead(item)">跟读评分</el-button>
                     <el-button @click="showTranslations = !showTranslations">{{ showTranslations ? '隐藏翻译' : '显示翻译' }}</el-button>
                   </div>
                 </article>
@@ -102,6 +103,7 @@
                   <p v-if="item.chinese" class="translation">{{ item.chinese }}</p>
                   <div class="sentence-actions">
                     <el-button type="primary" plain @click="playText(item.english, item.key)">▶ 听句子</el-button>
+                    <el-button v-if="item.lessonId && item.practiceItemId" @click="openFollowRead(item)">跟读评分</el-button>
                     <el-button plain @click="playText(item.english, item.key + '-slow')">再听一遍</el-button>
                   </div>
                 </article>
@@ -118,6 +120,7 @@
                   </div>
                   <span v-if="item.phonetic" class="phonetic">{{ item.phonetic }}</span>
                   <p>{{ item.chinese || '暂无中文释义' }}</p>
+                  <el-button v-if="item.lessonId && item.practiceItemId" text size="small" @click="openFollowRead(item)">进入跟读评分</el-button>
                   <small v-if="item.partOfSpeech">{{ item.partOfSpeech }}</small>
                   <div v-if="item.examples?.length" class="example">
                     <p>{{ item.examples[0] }}</p>
@@ -234,6 +237,8 @@ type LearningMode = 'self' | 'teacher'
 interface TeachingMaterial {
   key: string
   lessonTitle: string
+  lessonId?: string
+  practiceItemId?: string
   english: string
   chinese: string
   phonetic?: string
@@ -268,8 +273,6 @@ const teacherDraft = ref('')
 const teacherLoading = ref(false)
 const teacherError = ref('')
 const messagesRef = ref<HTMLElement | null>(null)
-const quizAttemptKeys = ref<string[]>([])
-const startedAt = Date.now()
 
 const stages: { id: StageId; label: string; description: string }[] = [
   { id: 'intro', label: '单元导入', description: '了解本单元主题、材料构成与学习目标。' },
@@ -287,7 +290,7 @@ const progressPercent = computed(() => Math.round((completedStages.value.length 
 const readingItems = computed<TeachingMaterial[]>(() => {
   const lessons = course.value?.lessons.filter(lesson => [ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape)) || []
   return lessons.flatMap(lesson => lesson.items.filter(item => item.english?.trim()).map(item => ({
-    key: item.id, lessonTitle: lesson.title, english: item.english, chinese: item.chinese || '',
+    key: item.id, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: item.english, chinese: item.chinese || '',
   })))
 })
 const sentenceItems = computed<TeachingMaterial[]>(() => {
@@ -295,12 +298,12 @@ const sentenceItems = computed<TeachingMaterial[]>(() => {
   return lessons.flatMap(lesson => {
     if (lesson.contentShape === ContentShape.Sentence) {
       return lesson.items.filter(item => item.english?.trim()).map(item => ({
-        key: item.id, lessonTitle: lesson.title, english: item.english, chinese: item.chinese || '', kind: 'sentence' as const,
+        key: item.id, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: item.english, chinese: item.chinese || '', kind: 'sentence' as const,
       }))
     }
     if ([ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape)) {
       return lesson.items.flatMap(item => splitSentences(item.english || '').map((sentence, index) => ({
-        key: `${item.id}-sentence-${index}`, lessonTitle: lesson.title, english: sentence.text, chinese: index === 0 ? item.chinese || '' : '', kind: 'sentence' as const,
+        key: `${item.id}-sentence-${index}`, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: sentence.text, chinese: index === 0 ? item.chinese || '' : '', kind: 'sentence' as const,
       })))
     }
     return []
@@ -309,7 +312,7 @@ const sentenceItems = computed<TeachingMaterial[]>(() => {
 const vocabularyItems = computed<TeachingMaterial[]>(() => (course.value?.lessons || [])
   .filter(lesson => [ContentShape.Word, ContentShape.Phrase].includes(lesson.contentShape))
   .flatMap(lesson => lesson.items.filter(item => item.english?.trim()).map(item => ({
-    key: item.id, lessonTitle: lesson.title, english: item.english, chinese: item.chinese || '',
+    key: item.id, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: item.english, chinese: item.chinese || '',
     phonetic: item.phonetic, partOfSpeech: item.partOfSpeech, examples: item.examples || [], exampleTranslations: item.exampleTranslations || [],
   }))))
 const quizItem = computed<TeachingMaterial | null>(() => {
@@ -388,9 +391,16 @@ function resetUnitProgress(): void {
   quizAttempts.value = 0
   quizCorrect.value = 0
   quizIndex.value = 0
-  quizAttemptKeys.value = []
   quizResult.value = null
   try { localStorage.removeItem(checkpointKey()) } catch { /* ignore */ }
+}
+function openFollowRead(item: TeachingMaterial): void {
+  if (!item.lessonId || !item.practiceItemId) return
+  router.push({
+    name: 'LessonPractice',
+    params: { lessonId: item.lessonId },
+    query: { courseId: courseId.value, lessonId: item.lessonId, mode: 'follow', itemId: item.practiceItemId },
+  })
 }
 async function playText(text: string, key: string, language: 'en' | 'zh' = 'en'): Promise<void> {
   try {
@@ -436,7 +446,6 @@ function submitQuiz(): void {
       ? `文本相似度 ${Math.round(similarity * 100)}%。已记录本次正确作答。`
       : `文本相似度 ${Math.round(similarity * 100)}%。请对照参考答案，再听一遍后重试。`,
   }
-  quizAttemptKeys.value.push(item.key)
   completeStageWithoutAdvancing('output')
 }
 function nextQuiz(): void {
@@ -475,6 +484,7 @@ async function chooseTeacherMode(): Promise<void> {
       && session.title === title && session.status === 'active')
     if (existing) {
       teacherSession.value = existing
+      await scrollTeacherMessages()
       return
     }
     const session = await conversationCoreService.createSession('ai-tutor', title, {
