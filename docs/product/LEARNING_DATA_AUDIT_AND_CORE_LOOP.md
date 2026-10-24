@@ -130,4 +130,4 @@ interface LearningEvent {
 - 前端类型检查与生产构建：GitHub Actions run #46 已通过（`npm ci`、`npm run typecheck`、`npm run build`）；验证使用临时 PR merge commit，临时 PR 已关闭且未合并。
 - 后端 API/数据库集成测试：未运行。
 - Windows 实机刷新/重启恢复：未验证。
-- 因此相关实现状态为 `IMPLEMENTED_UNVERIFIED`，不可标记 `VERIFIED`。
+- 前端类型检查与生产构建已有 CI 证据；后端集成和 Windows 实机行为仍为 `IMPLEMENTED_UNVERIFIED`，不可标记 `VERIFIED`。
