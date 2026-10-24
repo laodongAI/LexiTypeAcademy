@@ -162,7 +162,7 @@ export class ConversationCoreService {
           ...pending.messages.map(message => ({ role: message.role, content: message.content })),
         ],
         requestId: `conversation-${session.id}-${userMessage.id}`,
-      })
+      }, { timeout: 120000 })
       if (!response.content?.trim()) throw new Error('AI 返回了空内容，请重试')
       const completed: ConversationSession = {
         ...pending,
