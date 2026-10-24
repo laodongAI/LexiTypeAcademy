@@ -331,7 +331,7 @@ export class AIService {
 
     // 1) 课程大纲：只要求课程名、简介与每课标题，输出量小且稳定
     const outlinePrompt = `
-You are designing an English typing practice course.
+You are designing an English typing practice course focused on ${contentLabel}. Do not switch to another content type.
 
 **Source material:**
 ${trimmedSource}
@@ -392,16 +392,16 @@ ${trimmedSource}
 **Course:** ${courseName}
 **Lesson:** ${lessonName} — ${lessonDescription}
 
-**Task:** Provide exactly ${batchCount} English words for this lesson.
-Words must be relevant to the source material and ordered from easier to harder.
+**Task:** Provide exactly ${batchCount} ${contentLabel} for this lesson. Each item must be a natural ${focus === 'phrase' ? 'multi-word expression or collocation' : 'single vocabulary word'}.
+Items must be relevant to the source material and ordered from easier to harder.
 Skip words that are already generated for this lesson.
 
 Return JSON only:
 {
   "words": [
     {
-      "word": "example",
-      "meaning": "a thing characteristic of its kind",
+      "word": "${contentExample}",
+      "meaning": "${contentMeaning}",
       "translation": "例子",
       "phonetic": "/ɪɡˈzæmpl/",
       "example": "This is an example sentence.",
@@ -574,7 +574,9 @@ Return JSON only:
           transcription,
           lessonCount,
           wordsPerLesson,
-          'AI 生成课程'
+          'AI 生成课程',
+          undefined,
+          focus
         );
       }
 
@@ -586,8 +588,8 @@ Based on the following source text, create an English typing practice course foc
 ${transcription}
 
 **Requirements:**
-- Extract key vocabulary from the transcription
-- Create exactly ${lessonCount} lessons with exactly ${wordsPerLesson} words each
+- Extract ${focus === 'phrase' ? 'natural phrases and collocations (not isolated words)' : 'key single vocabulary words'} from the source text
+- Create exactly ${lessonCount} lessons with exactly ${wordsPerLesson} ${focus === 'phrase' ? 'phrases' : 'words'} each
 - Provide complete word information (meaning, phonetic, example, translation)
 - Organize words by theme or difficulty
 
