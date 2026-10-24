@@ -1292,6 +1292,15 @@ onBeforeUnmount(() => {
   color: #0f172a;
 }
 
+.mode-tab:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.mode-tab:disabled:hover {
+  color: #64748b;
+}
+
 .mode-tab.active {
   color: #0f766e;
   background: #ffffff;
