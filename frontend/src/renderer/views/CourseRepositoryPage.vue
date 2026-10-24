@@ -278,6 +278,10 @@
                 <el-icon><FolderOpened /></el-icon>
                 <strong>{{ group.title }}</strong>
                 <el-tag size="small" :type="group.isUncategorized ? 'info' : 'success'">{{ group.courses.length }} 门课程</el-tag>
+                <span v-if="group.collection" class="collection-heading-actions" @click.stop>
+                  <el-button size="small" text @click.stop="editCollection(group.collection)">重命名</el-button>
+                  <el-button size="small" text type="danger" @click.stop="deleteCollection(group.collection)">删除集合</el-button>
+                </span>
               </div>
             </template>
             <div class="collection-course-list">
@@ -661,7 +665,7 @@ const collectionGroups = computed(() => {
   const groups = persistedCollections.value.map((collection) => {
     const members = filteredCourses.value.filter((course) => collection.courseIds.includes(course.id))
     members.forEach((course) => assignedIds.add(course.id))
-    return { key: collection.id, title: getCollectionPath(collection), courses: members, isUncategorized: false }
+    return { key: collection.id, title: getCollectionPath(collection), courses: members, isUncategorized: false, collection }
   })
   const textbooks = filteredCourses.value.filter((course) => {
     const tags = course.tags ?? []
@@ -669,10 +673,10 @@ const collectionGroups = computed(() => {
   })
   if (textbooks.length) {
     textbooks.forEach((course) => assignedIds.add(course.id))
-    groups.push({ key: '__textbook__', title: '教材课程（切换教材视图查看层级）', courses: textbooks, isUncategorized: false })
+    groups.push({ key: '__textbook__', title: '教材课程（切换教材视图查看层级）', courses: textbooks, isUncategorized: false, collection: null })
   }
   const unassigned = filteredCourses.value.filter((course) => !assignedIds.has(course.id))
-  if (unassigned.length) groups.push({ key: '__uncategorized__', title: '未归类课程', courses: unassigned, isUncategorized: true })
+  if (unassigned.length) groups.push({ key: '__uncategorized__', title: '未归类课程', courses: unassigned, isUncategorized: true, collection: null })
   return groups.sort((a, b) => a.isUncategorized === b.isUncategorized ? a.title.localeCompare(b.title, 'zh-Hans-CN') : (a.isUncategorized ? 1 : -1))
 })
 
@@ -733,6 +737,44 @@ async function assignCourseToCollection(collectionId: string, course: Course) {
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '更新课程归属失败')
     await loadCollections()
+  }
+}
+
+async function editCollection(collection: CourseCollection) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新的集合名称', '重命名课程集合', {
+      inputValue: collection.name,
+      inputMaxlength: 256,
+      inputValidator: (value: string) => value.trim().length > 0 || '集合名称不能为空',
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+    })
+    await courseCollectionService.update(collection.id, { name: value.trim() })
+    await loadCollections()
+    ElMessage.success('集合名称已更新')
+  } catch (error) {
+    // 用户取消弹窗不属于错误。
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof Error ? error.message : '重命名集合失败')
+    }
+  }
+}
+
+async function deleteCollection(collection: CourseCollection) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除集合“${getCollectionPath(collection)}”吗？仅允许删除没有子集合、没有课程归属的集合。`,
+      '删除课程集合',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+    await courseCollectionService.remove(collection.id)
+    await loadCollections()
+    ElMessage.success('集合已删除')
+  } catch (error) {
+    // 用户取消弹窗不属于错误。
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof Error ? error.message : '删除集合失败')
+    }
   }
 }
 
@@ -1250,6 +1292,7 @@ onMounted(async () => {
 .collection-collapse { border-top: 0; }
 .collection-heading { display: flex; align-items: center; gap: 10px; width: 100%; padding-right: 12px; }
 .collection-heading strong { font-size: 15px; }
+.collection-heading-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
 .collection-course-list { display: flex; flex-direction: column; gap: 10px; }
 .collection-course-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-color-light); border-radius: 8px; }
 .collection-course-main { min-width: 0; }
