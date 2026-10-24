@@ -65,6 +65,27 @@ export async function generateCourseDraftFromChineseText(
     params.focus ?? 'word'
   )
 
+  // 生成质量闸门：不把空课程或明显违背目标类型的结果静默保存为正式草稿。
+  const generatedLessons = Array.isArray(generated.lessons) ? generated.lessons : []
+  if (generatedLessons.length === 0) {
+    throw new Error('AI 未生成任何课时，请调整输入内容后重试。')
+  }
+  const generatedItems = generatedLessons.flatMap((lesson) =>
+    Array.isArray(lesson.words) ? lesson.words : []
+  )
+  const nonEmptyItems = generatedItems.filter((item) => String(item?.word ?? '').trim())
+  if (nonEmptyItems.length === 0) {
+    throw new Error('AI 未生成有效的英文学习内容，请重试或更换生成方式。')
+  }
+
+  if (params.focus === 'phrase') {
+    const singleWordItems = nonEmptyItems.filter((item) => !/\\s/.test(String(item.word).trim()))
+    if (singleWordItems.length > 0) {
+      const examples = singleWordItems.slice(0, 3).map((item) => String(item.word).trim()).join('、')
+      throw new Error(`当前选择的是“常用表达/搭配”，但生成结果包含单个词（${examples}）。请重新生成，确保每项是由多个单词组成的完整表达。`)
+    }
+  }
+
   const draft = courseDraftFromGenerationResponse(generated, {
     title: normalizedCourseName || generated.courseName,
     difficulty: params.difficulty ?? 'intermediate',
