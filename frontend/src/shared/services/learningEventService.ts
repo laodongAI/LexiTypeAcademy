@@ -15,6 +15,8 @@ export type LearningEventType =
   | 'lesson_abandoned'
   | 'review_submitted'
   | 'study_plan_task_completed'
+  | 'conversation_completed'
+  | 'conversation_abandoned'
 
 export interface LearningEvent {
   eventId: string
