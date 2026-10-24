@@ -357,6 +357,22 @@ function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promis
   pendingCatalogRequests.set(key, pending)
   return pending
 }
+
+// Two units at a time reduces sequential AI round-trip latency while bounding provider load.
+// Wait for all workers before surfacing an error so no background worker is left untracked.
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let nextIndex = 0
+  const errors: unknown[] = []
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (true) {
+      const index = nextIndex++
+      if (index >= items.length) return
+      try { await worker(items[index]) } catch (error) { errors.push(error) }
+    }
+  })
+  await Promise.all(workers)
+  if (errors.length) throw errors[0]
+}
 const checkpointStatus = ref('')
 let checkpointPollId: number | undefined
 
@@ -670,7 +686,7 @@ async function generateCourseFromTextbook() {
     }
     const activeCheckpoint = checkpoint as TextbookGenerationCheckpoint
     generationProgress.totalUnits = selectedUnits.length
-    generationProgress.doneUnits = activeCheckpoint.completedTasks.filter(task => selectedUnits.includes(task)).length
+    generationProgress.doneUnits = 0
     generationProgress.totalTasks = selectedUnits.length * selectedTypes.length
     generationProgress.doneTasks = activeCheckpoint.completedTasks.filter(task => selectedUnits.some(unit => selectedTypes.some(type => task === generationTaskKey(unit, type)))).length
     activeCheckpoint.status = 'running'
@@ -679,7 +695,7 @@ async function generateCourseFromTextbook() {
     ;(window as unknown as { __lexitypeTextbookGenerationKey?: string }).__lexitypeTextbookGenerationKey = key
     persistGenerationCheckpoint(activeCheckpoint)
 
-    for (const unitTitle of selectedUnits) {
+    await runWithConcurrency(selectedUnits, 2, async (unitTitle) => {
       generationProgress.currentUnit = unitTitle
       const lessons: Lesson[] = [...(activeCheckpoint.lessonsByUnit[unitTitle] || [])]
       // 教材分级标签：保留历史顺序（AI / Textbook / 出版社 / 系列 / 单元），
@@ -701,7 +717,7 @@ async function generateCourseFromTextbook() {
       if (activeCheckpoint.completedTasks.includes(unitTitle)) {
         if (lessons.length > 0) courses.push({ title: textbookForm.textbookName + ' - ' + unitTitle, description: publisherForm.publisher + ' / ' + textbookForm.series, category: 'special', difficulty: 'intermediate', lessons, tags: baseTags })
         generationProgress.doneUnits += 1
-        continue
+        return
       }
       const existingTypes = getExistingTypes(getExistingCourseForUnit(unitTitle))
       for (const type of selectedTypes) {
@@ -919,7 +935,7 @@ async function generateCourseFromTextbook() {
       activeCheckpoint.status = 'running'
       persistGenerationCheckpoint(activeCheckpoint)
       generationProgress.doneUnits += 1
-    }
+    })
 
     if (courses.length === 0) throw new Error('所选单元的内容类型均已存在或没有新内容，请选择尚未生成的类型。')
     activeCheckpoint.status = 'completed'
