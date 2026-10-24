@@ -18,8 +18,17 @@ export interface LearningMethodRule {
 const hasItems = (lesson: Lesson): boolean => (lesson.items ?? []).some(item => Boolean(item.english?.trim()))
 const hasMultiwordItems = (lesson: Lesson): boolean =>
   (lesson.items ?? []).some(item => (item.english ?? '').trim().split(/\s+/).filter(Boolean).length > 1)
-const hasRootMetadata = (lesson: Lesson): boolean =>
-  (lesson.items ?? []).some(item => Boolean(item.root?.trim() || item.rootGroupId?.trim()))
+const hasRootMetadata = (lesson: Lesson): boolean => {
+  const groups = new Map<string, number>()
+  for (const item of lesson.items ?? []) {
+    const root = (item.root ?? '').trim().toLowerCase().replace(/^-+|-+$/g, '')
+    const groupId = (item.rootGroupId ?? '').trim()
+    if (!root && !groupId) continue
+    const key = groupId || `root:${root}`
+    groups.set(key, (groups.get(key) ?? 0) + 1)
+  }
+  return Array.from(groups.values()).some(count => count >= 2)
+}
 
 export const learningMethodRules: LearningMethodRule[] = [
   {
@@ -57,7 +66,7 @@ export const learningMethodRules: LearningMethodRule[] = [
     available: lesson => hasItems(lesson) && hasRootMetadata(lesson),
     unavailableReason: lesson => !hasItems(lesson)
       ? '当前课时没有可学习的词条。'
-      : '当前词条没有标注词根或词根组；请先补充词根数据，避免按词性分组冒充词根学习。',
+      : '当前课时没有至少两个共享同一词根/词根组的词条；请先补充有效的词根组数据，避免把单词列表误当成词根课堂。',
   },
 ]
 
