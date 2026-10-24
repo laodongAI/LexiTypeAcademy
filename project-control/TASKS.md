@@ -324,3 +324,5 @@ cd frontend; npm run build
 - 新增路由 `UnitLearning`，课程详情提供“开始单元学习”入口；旧的逐课时课堂入口保留。
 - 数据边界：不迁移或改写原课程，不新增内容表；语法讲解为 AI 临时生成内容，未写回原教材。
 - CI 证据：Frontend quality PASS（TypeScript typecheck + production build，https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684942）；Backend quality PASS（https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684818）。待验证：AI 会话恢复、TTS/跟读跳转、不同内容形态空状态、刷新后进度恢复、Windows/浏览器 E2E。
+
+- 续修（2026-10-24）：修正原文拆句时把整段中文翻译错误挂到第一句的问题；从篇章提取的句子标注“从原文提取”，不再误链接到整段跟读项目。阶段跳过与真正完成分开保存，跳过项单独显示且不计入完成率；重新完成阶段时清除其跳过状态。新一轮 CI 需要确认这些补丁通过。
