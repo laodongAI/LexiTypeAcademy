@@ -324,6 +324,52 @@ function toTypeLabel(type: string): string {
   return type
 }
 
+interface TextbookGenerationCheckpoint {
+  key: string
+  publisher: string
+  series: string
+  textbookName: string
+  unitTitles: string[]
+  contentTypes: Array<'words' | 'sentences' | 'passage' | 'grammar' | 'phonics'>
+  withAudio: boolean
+  coreCount: number
+  extraCount: number
+  completedTasks: string[]
+  lessonsByUnit: Record<string, Lesson[]>
+  updatedAt: number
+}
+
+const GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const checkpointStatus = ref('')
+
+function makeGenerationKey(publisher: string, series: string, textbookName: string) {
+  return [publisher, series, textbookName].map(value => value.trim()).join('|')
+}
+
+function readGenerationCheckpoint(): TextbookGenerationCheckpoint | null {
+  try {
+    const raw = localStorage.getItem(GENERATION_CHECKPOINT_KEY)
+    return raw ? JSON.parse(raw) as TextbookGenerationCheckpoint : null
+  } catch {
+    return null
+  }
+}
+
+function persistGenerationCheckpoint(checkpoint: TextbookGenerationCheckpoint) {
+  checkpoint.updatedAt = Date.now()
+  try {
+    localStorage.setItem(GENERATION_CHECKPOINT_KEY, JSON.stringify(checkpoint))
+    checkpointStatus.value = '断点已保存：' + new Date(checkpoint.updatedAt).toLocaleTimeString()
+  } catch (e) {
+    console.error('保存教材生成断点失败', e)
+    checkpointStatus.value = '断点保存失败，请检查本地存储空间'
+  }
+}
+
+function generationTaskKey(unitTitle: string, type: string) {
+  return unitTitle + '::' + type
+}
+
 function createId(prefix: string, now: number, ...parts: Array<string | number>) {
   return `${prefix}_${now}_${parts.join('_')}_${Math.random().toString(36).slice(2, 8)}`
 }
