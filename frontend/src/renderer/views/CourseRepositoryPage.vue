@@ -235,6 +235,21 @@
             新建集合
           </el-button>
         </div>
+        <el-card v-if="showCreateCollectionForm" shadow="never" class="create-collection-form">
+          <el-form inline @submit.prevent="createCollection">
+            <el-form-item label="集合名称" required>
+              <el-input v-model="newCollectionName" placeholder="例如：商务英语" maxlength="256" />
+            </el-form-item>
+            <el-form-item label="父级集合">
+              <el-select v-model="newCollectionParentId" clearable placeholder="顶层集合" style="width: 220px">
+                <el-option v-for="option in persistedCollections" :key="option.id" :label="getCollectionPath(option)" :value="option.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="createCollection">保存集合</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
         <el-alert
           type="info"
           show-icon
