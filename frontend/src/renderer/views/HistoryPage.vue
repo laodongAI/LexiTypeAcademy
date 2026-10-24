@@ -19,22 +19,26 @@
       <el-row :gutter="16" class="stats-overview">
         <el-col :xs="12" :sm="12" :md="6">
           <el-card class="stat-card primary">
-            <el-statistic title="累计练习时长" :value="stats.practiceMinutes === null ? '—' : Math.round(stats.practiceMinutes / 60 * 10) / 10" suffix="小时" />
+            <el-statistic v-if="stats.practiceMinutes !== null" title="累计练习时长" :value="Math.round(stats.practiceMinutes / 60 * 10) / 10" suffix="小时" />
+            <span v-else class="stat-unavailable">—</span>
           </el-card>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
           <el-card class="stat-card success">
-            <el-statistic title="已纳入复习词汇" :value="stats.reviewWords ?? '—'" />
+            <el-statistic v-if="stats.reviewWords !== null" title="已纳入复习词汇" :value="stats.reviewWords" />
+            <span v-else class="stat-unavailable">—</span>
           </el-card>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
           <el-card class="stat-card warning">
-            <el-statistic title="已完成课程" :value="stats.completedCourses ?? '—'" />
+            <el-statistic v-if="stats.completedCourses !== null" title="已完成课程" :value="stats.completedCourses" />
+            <span v-else class="stat-unavailable">—</span>
           </el-card>
         </el-col>
         <el-col :xs="12" :sm="12" :md="6">
           <el-card class="stat-card info">
-            <el-statistic title="有记录的学习天数" :value="stats.learningDays ?? '—'" suffix="天" />
+            <el-statistic v-if="stats.learningDays !== null" title="有记录的学习天数" :value="stats.learningDays" suffix="天" />
+            <span v-else class="stat-unavailable">—</span>
           </el-card>
         </el-col>
       </el-row>
@@ -360,6 +364,7 @@ onMounted(() => { void loadHistory() })
 .retry-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .stats-overview { margin-bottom: 24px; }
 .stat-card { text-align: center; }
+.stat-unavailable { display: flex; align-items: center; justify-content: center; min-height: 48px; color: var(--text-color-secondary); font-size: 24px; }
 .stat-card.primary { border-top: 3px solid var(--primary-color); }
 .stat-card.success { border-top: 3px solid var(--el-color-success); }
 .stat-card.warning { border-top: 3px solid var(--el-color-warning); }
