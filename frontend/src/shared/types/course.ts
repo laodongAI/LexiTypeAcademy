@@ -145,6 +145,8 @@ export interface Course {
   updatedAt: number;
   /** 是否为预置课程 */
   isPreset?: boolean;
+  /** 是否已加入我的学习列表（列表视图派生字段） */
+  inLearningList?: boolean;
   /** 作者 */
   author?: string;
 }
