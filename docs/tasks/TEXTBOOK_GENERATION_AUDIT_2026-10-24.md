@@ -4,7 +4,7 @@
 
 本次检查覆盖主用教材生成组件 `frontend/src/renderer/components/ai/TextbookImportPanel.vue`、旧版四步生成组件 `frontend/src/renderer/components/ai/TextbookCourseSystemBuilder.vue`，以及共享教材目录缓存 `frontend/src/shared/services/courseSystemStore.ts`。
 
-状态：代码已提交到 `main`；CI 与浏览器/Windows 端到端验证需以本报告更新时最新 Actions 结果为准。未完成真实 AI 服务耗时压测，不把代码层优化等同于已测得性能提升。
+状态：代码已提交到 `main`。最新代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532` 的 Frontend quality 与 Backend quality 均通过；浏览器/Windows 端到端验证和真实 AI 服务耗时压测尚未执行。CI 通过不等于实际模型运行验收。
 
 ## 已发现并修复
 
@@ -51,7 +51,8 @@
 - [x] 代码层：目录请求去重、年级隔离的单元缓存。
 - [x] 代码层：共享 API 客户端合并并发重复 GET 请求（无响应缓存，避免陈旧数据）。
 - [x] 代码层：最多两个单元并发、内容类型级进度。
-- [ ] GitHub Actions 最新前端 typecheck/build：以最新 workflow 实际结论为准。
+- [x] GitHub Actions Frontend quality（TypeScript typecheck + production build）：[通过](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139632)。
+- [x] GitHub Actions Backend quality：[通过](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139620)。
 - [ ] 浏览器端跨路由后台继续运行：NOT_RUN。
 - [ ] 刷新/崩溃恢复：NOT_RUN。
 - [ ] 使用真实模型测量生成耗时与并发影响：NOT_RUN。
