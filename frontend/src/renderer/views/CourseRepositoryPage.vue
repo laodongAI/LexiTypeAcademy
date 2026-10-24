@@ -256,10 +256,10 @@
           show-icon
           :closable="false"
           title="课程集合加载失败"
-          :description="collectionLoadError"
           class="hierarchy-hint"
         >
           <template #default>
+            <p>{{ collectionLoadError }}</p>
             <el-button size="small" type="danger" plain @click="loadCollections">重试加载</el-button>
           </template>
         </el-alert>
