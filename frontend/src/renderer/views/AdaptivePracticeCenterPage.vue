@@ -376,9 +376,52 @@ async function startQuickPractice(type: string, _level: string) {
   }
 }
 
-// 启动错题复习
-function startErrorReview() {
-  activeTab.value = 'errors'
+// 打开错题列表；选择具体错题后，启动对应课时和练习模式的定向复习
+async function startErrorReview(itemId?: string) {
+  if (!itemId) {
+    activeTab.value = 'errors'
+    return
+  }
+
+  const errorItem = errorStore.getErrorItems().find(item => item.id === itemId)
+  if (!errorItem) {
+    activeTab.value = 'errors'
+    ElMessage.warning('该错题记录已更新，请从列表重新选择')
+    return
+  }
+
+  const modeByLabel: Record<string, PracticeModeKey> = {
+    听写: 'dictation',
+    跟读: 'follow',
+    翻译: 'translation',
+    模仿: 'imitation',
+  }
+  const mode = modeByLabel[errorItem.errorType]
+  try {
+    if (courseStore.courses.length === 0) await courseStore.loadCourses()
+    for (const course of courseStore.courses) {
+      await courseStore.loadCourseById(course.id)
+      const loadedCourse = courseStore.currentCourse
+      const lesson = loadedCourse?.lessons.find(item => item.id === errorItem.unitId)
+      if (!loadedCourse || !lesson || !lesson.items?.some(item => item.id === errorItem.itemId)) continue
+
+      await router.push({
+        name: 'LessonPractice',
+        params: { lessonId: lesson.id },
+        query: {
+          courseId: loadedCourse.id,
+          mode: mode ?? 'dictation',
+          itemId: errorItem.itemId,
+          source: 'error-review',
+        },
+      })
+      return
+    }
+    ElMessage.warning('找不到该错题对应的课时内容，课程可能已被修改')
+  } catch (error) {
+    console.error('启动错题复习失败:', error)
+    ElMessage.error('启动错题复习失败，请检查课程数据后重试')
+  }
 }
 
 // 启动复习队列
