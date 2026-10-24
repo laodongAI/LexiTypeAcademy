@@ -748,6 +748,22 @@ async function loadCourse(): Promise<void> {
     }
 
     lesson.value = target
+
+    // 进入课堂时立即持久化当前课时，确保刷新/重启后首页可以恢复学习位置。
+    // 进度写入失败不阻断课堂，但会留下可诊断日志。
+    try {
+      const previousProgress = await courseRepository.getCourseProgress(courseId.value)
+      await courseRepository.updateCourseProgress({
+        courseId: courseId.value,
+        completedLessonIds: previousProgress?.completedLessonIds ?? [],
+        currentLessonId: target.id,
+        completionPercentage: previousProgress?.completionPercentage ?? 0,
+        lastStudiedAt: Date.now(),
+      })
+    } catch (progressError) {
+      logger.warn('保存当前学习位置失败', { courseId: courseId.value, lessonId: target.id, error: progressError })
+    }
+
     // 每次进入（或切换）课时都重置计时起点，保证点评用时准确
     lessonStartedAt.value = Date.now()
     logger.info('进入课堂', {
