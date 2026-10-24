@@ -471,6 +471,13 @@ async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false)
     if (!allTextbooks.length) throw new Error('未获取到教材目录或年级信息，请刷新或检查系列名称')
     courseSystemStore.saveTextbooks(publisher, selectedSeries, allTextbooks)
   }
+  gradeOptions.value = [...new Set(allTextbooks.map((tb) => tb.grade).filter(Boolean))]
+  textbookOptions.value = textbookForm.grade
+    ? allTextbooks.filter((tb) => tb.grade === textbookForm.grade)
+    : allTextbooks
+  if (!textbookForm.textbookName.trim() && textbookOptions.value.length) {
+    textbookForm.textbookName = textbookOptions.value[0].name
+  }
   return allTextbooks
 }
 
