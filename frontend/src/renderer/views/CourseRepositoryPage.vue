@@ -662,7 +662,7 @@ const collectionByCourseId = computed(() => {
 })
 const collectionGroups = computed(() => {
   const assignedIds = new Set<string>()
-  const groups = persistedCollections.value.map((collection) => {
+  const groups: Array<{ key: string; title: string; courses: Course[]; isUncategorized: boolean; collection?: CourseCollection }> = persistedCollections.value.map((collection) => {
     const members = filteredCourses.value.filter((course) => collection.courseIds.includes(course.id))
     members.forEach((course) => assignedIds.add(course.id))
     return { key: collection.id, title: getCollectionPath(collection), courses: members, isUncategorized: false, collection }
@@ -673,10 +673,10 @@ const collectionGroups = computed(() => {
   })
   if (textbooks.length) {
     textbooks.forEach((course) => assignedIds.add(course.id))
-    groups.push({ key: '__textbook__', title: '教材课程（切换教材视图查看层级）', courses: textbooks, isUncategorized: false, collection: null })
+    groups.push({ key: '__textbook__', title: '教材课程（切换教材视图查看层级）', courses: textbooks, isUncategorized: false })
   }
   const unassigned = filteredCourses.value.filter((course) => !assignedIds.has(course.id))
-  if (unassigned.length) groups.push({ key: '__uncategorized__', title: '未归类课程', courses: unassigned, isUncategorized: true, collection: null })
+  if (unassigned.length) groups.push({ key: '__uncategorized__', title: '未归类课程', courses: unassigned, isUncategorized: true })
   return groups.sort((a, b) => a.isUncategorized === b.isUncategorized ? a.title.localeCompare(b.title, 'zh-Hans-CN') : (a.isUncategorized ? 1 : -1))
 })
 
@@ -744,7 +744,6 @@ async function editCollection(collection: CourseCollection) {
   try {
     const { value } = await ElMessageBox.prompt('请输入新的集合名称', '重命名课程集合', {
       inputValue: collection.name,
-      inputMaxlength: 256,
       inputValidator: (value: string) => value.trim().length > 0 || '集合名称不能为空',
       confirmButtonText: '保存',
       cancelButtonText: '取消',
