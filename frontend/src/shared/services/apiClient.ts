@@ -23,6 +23,12 @@ export const API_BASE_URL: string =
 const DEFAULT_TIMEOUT_MS = 10000
 
 /**
+ * Share identical in-flight GET requests across components/stores.
+ * This is request coalescing only (not a response cache), so mutations never leave stale data behind.
+ */
+const pendingGetRequests = new Map<string, Promise<unknown>>()
+
+/**
  * API 错误类型
  * 携带 HTTP 状态码与后端返回的中文错误信息，便于上层提示用户。
  */
@@ -155,7 +161,17 @@ export async function apiRequest<T>(
  * @param query 查询参数
  */
 export function apiGet<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
-  return apiRequest<T>('GET', path, { query })
+  const normalizedQuery = query
+    ? Object.fromEntries(Object.entries(query).sort(([left], [right]) => left.localeCompare(right)))
+    : undefined
+  const key = path + buildQuery(normalizedQuery)
+  const existing = pendingGetRequests.get(key)
+  if (existing) return existing as Promise<T>
+  const pending = apiRequest<T>('GET', path, { query: normalizedQuery }).finally(() => {
+    pendingGetRequests.delete(key)
+  })
+  pendingGetRequests.set(key, pending)
+  return pending
 }
 
 /**
