@@ -52,7 +52,7 @@
               <h3>{{ currentSession.title }}</h3>
               <p>{{ currentSession.scenarioId === 'ai-tutor' ? '循序渐进讲解、练习与纠错' : '逐题面试、追问与证据化反馈' }}</p>
             </div>
-            <el-dropdown v-if="currentSession.status === 'active'" @command="finishSession">
+            <el-dropdown v-if="currentSession.status === 'active'" @command="handleFinishCommand">
               <el-button>结束会话<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -224,6 +224,12 @@ async function sendMessage() {
     errorMessage.value = error instanceof Error ? error.message : 'AI 请求失败，请检查模型设置后重试。'
   } finally {
     sending.value = false
+  }
+}
+
+function handleFinishCommand(command: string | number | object) {
+  if (command === 'completed' || command === 'abandoned') {
+    void finishSession(command)
   }
 }
 
