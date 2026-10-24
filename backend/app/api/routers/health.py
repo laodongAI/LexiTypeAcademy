@@ -89,13 +89,13 @@ def read_backend_logs(limit: int = Query(default=200, ge=1, le=500)) -> dict:
         return {"available": False, "lines": [], "message": "后端日志文件暂时无法读取"}
 
     secret_patterns = [
-        (re.compile(r"(?i)(api[_-]?key\\s*[:=]\\s*)[^\\s,;]+"), r"\\1[REDACTED]"),
-        (re.compile(r"(?i)(authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+"), r"\\1[REDACTED]"),
-        (re.compile(r"(?i)(bearer\\s+)[A-Za-z0-9._~+/-]+=*"), r"\\1[REDACTED]"),
+        (re.compile(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s,;]+"), r"\1[REDACTED]"),
+        (re.compile(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+"), r"\1[REDACTED]"),
+        (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/-]+=*"), r"\1[REDACTED]"),
     ]
     safe_lines = []
     for line in lines:
-        value = line.rstrip("\\r\\n")[:2000]
+        value = line.rstrip("\r\n")[:2000]
         for pattern, replacement in secret_patterns:
             value = pattern.sub(replacement, value)
         safe_lines.append(value)
