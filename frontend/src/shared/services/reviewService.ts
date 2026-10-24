@@ -7,6 +7,7 @@ import { reviewRepository } from '../database/repositories/reviewRepository';
 import type { WordMastery, ReviewLog, DueWord, ReviewStats, ReviewSession } from '../types/review';
 import { MasteryLevel } from '../types/review';
 import { createNewMastery, updateMasteryWithSM2, accuracyToQuality } from './sm2Algorithm';
+import { learningEventService } from './learningEventService';
 
 /**
  * 复习服务类
