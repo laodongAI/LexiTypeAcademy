@@ -39,7 +39,7 @@ const routes: RouteRecordRaw[] = [
       group: 'learning',
     },
   },
-    // 学习计划（UI 对齐原型；数据模型待实现）
+    // 学习计划（计划、任务、打卡与看板通过后端 API 持久化）
     {
       path: '/plans',
       name: 'LearningPlans',

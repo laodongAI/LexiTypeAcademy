@@ -112,6 +112,16 @@ backend\.venv\Scripts\python.exe scripts\check_models.py --json
 - ffmpeg 用于将浏览器录音（webm）转 16 kHz 单声道 WAV；可用 `FFMPEG_PATH` 指定路径或安装目录
 - 发音评分当前为**文本相似度级简化实现**，不进行音素级对齐，详见 `backend/app/services/voice/scoring.py`
 
+## 产品与交互改进文档
+
+本项目的产品体验改进按明确基线和可验证任务推进：
+
+- [产品改进基线](docs/product/PRODUCT_IMPROVEMENT_BASELINE.md)：目标用户、核心学习闭环、已确认问题、待验证风险、产品指标与交付规则。
+- [P0 实施清单与验收标准](docs/product/P0_IMPLEMENTATION_BACKLOG.md)：优先修复项、实施要求、验收标准与状态。
+- [UI/UX 交互验收规范](docs/product/UI_UX_ACCEPTANCE_STANDARD.md)：页面状态、音频/录音、AI 交互、表单、可访问性和 PR 检查项。
+- [学习数据审计与核心学习闭环](docs/product/LEARNING_DATA_AUDIT_AND_CORE_LOOP.md)：课程、课时、练习、复习、计划与统计的数据来源审计，以及首页恢复学习和验收标准。
+- [AI 教学与英语面试共享对话内核设计](docs/product/AI_TUTOR_AND_INTERVIEW_CONVERSATION_ARCHITECTURE.md)：定义通用会话内核、学习上下文、场景配置、AI 反馈和面试模块的渐进式实施路线。
+
 ## 开发约定
 
 - 配置文件：`backend/.env`（参考 `backend/.env.example`）、`frontend/.env.local`（参考 `frontend/.env.example`）

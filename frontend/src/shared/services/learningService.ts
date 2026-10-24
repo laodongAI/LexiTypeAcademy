@@ -63,8 +63,9 @@ class LearningService {
       // 按最后学习时间排序
       return learningCourses.sort((a, b) => (b.lastStudiedAt || 0) - (a.lastStudiedAt || 0))
     } catch (error) {
+      // 不把接口故障伪装成“没有学习课程”，由调用方展示错误态。
       console.error('获取学习课程失败:', error)
-      return []
+      throw error
     }
   }
   
@@ -153,13 +154,9 @@ class LearningService {
         reviewDue,
       }
     } catch (error) {
+      // 不把读取失败伪装成全零统计，避免首页/统计页误导用户。
       console.error('获取学习统计失败:', error)
-      return {
-        inProgress: 0,
-        completed: 0,
-        totalHours: 0,
-        reviewDue: 0,
-      }
+      throw error
     }
   }
   
