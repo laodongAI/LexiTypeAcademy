@@ -30,6 +30,14 @@
         <div class="field-hint">多个课程可以归入同一个集合，避免在仓库中平铺。</div>
       </el-form-item>
 
+      <el-form-item label="学习内容类型" required>
+        <el-radio-group v-model="form.focus">
+          <el-radio-button value="word">主题词汇</el-radio-button>
+          <el-radio-button value="phrase">常用表达与搭配</el-radio-button>
+        </el-radio-group>
+        <div class="field-hint">目前支持单词或多词固定表达。句型、完整对话和短文精读属于后续独立生成模板，不会伪装成已支持的课程类型。</div>
+      </el-form-item>
+
       <el-form-item label="中文内容" required>
         <el-input
           v-model="form.chineseText"
@@ -79,8 +87,8 @@
         type="info"
         show-icon
         :closable="false"
-        title="本方式当前生成的是词汇课程"
-        description="建议采用听音辨词、词形与词义回忆、搭配和例句理解、主动检索及间隔复习。单词清单不应直接按短文精读流程教学；如需保留原始音频语境，请使用语音导入方式。"
+        :title="form.focus === 'phrase' ? '本方式当前生成的是表达与搭配课程' : '本方式当前生成的是主题词汇课程'"
+        :description="form.focus === 'phrase' ? '建议通过情景补全、搭配辨析、短语拼写和例句迁移来学习固定表达；当前仍以表达条目为核心，不等于完整对话课程。' : '建议采用听音辨词、词形与词义回忆、例句理解、主动检索及间隔复习。单词清单不应直接按短文精读流程教学。'"
         class="learning-method-hint"
       />
       <h4>📋 课程预览</h4>
@@ -169,6 +177,7 @@ const form = reactive({
   chineseText: '',
   lessonCount: 5,
   wordsPerLesson: 10,
+  focus: 'word' as 'word' | 'phrase',
 })
 
 async function generateCourse() {
@@ -192,6 +201,7 @@ async function generateCourse() {
       chineseText: form.chineseText,
       lessonCount: form.lessonCount,
       wordsPerLesson: form.wordsPerLesson,
+      focus: form.focus,
       difficulty: 'intermediate',
       tags: ['AI', 'Chinese', `Collection:${form.collectionName.trim() || 'AI 生成课程'}`]
     })
@@ -242,6 +252,7 @@ function resetAll() {
   form.chineseText = ''
   form.lessonCount = 5
   form.wordsPerLesson = 10
+  form.focus = 'word'
   ElMessage.success('已重置')
 }
 
