@@ -231,6 +231,7 @@ import { useCourseStore } from '../../stores/courseStore'
 import { useSettingsStore } from '../../stores/settings'
 import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
+import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 
 const router = useRouter()
 
@@ -430,6 +431,7 @@ async function fetchTextbooksInternal(ai = getAIService()) {
 }
 
 async function generateCourseFromTextbook() {
+  addDiagnosticLog('info', 'textbook-course-generation', '开始教材课程生成', { unitCount: unitForm.unitTitles.length, contentTypes: [...unitForm.contentTypes] })
   error.value = ''
   savedIds.value = []
   if (!unitForm.unitTitles.length) {
@@ -678,10 +680,12 @@ async function generateCourseFromTextbook() {
     }
 
     pendingCourses.value = courses
+    addDiagnosticLog('info', 'textbook-course-generation', '教材课程草稿生成成功', { courses: courses.length, lessons: courses.reduce((sum, course) => sum + course.lessons.length, 0) })
     step.value = 3
     ElMessage.success('课程已生成，可预览后批量保存')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '生成课程失败'
+    addDiagnosticLog('error', 'textbook-course-generation', '教材课程生成失败', error.value)
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -728,14 +732,17 @@ async function saveCourses() {
   loading.value = true
   try {
     const ids: string[] = []
+    addDiagnosticLog('info', 'textbook-course-generation', '开始批量保存教材课程', { count: pendingCourses.value.length })
     for (const c of pendingCourses.value) {
       const id = await courseStore.createCourse(c)
       ids.push(id)
     }
     savedIds.value = ids
+    addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功', { count: ids.length, courseIds: ids })
     ElMessage.success('课程已保存到课程仓库')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败'
+    addDiagnosticLog('error', 'textbook-course-generation', '教材课程批量保存失败', { error: error.value, savedCount: savedIds.value.length })
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -770,7 +777,8 @@ const modeOptions = [
 ]
 
 function goToPractice() {
-  router.push('/practice')
+  if (savedIds.value.length) router.push(`/courses/${encodeURIComponent(savedIds.value[0])}`)
+  else router.push('/course-repository')
 }
 </script>
 
