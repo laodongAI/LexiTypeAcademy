@@ -40,7 +40,7 @@
             <el-radio-button
               v-for="mode in segmentModes"
               :key="mode.value"
-              :label="mode.value"
+              :value="mode.value"
               class="mode-btn"
             >
               <div class="mode-label">
