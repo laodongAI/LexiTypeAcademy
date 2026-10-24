@@ -116,3 +116,12 @@
 - Frontend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139632)；Backend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139620)，对应代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532`。
 - 已修正完整单元计数逻辑；随后更新了审计报告，记录 CI 结果。
 - 继续工作前仍需浏览器/Windows 验证：页面切换时生成是否继续、异常/刷新后的断点恢复、增补内容是否正确合并、TTS 和真实模型耗时。当前断点机制是前端 localStorage 检查点，并非后端任务队列。
+
+
+## 课程仓库页面视觉优化（2026-10-24）
+
+- 分支：`ui/course-repository-redesign-2026-10-24`
+- 页面：`frontend/src/renderer/views/CourseRepositoryPage.vue`
+- 方向：更明确的标题层级与主操作、统一搜索/筛选工具栏、带文字的视图切换、轻量集合说明区、统一教材分组/年级册/单元行样式，并补充窄屏布局。
+- 保持不变：课程查询与筛选逻辑、集合数据、课程分级逻辑、批量操作、默认视图模式和路由行为。
+- 当前状态：代码已提交到功能分支；未执行本地构建或浏览器视觉回归，CI 状态待查。不得标记为 VERIFIED，需在合并前检查构建与主要页面状态。
