@@ -267,6 +267,19 @@ function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promis
   return pending
 }
 
+// Generate at most two units concurrently to reduce wall-clock time without flooding provider rate limits.
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let nextIndex = 0
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (true) {
+      const index = nextIndex++
+      if (index >= items.length) return
+      await worker(items[index])
+    }
+  })
+  await Promise.all(workers)
+}
+
 interface TextbookGenerationCheckpoint {
   id: string
   publisher: string
@@ -610,7 +623,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
   try {
     addLog(`开始生成内容：教材《${selectedTextbookName.value}》，单元数 ${selectedUnits.length}`)
 
-    for (const unit of selectedUnits) {
+    await runWithConcurrency(selectedUnits, 2, async (unit) => {
       const unitLabel = `Unit ${unit.unit_num}: ${unit.title}`
       addLog(`处理 ${unitLabel}`)
 
@@ -742,7 +755,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
       if (generatedTypes.length) courseSystemStore.saveUnits(task.publisher, task.series, task.textbookName,
         (courseSystemStore.getUnits(task.publisher, task.series, task.textbookName, task.gradeLevel) || []).map(u => u.title === unit.title ? { ...u, generatedTypes, generated: true } : u), task.gradeLevel)
       units.value = units.value.map(u => (u.title === unit.title ? { ...u, generatedTypes, generated: generatedTypes.length > 0 } : u))
-    }
+    })
 
     task.lessons = [...lessons]
     task.completedKeys = [...completed]
