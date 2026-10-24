@@ -28,7 +28,7 @@
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="总学习时长" :value="stats.totalHours" suffix="小时">
+          <el-statistic title="课程累计时长" :value="stats.totalHours" suffix="小时">
             <template #prefix>
               <el-icon color="#E6A23C"><Clock /></el-icon>
             </template>
