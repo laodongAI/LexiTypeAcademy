@@ -8,6 +8,7 @@
 
 import { apiDelete, apiGet, apiPost, apiPut, type ApiError } from '../../services/apiClient'
 import type { Course, Lesson, PracticeRecord, CourseProgress } from '../../types/course'
+import { learningEventService } from '../../services/learningEventService'
 
 /** 后端列表响应结构：items + total */
 interface ListResponse<T> {
@@ -206,6 +207,24 @@ export class CourseRepository {
    */
   async addPracticeRecord(record: PracticeRecord): Promise<number> {
     const created = await apiPost<PracticeRecord>('/api/practice-records', record)
+    // 练习记录是练习结果的权威来源；生命周期事件只用于串联流程，不参与练习次数/时长统计。
+    if (created.id) {
+      void learningEventService.record({
+        eventId: `practice-submitted-${created.id}`,
+        eventType: 'practice_submitted',
+        occurredAt: created.completedAt,
+        courseId: created.courseId,
+        lessonId: created.lessonId,
+        activityId: String(created.id),
+        durationMs: created.duration,
+        result: {
+          accuracy: created.accuracy,
+          correctCount: created.correctItems,
+          totalCount: created.totalItems,
+        },
+        metadata: { mode: created.mode },
+      }).catch(error => console.warn('记录练习生命周期事件失败，不影响已保存的练习结果:', error))
+    }
     return created.id ?? 0
   }
 
