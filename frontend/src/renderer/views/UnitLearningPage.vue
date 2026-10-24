@@ -341,6 +341,7 @@ function saveCheckpoint(): void {
     localStorage.setItem(checkpointKey(), JSON.stringify({
       currentStage: currentStage.value, completedStages: completedStages.value,
       quizAttempts: quizAttempts.value, quizCorrect: quizCorrect.value, quizIndex: quizIndex.value,
+      grammarContent: grammarContent.value,
       updatedAt: Date.now(),
     }))
   } catch { /* private browsing/storage limits: learning can continue without checkpoint */ }
@@ -349,12 +350,13 @@ function loadCheckpoint(): void {
   try {
     const raw = localStorage.getItem(checkpointKey())
     if (!raw) return
-    const saved = JSON.parse(raw) as { currentStage?: StageId; completedStages?: StageId[]; quizAttempts?: number; quizCorrect?: number; quizIndex?: number }
+    const saved = JSON.parse(raw) as { currentStage?: StageId; completedStages?: StageId[]; quizAttempts?: number; quizCorrect?: number; quizIndex?: number; grammarContent?: string }
     if (stages.some(stage => stage.id === saved.currentStage)) currentStage.value = saved.currentStage!
     if (Array.isArray(saved.completedStages)) completedStages.value = saved.completedStages.filter(id => stages.some(stage => stage.id === id))
     quizAttempts.value = Math.max(0, Number(saved.quizAttempts || 0))
     quizCorrect.value = Math.max(0, Number(saved.quizCorrect || 0))
     quizIndex.value = Math.max(0, Number(saved.quizIndex || 0))
+    grammarContent.value = typeof saved.grammarContent === 'string' ? saved.grammarContent : ''
   } catch { /* ignore a damaged checkpoint and start a clean flow */ }
 }
 watch([currentStage, completedStages, quizAttempts, quizCorrect, quizIndex], saveCheckpoint, { deep: true })
