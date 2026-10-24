@@ -3,8 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- 开发模式下放宽 CSP 限制，生产环境应该收紧 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss: http: https:;" />
+    <!--
+      开发模式下放宽 CSP 限制，生产环境应该收紧。
+      注意：必须显式声明 media-src，否则媒体资源会回退到 default-src 'self'，
+      导致后端 http://127.0.0.1:8010 的 WAV 以及 blob:/data: 音频被拦截，
+      浏览器表现为“有字幕、没声音”，控制台报 NotSupportedError。
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data: http://127.0.0.1:* http://localhost:*; connect-src 'self' ws: wss: http: https:;" />
     <title>键语学苑 - LexiType Academy</title>
     <link rel="icon" type="image/png" href="/icon.png" />
   </head>
