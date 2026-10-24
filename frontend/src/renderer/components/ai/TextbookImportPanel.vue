@@ -731,18 +731,21 @@ async function saveCourses() {
   }
   loading.value = true
   try {
-    const ids: string[] = []
-    addDiagnosticLog('info', 'textbook-course-generation', '开始批量保存教材课程', { count: pendingCourses.value.length })
-    for (const c of pendingCourses.value) {
-      const id = await courseStore.createCourse(c)
-      ids.push(id)
+    const ids = [...savedIds.value]
+    addDiagnosticLog('info', 'textbook-course-generation', '开始批量保存教材课程', { count: pendingCourses.value.length, alreadySaved: ids.filter(Boolean).length })
+    for (let index = 0; index < pendingCourses.value.length; index += 1) {
+      // 部分失败后重试时跳过已保存的课程，避免重复创建。
+      if (ids[index]) continue
+      const id = await courseStore.createCourse(pendingCourses.value[index])
+      ids[index] = id
+      savedIds.value = [...ids]
     }
     savedIds.value = ids
-    addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功', { count: ids.length, courseIds: ids })
+    addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功', { count: ids.filter(Boolean).length, courseIds: ids.filter(Boolean) })
     ElMessage.success('课程已保存到课程仓库')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败'
-    addDiagnosticLog('error', 'textbook-course-generation', '教材课程批量保存失败', { error: error.value, savedCount: savedIds.value.length })
+    addDiagnosticLog('error', 'textbook-course-generation', '教材课程批量保存失败；已成功保存的课程会在重试时跳过', { error: error.value, savedCount: savedIds.value.filter(Boolean).length })
     ElMessage.error(error.value)
   } finally {
     loading.value = false
