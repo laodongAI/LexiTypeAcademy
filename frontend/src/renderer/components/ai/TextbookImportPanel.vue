@@ -1130,7 +1130,7 @@ onMounted(async () => {
     checkpointStatus.value = '该教材正在后台生成，切换页面不会取消任务。'
     generationProgress.active = true
     generationProgress.totalUnits = checkpoint.unitTitles.length
-    generationProgress.doneUnits = checkpoint.completedTasks.filter(task => checkpoint!.unitTitles.includes(task)).length
+    generationProgress.doneUnits = checkpoint.unitTitles.filter(unit => checkpoint.contentTypes.length > 0 && checkpoint.contentTypes.every(type => checkpoint.completedTasks.includes(generationTaskKey(unit, type)))).length
     generationProgress.totalTasks = checkpoint.unitTitles.length * checkpoint.contentTypes.length
     generationProgress.doneTasks = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
     generationProgress.currentUnit = checkpoint.currentUnit || ''
@@ -1139,7 +1139,7 @@ onMounted(async () => {
       const latest = readGenerationCheckpoint()
       if (!latest) return
       generationProgress.totalUnits = latest.unitTitles.length
-      generationProgress.doneUnits = latest.completedTasks.filter(task => latest.unitTitles.includes(task)).length
+      generationProgress.doneUnits = latest.unitTitles.filter(unit => latest.contentTypes.length > 0 && latest.contentTypes.every(type => latest.completedTasks.includes(generationTaskKey(unit, type)))).length
       generationProgress.totalTasks = latest.unitTitles.length * latest.contentTypes.length
       generationProgress.doneTasks = latest.completedTasks.filter(task => latest.unitTitles.some(unit => latest.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
       generationProgress.currentUnit = latest.currentUnit || ''
@@ -1193,7 +1193,7 @@ onMounted(async () => {
     unitForm.extraCount = checkpoint.extraCount
     const latestCheckpoint = readGenerationCheckpoint() || checkpoint
     generationProgress.totalUnits = latestCheckpoint.unitTitles.length
-    generationProgress.doneUnits = latestCheckpoint.completedTasks.filter(task => latestCheckpoint.unitTitles.includes(task)).length
+    generationProgress.doneUnits = latestCheckpoint.unitTitles.filter(unit => latestCheckpoint.contentTypes.length > 0 && latestCheckpoint.contentTypes.every(type => latestCheckpoint.completedTasks.includes(generationTaskKey(unit, type)))).length
     generationProgress.totalTasks = latestCheckpoint.unitTitles.length * latestCheckpoint.contentTypes.length
     generationProgress.doneTasks = latestCheckpoint.completedTasks.filter(task => latestCheckpoint.unitTitles.some(unit => latestCheckpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
     generationProgress.currentUnit = latestCheckpoint.currentUnit || ''
