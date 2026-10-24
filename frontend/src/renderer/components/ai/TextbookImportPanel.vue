@@ -1131,6 +1131,13 @@ onMounted(async () => {
     textbookForm.textbookName = checkpoint.textbookName
     textbookForm.grade = checkpoint.grade || textbookOptions.value.find(tb => tb.name === checkpoint.textbookName)?.grade || ''
     await parseUnits()
+    // Rehydrate manually added units from the checkpoint so their labels remain selectable after navigation/reload.
+    for (const title of checkpoint.unitTitles) {
+      if (!unitOptions.value.some(unit => unit.title === title)) {
+        const maxNumber = Math.max(0, ...unitOptions.value.map(unit => Number(unit.unit_num) || 0))
+        unitOptions.value.push({ unit_num: maxNumber + 1, title, topics: [], generatedTypes: getExistingTypes(getExistingCourseForUnit(title)) })
+      }
+    }
     unitForm.unitTitles = checkpoint.unitTitles
     unitForm.contentTypes = checkpoint.contentTypes
     unitForm.withAudio = checkpoint.withAudio
