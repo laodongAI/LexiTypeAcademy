@@ -203,7 +203,7 @@ async function loadStats() {
         '[statistics] 概览聚合完成：记录=%d，有 WPM 的记录=%d，平均 WPM=%s',
         allRecords.length,
         wpmRecords.length,
-        stats.value.avgWpm.toFixed(1)
+        (stats.value.avgWpm ?? 0).toFixed(1)
       )
     } else {
       // 无记录时显式清零，避免残留上一次的统计值
