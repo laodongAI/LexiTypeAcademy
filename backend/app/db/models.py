@@ -1,4 +1,4 @@
-"""业务数据模型（17 张表）。
+"""业务数据模型（Dexie 映射表 + 后端扩展表）。
 
 来源：
     由前端 Dexie（IndexedDB 库 LexiTypeAcademyDB）的 15 个 objectStore 1:1 映射而来，
