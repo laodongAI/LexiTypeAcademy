@@ -18,7 +18,7 @@
       <template #extra><el-button type="primary" @click="goBack">返回课程</el-button></template>
     </el-result>
 
-    <template v-else-if="course">
+    <div v-else-if="course">
       <section class="mode-picker">
         <div>
           <span class="section-kicker">选择你的学习方式</span>
@@ -216,7 +216,7 @@
           <div class="composer-footer"><span>老师会根据本单元材料回应，不会把未练习的内容算作已掌握。</span><el-button type="primary" native-type="submit" :loading="teacherLoading" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active'">回答老师</el-button></div>
         </form>
       </section>
-    </template>
+    </div>
   </div>
 </template>
 
