@@ -169,7 +169,8 @@ export class ConversationCoreService {
         messages: [
           { role: 'system', content: SCENARIO_PROMPTS[session.scenarioId] },
           ...(pending.contextSummary ? [{ role: 'system', content: `Verified learner context from saved learning data: ${pending.contextSummary}. Use this only as helpful context; do not claim completion or mastery beyond these facts.` }] : []),
-          ...pending.messages.map(message => ({ role: message.role, content: message.content })),
+          // 会话完整历史仍持久化；发送给模型时只取最近 30 条消息，避免触达后端 64 条消息上限。
+          ...pending.messages.slice(-30).map(message => ({ role: message.role, content: message.content })),
         ],
         requestId: `conversation-${session.id}-${userMessage.id}`,
       }, { timeout: 120000 })
