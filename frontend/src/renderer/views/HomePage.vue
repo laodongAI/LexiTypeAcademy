@@ -184,7 +184,7 @@
                 <el-tag size="small" effect="plain">待复习</el-tag>
               </div>
             </div>
-            <el-button type="primary" @click="navigateTo('/review')">开始复习（{{ dashboard.dueWords.length }}）</el-button>
+            <el-button type="primary" @click="navigateTo('/review')">开始复习（{{ dashboard.reviewStats?.dueToday ?? dashboard.dueWords.length }}）</el-button>
           </template>
           <el-empty
             v-else
