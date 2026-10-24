@@ -136,3 +136,10 @@
 - 运行诊断页面新增 `/api/health` 实时检查，展示后端版本、环境和数据/模型目录状态；明确该检查仅代表进程级可响应。
 - 后端新增固定路径日志尾部读取接口 `/api/diagnostics/backend-logs`，最多 500 行，不接受文件路径参数，每行限制长度并对常见 API Key/Bearer 形式脱敏；前端诊断页可直接查看最近后端日志。
 - 状态：IMPLEMENTED_UNVERIFIED。最新前端 CI 与后端接口测试待验证；本机停止/启动后端的实际联动验收仍需执行。接口只适用于本地单用户部署，网络化部署前必须增加鉴权。
+
+
+## P0-11 内容形态与课堂模式匹配（本轮追加）
+
+- `ClassroomPage.vue` 根据 `Lesson.contentShape` 推荐默认模式：Word/Phrase → 词燃尽，Sentence → 句子燃尽，Passage/Dialog → 精读；显式 `mode` 参数优先，保留用户选择。
+- 用户把词汇课切到精读模式时给出方法提示；短文切到词燃尽时提示先整体理解，避免把文章拆成孤立单词。
+- 状态：IMPLEMENTED_UNVERIFIED；需要通过最新前端类型检查/构建，并在浏览器验证不同 contentShape 的默认模式和手动切换。
