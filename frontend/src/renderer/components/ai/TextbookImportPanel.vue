@@ -882,6 +882,28 @@ async function generateCoursesFromTextbook() {
   await generateCourseFromTextbook()
 }
 
+function mergeGeneratedLessons(existingLessons: Lesson[], incomingLessons: Lesson[]): Lesson[] {
+  const merged = existingLessons.map(lesson => ({ ...lesson, items: [...(lesson.items || [])] }))
+  for (const incoming of incomingLessons) {
+    const existing = merged.find(lesson => lesson.title.trim().toLowerCase() === incoming.title.trim().toLowerCase())
+    if (!existing) {
+      merged.push(incoming)
+      continue
+    }
+    const seen = new Set((existing.items || []).map(item => item.english.trim().toLowerCase()).filter(Boolean))
+    const additions = (incoming.items || []).filter(item => {
+      const key = item.english.trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    existing.items = [...(existing.items || []), ...additions]
+    existing.updatedAt = Date.now()
+    if (!existing.description && incoming.description) existing.description = incoming.description
+  }
+  return merged
+}
+
 async function saveCourses() {
   error.value = ''
   savedIds.value = []
@@ -892,16 +914,39 @@ async function saveCourses() {
   loading.value = true
   try {
     const ids = [...savedIds.value]
-    addDiagnosticLog('info', 'textbook-course-generation', '开始批量保存教材课程', { count: pendingCourses.value.length, alreadySaved: ids.filter(Boolean).length })
+    await courseStore.loadCourses()
+    addDiagnosticLog('info', 'textbook-course-generation', '开始批量保存教材课程（优先合并已有教材课程）', { count: pendingCourses.value.length })
     for (let index = 0; index < pendingCourses.value.length; index += 1) {
-      // 部分失败后重试时跳过已保存的课程，避免重复创建。
       if (ids[index]) continue
-      const id = await courseStore.createCourse(pendingCourses.value[index])
+      const draft = pendingCourses.value[index]
+      const textbookTag = draft.tags?.find(tag => tag.startsWith('Textbook:'))
+      const unitTag = draft.tags?.find(tag => draft.title.endsWith(' - ' + tag))
+      const existing = courseStore.courses.find(course =>
+        course.title === draft.title ||
+        (!!textbookTag && !!unitTag && course.tags?.includes(textbookTag) && course.tags.includes(unitTag))
+      )
+      let id: string
+      if (existing) {
+        const mergedLessons = mergeGeneratedLessons(existing.lessons || [], draft.lessons || [])
+        await courseStore.updateCourse(existing.id, {
+          lessons: mergedLessons,
+          tags: [...new Set([...(existing.tags || []), ...(draft.tags || [])])],
+          description: existing.description || draft.description,
+        })
+        id = existing.id
+      } else {
+        id = await courseStore.createCourse(draft)
+      }
       ids[index] = id
       savedIds.value = [...ids]
     }
     savedIds.value = ids
-    addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功', { count: ids.filter(Boolean).length, courseIds: ids.filter(Boolean) })
+    const checkpoint = readGenerationCheckpoint()
+    if (checkpoint?.status === 'completed') {
+      localStorage.removeItem(GENERATION_CHECKPOINT_KEY)
+      checkpointStatus.value = ''
+    }
+    addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功（已有内容已合并，新内容按类型追加）', { count: ids.filter(Boolean).length, courseIds: ids.filter(Boolean) })
     ElMessage.success('课程已保存到课程仓库')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败'
