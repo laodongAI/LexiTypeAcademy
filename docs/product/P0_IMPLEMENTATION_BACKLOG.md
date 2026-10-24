@@ -151,3 +151,12 @@
 - 草稿转换保留 `ContentShape.Word` / `ContentShape.Phrase`，课堂可据此推荐相应模式。
 - UI 明确说明完整句型、对话、短文精读仍需独立生成模板，避免把词汇生成能力夸大为全内容类型支持。
 - 状态：IMPLEMENTED_UNVERIFIED；等待前端 CI，仍需用真实模型核验短语自然度、重复率和目标遵循率。
+
+
+## P0-13 正式课程集合与课程归属模型（本轮追加）
+
+- 后端新增 `CourseCollection`、`CourseCollectionMembership` 独立表，支持父子关系、排序和课程归属。
+- 新增集合 CRUD、课程分配接口、循环层级防护和安全删除约束；应用启动只幂等创建新增表。
+- 增加旧 `Collection:` 标签幂等迁移；课程仓库增加集合创建、父级选择、课程移动操作。
+- 新增后端集合名称校验测试。
+- 状态：IMPLEMENTED_UNVERIFIED；等待本轮最新前后端 CI，且需在已有 SQLite 数据库中验证建表与迁移。
