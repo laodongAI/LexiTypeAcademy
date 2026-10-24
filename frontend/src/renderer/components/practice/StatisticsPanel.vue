@@ -92,7 +92,7 @@
       <template #header>
         <div class="card-header">
           <span>🔍 错误分析</span>
-          <el-button text size="small">详细报告 →</el-button>
+          <el-button text size="small" @click="openDetailedReport">详细报告 →</el-button>
         </div>
       </template>
 
@@ -156,6 +156,8 @@ interface ErrorDistribution {
   [key: string]: number
 }
 
+const router = useRouter()
+
 const props = defineProps<{
   stats: Stats
   masteryDistribution: MasteryDistribution
@@ -206,6 +208,10 @@ function getErrorColor(type: string | number): string {
 }
 
 // 获取改进建议
+function openDetailedReport() {
+  void router.push({ name: 'Statistics' })
+}
+
 function getImprovementTip(distribution: ErrorDistribution): string {
   const total = Object.values(distribution).reduce((sum, value) => sum + value, 0)
   if (total === 0) return '完成练习并提交答案后，这里会显示近 30 天的错题分布。'
