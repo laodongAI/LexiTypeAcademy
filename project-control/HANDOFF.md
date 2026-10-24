@@ -88,3 +88,12 @@
 - 统计数据改为真实持久化练习记录聚合，不再用固定示例错误率/图表值；统计加载失败有显式提示。
 - 待处理：课程练习复习队列仍未接入 SRS 数据源；需实测真实音频、麦克风权限、ASR 评分、练习提交和退出恢复。Windows 本机 E2E 为 `NOT_RUN`。
 - 当前 CI 状态应查看 GitHub Actions 对最新 `main` SHA 的 Frontend quality / Backend quality；未完成时标记 `NOT_RUN`，不可宣称通过。
+
+
+## 教材生成可靠性优化（2026-10-24，待 CI/运行验收）
+
+- 相关实现：`frontend/src/renderer/components/ai/TextbookCourseSystemBuilder.vue`、`frontend/src/shared/services/courseSystemStore.ts`。
+- 现在单元默认未选中；系列/教材/单元目录请求有并发去重；生成状态以“单元 × 内容类型”记录，成功后才更新 generatedTypes。
+- 任务检查点保存在浏览器 localStorage，包含已完成课程、成功/失败项、当前项和时间戳；页面离开不会主动取消当前循环，回到页面可查看进度、恢复或重试失败项。完成草稿按出版社/系列/教材名称匹配，增补时保留已有内容，只补未完成的内容类型。
+- 限制必须保留：这是前端后台任务，不等同于后端常驻任务。浏览器标签页关闭/崩溃时正在执行的 HTTP 请求无法从中间状态续跑，恢复时需重新请求该项；已完成的单元/类型可跳过。跨浏览器/清理 localStorage 不保证恢复。
+- 验证状态：`NOT_RUN`，请查看最新 Frontend quality workflow；上一提交 `093c72b` 的 TypeScript 检查因模板按钮事件签名失败，已修复为 lambda 绑定，需确认新提交 CI。未做 Windows 实机或真实 AI 模型耗时测试。
