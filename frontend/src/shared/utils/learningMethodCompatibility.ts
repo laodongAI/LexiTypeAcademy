@@ -45,7 +45,7 @@ export const learningMethodRules: LearningMethodRule[] = [
     label: '句子燃尽',
     recommendedFor: [ContentShape.Sentence],
     available: lesson => hasItems(lesson) && hasMultiwordItems(lesson)
-      && [ContentShape.Sentence, ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape),
+      && lesson.contentShape === ContentShape.Sentence,
     unavailableReason: lesson => [ContentShape.Word, ContentShape.Phrase].includes(lesson.contentShape)
       ? '词汇内容不是完整句子，暂不能进行句子燃尽。'
       : '当前课时没有可供遮蔽和复现的完整句子。',
@@ -63,10 +63,12 @@ export const learningMethodRules: LearningMethodRule[] = [
     mode: 'root',
     label: '词根课堂',
     recommendedFor: [ContentShape.Word],
-    available: lesson => hasItems(lesson) && hasRootMetadata(lesson),
+    available: lesson => hasItems(lesson) && lesson.contentShape === ContentShape.Word && hasRootMetadata(lesson),
     unavailableReason: lesson => !hasItems(lesson)
       ? '当前课时没有可学习的词条。'
-      : '当前课时没有至少两个共享同一词根/词根组的词条；请先补充有效的词根组数据，避免把单词列表误当成词根课堂。',
+      : lesson.contentShape !== ContentShape.Word
+        ? '词根课堂当前只支持单词课；请先将目标词整理为独立词汇课。'
+        : '当前课时没有至少两个共享同一词根/词根组的词条；请先补充有效的词根组数据，避免把单词列表误当成词根课堂。',
   },
 ]
 
