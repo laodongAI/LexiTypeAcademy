@@ -94,9 +94,16 @@ const progressPercent = computed(() => Math.round((completedStages.value.length 
 const skippedCount = computed(() => skippedStages.value.length)
 const readingItems = computed<TeachingMaterial[]>(() => {
   const lessons = course.value?.lessons.filter(lesson => [ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape)) || []
-  return lessons.flatMap(lesson => lesson.items.filter(item => item.english?.trim()).map(item => ({
-    key: item.id, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: item.english, chinese: item.chinese || '',
-  })))
+  return lessons.flatMap(lesson => {
+    const items = lesson.items.filter(item => item.english?.trim())
+    if (!items.length) return []
+    return [{
+      key: lesson.id,
+      lessonTitle: lesson.title,
+      english: items.map(item => item.english.trim()).join(' '),
+      chinese: items.map(item => item.chinese?.trim()).filter(Boolean).join(' '),
+    }]
+  })
 })
 const sentenceItems = computed<TeachingMaterial[]>(() => {
   const lessons = course.value?.lessons || []
