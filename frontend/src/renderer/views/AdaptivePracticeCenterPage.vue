@@ -38,6 +38,7 @@
       :courses="activeCourses"
       :practice-modes="supportedModes"
       :review-queue="reviewQueue"
+      :error-count="errorCount"
       @launch-course="launchCoursePractice"
       @start-practice="startQuickPractice"
       @start-error-review="startErrorReview"
