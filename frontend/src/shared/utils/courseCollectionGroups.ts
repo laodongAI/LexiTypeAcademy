@@ -21,7 +21,9 @@ export function readCourseCollection(tags: string[] = []): string {
 export function buildCourseCollectionGroups<T extends Course>(courses: T[]): CourseCollectionGroup<T>[] {
   const groups = new Map<string, CourseCollectionGroup<T>>()
   for (const course of courses) {
-    const title = readCourseCollection(course.tags)
+    const tags = course.tags ?? []
+    const isTextbook = tags.includes('Textbook') || tags.some((tag) => String(tag || '').startsWith('Textbook:'))
+    const title = readCourseCollection(tags) || (isTextbook ? '教材课程（切换教材视图查看层级）' : '')
     const key = title || '__uncategorized__'
     let group = groups.get(key)
     if (!group) {
