@@ -72,9 +72,9 @@
 
         <el-form-item label="推荐复习间隔">
           <el-radio-group v-model="form.reviewInterval" class="option-group">
-            <el-radio label="spaced">间隔重复 (推荐)</el-radio>
-            <el-radio label="frequent">频繁复习</el-radio>
-            <el-radio label="relaxed">轻松模式</el-radio>
+            <el-radio value="spaced">间隔重复 (推荐)</el-radio>
+            <el-radio value="frequent">频繁复习</el-radio>
+            <el-radio value="relaxed">轻松模式</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -111,9 +111,9 @@
 
         <el-form-item label="界面主题">
           <el-radio-group v-model="form.theme" class="option-group">
-            <el-radio label="light">浅色</el-radio>
-            <el-radio label="dark">深色</el-radio>
-            <el-radio label="auto">自动</el-radio>
+            <el-radio value="light">浅色</el-radio>
+            <el-radio value="dark">深色</el-radio>
+            <el-radio value="auto">自动</el-radio>
           </el-radio-group>
         </el-form-item>
 

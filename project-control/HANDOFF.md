@@ -116,3 +116,11 @@
 - Frontend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139632)；Backend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139620)，对应代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532`。
 - 已修正完整单元计数逻辑；随后更新了审计报告，记录 CI 结果。
 - 继续工作前仍需浏览器/Windows 验证：页面切换时生成是否继续、异常/刷新后的断点恢复、增补内容是否正确合并、TTS 和真实模型耗时。当前断点机制是前端 localStorage 检查点，并非后端任务队列。
+
+
+## 控制台错误修复交接（2026-10-24）
+
+- 分支：`fix/radio-value-api-2026-10-24`。
+- 已将 AI 音频导入面板的 `el-radio-button :label` 改为 `:value`；AI 设置面板 6 个 `el-radio label` 改为 `value`，对应选择值保持不变。
+- 当前状态：静态检查完成；前端构建、浏览器实机回归和 CI 尚未运行（`NOT_RUN`）。
+- 用户报告的 `VM149:2 et.reportAllChanges` 访问 `startTime` 错误，仓库源码未找到该函数。不能通过盲目改 Vue 页面或全局屏蔽错误来宣称修复；后续需确认该 VM 脚本的实际来源，再决定是否涉及项目代码。
