@@ -261,6 +261,7 @@ import {
 } from '@element-plus/icons-vue'
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
 import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
+import { learningEventService } from '../../shared/services/learningEventService'
 import type { PlanCustomTask } from '../../shared/types/studyPlan'
 import type { HomeLearningDashboard } from '../../shared/services/learningDashboardService'
 
@@ -300,7 +301,17 @@ async function toggleCustomTask(task: PlanCustomTask, done: boolean) {
   const planId = dashboard.value?.activePlan?.id
   if (!planId) return
   try {
-    await studyPlanRepository.updateTask(task.id, { doneAt: done ? Date.now() : null })
+    const doneAt = done ? Date.now() : null
+    await studyPlanRepository.updateTask(task.id, { doneAt })
+    if (done && doneAt !== null) {
+      void learningEventService.record({
+        eventId: `study-plan-task-${task.id}-${doneAt}`,
+        eventType: 'study_plan_task_completed',
+        occurredAt: doneAt,
+        activityId: task.id,
+        metadata: { planId, taskTitle: task.title },
+      }).catch(error => console.warn('记录学习计划任务事件失败，不影响已保存的任务状态:', error))
+    }
     const updated = await studyPlanRepository.getDashboard(planId)
     if (dashboard.value) dashboard.value.planDashboard = updated
     ElMessage.success(done ? '今日任务已完成' : '已取消任务完成状态')
