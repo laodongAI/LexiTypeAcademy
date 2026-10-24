@@ -37,8 +37,11 @@
         </el-form-item>
 
         <div class="step-actions">
-          <el-button type="primary" size="large" :loading="loading" :disabled="!publisherForm.publisher.trim()" @click="fetchSeries">
+          <el-button type="primary" size="large" :loading="loading" :disabled="!publisherForm.publisher.trim()" @click="fetchSeries(false)">
             识别教材系列 →
+          </el-button>
+          <el-button size="large" :loading="loading" :disabled="!publisherForm.publisher.trim()" @click="fetchSeries(true)">
+            刷新系列
           </el-button>
         </div>
       </el-form>
@@ -60,8 +63,14 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="年级（可选）">
-          <el-input v-model="textbookForm.grade" placeholder="例如：三年级" clearable />
+        <el-form-item label="年级">
+          <div class="inline-row">
+            <el-select v-model="textbookForm.grade" placeholder="全部年级" clearable filterable class="full-width" @change="onGradeChange">
+              <el-option v-for="grade in gradeOptions" :key="grade" :label="grade" :value="grade" />
+            </el-select>
+            <el-button :loading="loading" :disabled="!textbookForm.series.trim()" @click="fetchTextbooks(true)">刷新年级/教材</el-button>
+          </div>
+          <div class="form-hint">年级选项根据该系列教材目录自动提取；清空年级可查看完整目录。</div>
         </el-form-item>
 
         <el-form-item label="教材" required>
@@ -232,6 +241,7 @@ import { useSettingsStore } from '../../stores/settings'
 import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
 import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
+import { courseSystemStore } from '../../../shared/services/courseSystemStore'
 
 const router = useRouter()
 
@@ -273,6 +283,7 @@ const publisherForm = reactive({
 })
 
 const seriesOptions = ref<string[]>([])
+const gradeOptions = ref<string[]>([])
 const textbookOptions = ref<Array<{ grade: string; semester: string; name: string }>>([])
 const unitOptions = ref<Array<{ unit_num: number; title: string; topics: string[] }>>([])
 
@@ -316,7 +327,17 @@ function createId(prefix: string, now: number, ...parts: Array<string | number>)
 }
 
 async function onSeriesChange() {
+  textbookForm.grade = ''
+  textbookForm.textbookName = ''
+  textbookOptions.value = []
+  unitOptions.value = []
   if (!publisherForm.publisher.trim() || !textbookForm.series.trim()) return
+  await fetchTextbooks()
+}
+
+async function onGradeChange() {
+  textbookForm.textbookName = ''
+  unitOptions.value = []
   await fetchTextbooks()
 }
 
@@ -325,24 +346,35 @@ async function onTextbookChange() {
   await parseUnits()
 }
 
-async function fetchSeries() {
+async function fetchSeries(forceRefresh = false) {
   error.value = ''
   savedIds.value = []
-  if (!publisherForm.publisher.trim()) {
+  const publisher = publisherForm.publisher.trim()
+  if (!publisher) {
     ElMessage.warning('请输入出版社')
     return
   }
 
   loading.value = true
   try {
-    const ai = getAIService()
-    const result = await ai.fetchSeriesList(publisherForm.publisher.trim())
-    seriesOptions.value = (result.series || []).filter(Boolean)
-    if (!seriesOptions.value.length) {
-      throw new Error('未获取到教材系列')
+    let series = forceRefresh ? null : courseSystemStore.getSeries(publisher)
+    if (!series?.length) {
+      const ai = getAIService()
+      const result = await ai.fetchSeriesList(publisher)
+      series = [...new Set((result.series || []).map((value) => String(value).trim()).filter(Boolean))]
+      if (!series.length) throw new Error('未获取到教材系列，请检查出版社名称后重试')
+      courseSystemStore.saveSeries(publisher, series)
     }
-    textbookForm.series = seriesOptions.value[0]
+    seriesOptions.value = series
+    if (!seriesOptions.value.includes(textbookForm.series)) {
+      textbookForm.series = seriesOptions.value[0] || ''
+      textbookForm.grade = ''
+      textbookForm.textbookName = ''
+      textbookOptions.value = []
+      gradeOptions.value = []
+    }
     step.value = 1
+    if (textbookForm.series) await fetchTextbooks(false)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '获取系列失败'
     ElMessage.error(error.value)
@@ -391,22 +423,33 @@ async function parseUnits() {
   }
 }
 
-async function fetchTextbooks() {
+async function fetchTextbooks(forceRefresh = false) {
   error.value = ''
   savedIds.value = []
-  if (!publisherForm.publisher.trim()) {
-    ElMessage.warning('请输入出版社')
-    return
-  }
-  if (!textbookForm.series.trim()) {
-    ElMessage.warning('请选择教材系列')
+  const publisher = publisherForm.publisher.trim()
+  const selectedSeries = textbookForm.series.trim()
+  if (!publisher || !selectedSeries) {
+    ElMessage.warning('请先选择出版社和教材系列')
     return
   }
 
   loading.value = true
   try {
-    const ai = getAIService()
-    await fetchTextbooksInternal(ai)
+    const allTextbooks = await fetchTextbooksInternal(getAIService(), forceRefresh)
+    gradeOptions.value = [...new Set(allTextbooks.map((tb) => tb.grade).filter(Boolean))]
+    textbookOptions.value = textbookForm.grade
+      ? allTextbooks.filter((tb) => tb.grade === textbookForm.grade)
+      : allTextbooks
+    if (textbookForm.grade && !gradeOptions.value.includes(textbookForm.grade)) {
+      textbookForm.grade = ''
+      textbookOptions.value = allTextbooks
+    }
+    if (!textbookOptions.value.length) {
+      throw new Error('该年级下没有匹配的教材，请选择其他年级或刷新目录。')
+    }
+    if (!textbookOptions.value.some((tb) => tb.name === textbookForm.textbookName)) {
+      textbookForm.textbookName = textbookOptions.value[0].name
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : '获取教材列表失败'
     ElMessage.error(error.value)
@@ -415,19 +458,20 @@ async function fetchTextbooks() {
   }
 }
 
-async function fetchTextbooksInternal(ai = getAIService()) {
-  const list = await ai.fetchTextbookList(
-    publisherForm.publisher.trim(),
-    textbookForm.series.trim(),
-    textbookForm.grade.trim() || undefined
-  )
-  textbookOptions.value = list.textbooks || []
-  if (!textbookOptions.value.length) {
-    throw new Error('未获取到教材列表')
+async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false) {
+  const publisher = publisherForm.publisher.trim()
+  const selectedSeries = textbookForm.series.trim()
+  if (forceRefresh) courseSystemStore.clearTextbooks(publisher, selectedSeries)
+  let allTextbooks = forceRefresh ? null : courseSystemStore.getTextbooks(publisher, selectedSeries)
+  if (!allTextbooks?.length) {
+    const result = await ai.fetchTextbookList(publisher, selectedSeries)
+    allTextbooks = (result.textbooks || [])
+      .map((tb) => ({ grade: String(tb.grade || '').trim(), semester: String(tb.semester || '').trim(), name: String(tb.name || '').trim() }))
+      .filter((tb) => tb.name)
+    if (!allTextbooks.length) throw new Error('未获取到教材目录或年级信息，请刷新或检查系列名称')
+    courseSystemStore.saveTextbooks(publisher, selectedSeries, allTextbooks)
   }
-  if (!textbookForm.textbookName.trim()) {
-    textbookForm.textbookName = textbookOptions.value[0].name
-  }
+  return allTextbooks
 }
 
 async function generateCourseFromTextbook() {
