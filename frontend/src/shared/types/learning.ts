@@ -39,7 +39,7 @@ export interface LearningStats {
   inProgress: number;
   /** 已完成的课程数 */
   completed: number;
-  /** 总学习时长（小时） */
+  /** 学习列表累计时长（小时，来源为每门课程的 totalStudyTime 分钟汇总） */
   totalHours: number;
   /** 待复习的课程数 */
   reviewDue: number;
