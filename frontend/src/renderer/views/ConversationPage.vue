@@ -83,6 +83,19 @@
             </div>
           </div>
 
+          <div
+            v-if="currentSession.scenarioId === 'english-interview' && currentSession.messages.some(message => message.role === 'assistant')"
+            class="feedback-action"
+          >
+            <div>
+              <strong>把面试反馈转成可执行任务</strong>
+              <p>将本次反馈关联到进行中的学习计划，之后可以在首页继续跟进。</p>
+            </div>
+            <el-button plain :loading="savingFeedback" @click="saveInterviewFeedback">
+              加入今日学习计划
+            </el-button>
+          </div>
+
           <form class="composer" @submit.prevent="sendMessage">
             <el-input
               v-model="draft"
@@ -111,6 +124,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Loading } from '@element-plus/icons-vue'
 import {
@@ -119,13 +133,17 @@ import {
   type ConversationSession,
 } from '../../shared/services/conversationCoreService'
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
+import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
+import { learningEventService } from '../../shared/services/learningEventService'
 
+const router = useRouter()
 const sessions = ref<ConversationSession[]>([])
 const selectedSessionId = ref<number | null>(null)
 const scenarioId = ref<ConversationScenarioId>('ai-tutor')
 const draft = ref('')
 const sending = ref(false)
 const loadingSessions = ref(false)
+const savingFeedback = ref(false)
 const errorMessage = ref('')
 
 const currentSession = computed(
@@ -233,6 +251,59 @@ function handleFinishCommand(command: string | number | object) {
   }
 }
 
+async function saveInterviewFeedback() {
+  const session = currentSession.value
+  if (!session || session.scenarioId !== 'english-interview') return
+  const latestFeedback = [...session.messages].reverse().find(message => message.role === 'assistant')
+  if (!latestFeedback) return
+
+  savingFeedback.value = true
+  errorMessage.value = ''
+  try {
+    const plans = await studyPlanRepository.listPlans('active')
+    const activePlan = [...plans].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    if (!activePlan) {
+      ElMessage.warning('请先创建一个学习计划，再保存面试复练任务')
+      await router.push('/plans')
+      return
+    }
+
+    const now = Date.now()
+    const today = new Date(now)
+    today.setHours(0, 0, 0, 0)
+    const taskTitle = `英语面试反馈复练 #${session.id}`
+    const todayTasks = await studyPlanRepository.listTasks(activePlan.id, today.getTime())
+    const existing = todayTasks.find(task => task.title === taskTitle)
+    const task = existing ?? await studyPlanRepository.createTask({
+      planId: activePlan.id,
+      title: taskTitle,
+      dueDate: today.getTime(),
+    })
+
+    await learningEventService.record({
+      eventId: `conversation-feedback-saved-${session.id}-${latestFeedback.id}`,
+      eventType: 'conversation_feedback_saved',
+      occurredAt: now,
+      activityId: String(task.id),
+      courseId: session.linkedCourseId,
+      lessonId: session.linkedLessonId,
+      metadata: {
+        scenarioId: session.scenarioId,
+        sessionId: session.id,
+        assistantMessageId: latestFeedback.id,
+        planId: activePlan.id,
+        taskId: task.id,
+      },
+    })
+    ElMessage.success(existing ? '复练任务已存在，反馈已关联到学习计划' : '已将面试反馈加入今日学习计划')
+  } catch (error) {
+    console.error('保存面试反馈失败:', error)
+    errorMessage.value = '保存反馈任务失败，请检查学习计划服务后重试。'
+  } finally {
+    savingFeedback.value = false
+  }
+}
+
 async function finishSession(status: 'completed' | 'abandoned') {
   const session = currentSession.value
   if (!session) return
@@ -281,6 +352,9 @@ onMounted(() => {
 .message-bubble p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; line-height: 1.7; }
 .message-bubble small { font-size: 11px; color: var(--text-color-secondary); }
 .assistant-thinking { display: flex; gap: 8px; align-items: center; color: var(--text-color-secondary); padding: 8px; }
+.feedback-action { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; margin: 0 0 16px; border: 1px solid var(--border-color-light); border-radius: 10px; }
+.feedback-action strong { display: block; margin-bottom: 4px; }
+.feedback-action p { margin: 0; color: var(--text-color-secondary); font-size: 12px; line-height: 1.6; }
 .composer { border-top: 1px solid var(--border-color-light); padding-top: 16px; }
 .composer-footer { margin-top: 10px; }
 .composer-footer span { color: var(--text-color-secondary); font-size: 12px; }
