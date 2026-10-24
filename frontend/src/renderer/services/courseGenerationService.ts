@@ -9,6 +9,7 @@
  * - 不改变现有 UI/交互，仅提供复用的服务函数
  */
 
+import { ContentShape } from '../../shared/types/course'
 import { getAIService, type AIService } from '../../shared/services/ai'
 import type { CourseDraft } from '../utils/aiCourseDraft'
 import { courseDraftFromGenerationResponse } from '../utils/aiCourseDraft'
@@ -21,6 +22,8 @@ export interface IGenerateCourseDraftFromChineseTextParams {
   wordsPerLesson: number
   difficulty?: 'beginner' | 'intermediate' | 'advanced'
   tags?: string[]
+  /** 生成目标：单词或固定表达/搭配 */
+  focus?: 'word' | 'phrase'
   /** 是否在生成后预缓存关键单元 TTS（默认 false） */
   precacheTTS?: boolean
   /** 预缓存上限（默认 30） */
@@ -58,13 +61,15 @@ export async function generateCourseDraftFromChineseText(
   const generated = await service.generateCourseFromAudio(
     englishText,
     params.lessonCount,
-    params.wordsPerLesson
+    params.wordsPerLesson,
+    params.focus ?? 'word'
   )
 
   const draft = courseDraftFromGenerationResponse(generated, {
     title: normalizedCourseName || generated.courseName,
     difficulty: params.difficulty ?? 'intermediate',
-    tags: (params.tags ?? []).filter(Boolean)
+    tags: (params.tags ?? []).filter(Boolean),
+    contentShape: params.focus === 'phrase' ? ContentShape.Phrase : ContentShape.Word
   })
 
   if (params.precacheTTS) {
