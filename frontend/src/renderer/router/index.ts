@@ -208,6 +208,12 @@ const routes: RouteRecordRaw[] = [
     path: '/migration',
     redirect: '/settings?tab=migration',
   },
+  {
+    path: '/diagnostics',
+    name: 'Diagnostics',
+    component: () => import('../views/DiagnosticsPage.vue'),
+    meta: { title: '运行诊断', icon: 'DataLine', group: 'system' },
+  },
   // 404 页面
   {
     path: '/:pathMatch(.*)*',
