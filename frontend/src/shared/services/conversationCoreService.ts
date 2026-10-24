@@ -195,6 +195,7 @@ export class ConversationCoreService {
     const updated = { ...session, status, updatedAt: Date.now() }
     await this.persist(updated, log, status)
     void learningEventService.record({
+      eventId: `conversation-${status}-${updated.id}`,
       eventType: status === 'completed' ? 'conversation_completed' : 'conversation_abandoned',
       occurredAt: updated.updatedAt,
       activityId: String(updated.id),
