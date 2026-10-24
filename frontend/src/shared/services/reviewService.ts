@@ -64,6 +64,7 @@ export class ReviewService {
     };
     await reviewRepository.addReviewLog(log)
     void learningEventService.record({
+      eventId: `review-${source}-${word}-${log.reviewDate}`,
       eventType: 'review_submitted',
       occurredAt: log.reviewDate,
       activityId: `${source}:${word}`,
@@ -119,6 +120,7 @@ export class ReviewService {
     await reviewRepository.batchAddReviewLogs(logs);
     // 批量复习写一条汇总事件，避免每个单词再触发一次日志查询和写入。
     void learningEventService.record({
+      eventId: `review-batch-${logs[0]?.reviewDate ?? Date.now()}-${reviews.length}`,
       eventType: 'review_submitted',
       occurredAt: Date.now(),
       result: {
