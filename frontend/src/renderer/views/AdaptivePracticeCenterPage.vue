@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
 import { useErrorStore } from '../stores/errorStore'
 import { usePracticeStore } from '../stores/practiceStore'
