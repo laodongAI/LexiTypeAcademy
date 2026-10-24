@@ -118,6 +118,7 @@
           >
             <el-option v-for="u in unitOptions" :key="u.title" :label="`Unit ${u.unit_num}: ${u.title}${u.generatedTypes?.length ? '（已有：' + u.generatedTypes.join('、') + '）' : ''}`" :value="u.title" />
           </el-select>
+          <div class="step-actions"><el-button size="small" @click="addSupplementUnit" :disabled="loading || !textbookForm.textbookName.trim()">＋ 补充单元</el-button></div>
         </el-form-item>
 
         <el-form-item label="生成内容类型" required>
@@ -232,7 +233,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAIService } from '../../../shared/services/ai'
 import type { WordEntry } from '../../../shared/services/ai'
 import { generateSpeech } from '../../../shared/services/ttsApiService'
@@ -342,6 +343,14 @@ interface TextbookGenerationCheckpoint {
 }
 
 const GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const pendingCatalogRequests = new Map<string, Promise<unknown>>()
+function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promise<T> {
+  const existing = pendingCatalogRequests.get(key)
+  if (existing) return existing as Promise<T>
+  const pending = request().finally(() => pendingCatalogRequests.delete(key))
+  pendingCatalogRequests.set(key, pending)
+  return pending
+}
 const checkpointStatus = ref('')
 let checkpointPollId: number | undefined
 
@@ -373,6 +382,15 @@ function generationTaskKey(unitTitle: string, type: string) {
   return unitTitle + '::' + type
 }
 
+/** Persist each successful content type, not just the whole unit, so failures can resume precisely. */
+function markCheckpointTask(checkpoint: TextbookGenerationCheckpoint, unitTitle: string, type: string, lessons: Lesson[]) {
+  const key = generationTaskKey(unitTitle, type)
+  if (!checkpoint.completedTasks.includes(key)) checkpoint.completedTasks.push(key)
+  checkpoint.lessonsByUnit[unitTitle] = [...lessons]
+  checkpoint.status = 'running'
+  persistGenerationCheckpoint(checkpoint)
+}
+
 function createId(prefix: string, now: number, ...parts: Array<string | number>) {
   return `${prefix}_${now}_${parts.join('_')}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -397,6 +415,28 @@ async function onTextbookChange() {
   await parseUnits()
 }
 
+async function addSupplementUnit() {
+  try {
+    const result = await ElMessageBox.prompt('请输入要补充的单元标题（例如 Unit 11: Review）', '补充教材单元', {
+      confirmButtonText: '添加并选择',
+      cancelButtonText: '取消',
+      inputPlaceholder: '单元编号与标题',
+      inputValidator: value => !!value?.trim() || '单元标题不能为空',
+    })
+    const title = result.value.trim()
+    if (unitOptions.value.some(unit => unit.title.toLocaleLowerCase() === title.toLocaleLowerCase())) {
+      ElMessage.warning('该单元已存在，请直接选择')
+      return
+    }
+    const maxNumber = Math.max(0, ...unitOptions.value.map(unit => Number(unit.unit_num) || 0))
+    unitOptions.value = [...unitOptions.value, { unit_num: maxNumber + 1, title, topics: [], generatedTypes: getExistingTypes(getExistingCourseForUnit(title)) }]
+    unitForm.unitTitles = [...unitForm.unitTitles, title]
+    ElMessage.success('已添加补充单元；生成内容会归属当前出版社、系列和教材')
+  } catch {
+    // User canceled the prompt.
+  }
+}
+
 async function fetchSeries(forceRefresh = false) {
   error.value = ''
   savedIds.value = []
@@ -411,7 +451,7 @@ async function fetchSeries(forceRefresh = false) {
     let series = forceRefresh ? null : courseSystemStore.getSeries(publisher)
     if (!series?.length) {
       const ai = getAIService()
-      const result = await ai.fetchSeriesList(publisher)
+      const result = await sharedCatalogRequest(`series:${publisher}`, () => ai.fetchSeriesList(publisher))
       series = [...new Set((result.series || []).map((value) => String(value).trim()).filter(Boolean))]
       if (!series.length) throw new Error('未获取到教材系列，请检查出版社名称后重试')
       courseSystemStore.saveSeries(publisher, series)
@@ -460,15 +500,17 @@ async function parseUnits() {
     const publisher = publisherForm.publisher.trim()
     const selectedSeries = textbookForm.series.trim()
     const textbookName = textbookForm.textbookName.trim()
-    let parsedUnits = courseSystemStore.getUnits(publisher, selectedSeries, textbookName)
+    const selectedTextbookMeta = textbookOptions.value.find(tb => tb.name === textbookName)
+    const gradeKey = textbookForm.grade || selectedTextbookMeta?.grade || ''
+    let parsedUnits = courseSystemStore.getUnits(publisher, selectedSeries, textbookName, gradeKey)
     if (!parsedUnits?.length) {
-      const result = await ai.parseTextbookUnits(publisher, selectedSeries, textbookName)
+      const result = await sharedCatalogRequest(`units:${publisher}|${selectedSeries}|${textbookForm.grade}|${textbookName}`, () => ai.parseTextbookUnits(publisher, selectedSeries, textbookName))
       parsedUnits = (result.units || []).map((unit: any) => ({
         unit_num: Number(unit.unit_num) || 0,
         title: String(unit.title || '').trim(),
         topics: Array.isArray(unit.topics) ? unit.topics.map((topic: unknown) => String(topic)) : [],
       })).filter((unit: { title: string }) => !!unit.title)
-      courseSystemStore.saveUnits(publisher, selectedSeries, textbookName, parsedUnits)
+      courseSystemStore.saveUnits(publisher, selectedSeries, textbookName, parsedUnits, gradeKey)
     }
     await courseStore.loadCourses()
     unitOptions.value = parsedUnits.map(unit => ({
@@ -478,7 +520,7 @@ async function parseUnits() {
     if (!unitOptions.value.length) {
       throw new Error('未解析到教材单元')
     }
-    unitForm.unitTitles = unitOptions.value.map(unit => unit.title)
+    unitForm.unitTitles = []
     step.value = 2
   } catch (e) {
     error.value = e instanceof Error ? e.message : '解析单元失败'
@@ -529,7 +571,7 @@ async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false)
   if (forceRefresh) courseSystemStore.clearTextbooks(publisher, selectedSeries)
   let allTextbooks = forceRefresh ? null : courseSystemStore.getTextbooks(publisher, selectedSeries)
   if (!allTextbooks?.length) {
-    const result = await ai.fetchTextbookList(publisher, selectedSeries)
+    const result = await sharedCatalogRequest(`textbooks:${publisher}|${selectedSeries}`, () => ai.fetchTextbookList(publisher, selectedSeries))
     allTextbooks = (result.textbooks || [])
       .map((tb) => ({ grade: String(tb.grade || '').trim(), semester: String(tb.semester || '').trim(), name: String(tb.name || '').trim() }))
       .filter((tb) => tb.name)
@@ -547,11 +589,17 @@ async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false)
 }
 
 function getExistingCourseForUnit(unitTitle: string) {
+  const publisher = publisherForm.publisher.trim()
+  const series = textbookForm.series.trim()
   const textbookTag = 'Textbook:' + textbookForm.textbookName.trim()
-  return courseStore.courses.find(course =>
-    course.title === textbookForm.textbookName.trim() + ' - ' + unitTitle ||
-    (course.tags?.includes(textbookTag) && course.tags.includes(unitTitle))
-  ) ?? null
+  const expectedTitle = textbookForm.textbookName.trim() + ' - ' + unitTitle
+  const expectedDescription = publisher + ' / ' + series
+  return courseStore.courses.find(course => {
+    const tags = course.tags || []
+    const stronglyMatched = tags.includes(textbookTag) && tags.includes(unitTitle) && tags.includes(publisher) && tags.includes(series)
+    const legacyMatched = course.title === expectedTitle && course.description === expectedDescription
+    return stronglyMatched || legacyMatched
+  }) ?? null
 }
 
 function getExistingTypes(course: { lessons?: Lesson[] } | null | undefined): string[] {
