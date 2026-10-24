@@ -89,6 +89,7 @@ import { ElMessage } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
 import { useErrorStore } from '../stores/errorStore'
 import { usePracticeStore } from '../stores/practiceStore'
+import { courseRepository } from '../../shared/database/repositories/courseRepository'
 import * as AdaptiveRecommendationsModule from '../components/practice/AdaptiveRecommendations.vue'
 import * as StatisticsPanelModule from '../components/practice/StatisticsPanel.vue'
 import * as QuickLaunchSectionModule from '../components/practice/QuickLaunchSection.vue'
@@ -210,26 +211,42 @@ const todayStats = ref({
 })
 const statsError = ref('')
 
-// 掌握度分布
-const masteryDistribution = computed(() => {
-  return {
-    listening: 60,
-    speaking: 50,
-    reading: 75,
-    writing: 40,
-  }
+// 近 30 天练习模式准确率与错题数量；无记录的模式显示“暂无数据”
+type AnalyticsMode = 'dictation' | 'follow' | 'translation' | 'imitation'
+const analyticsModes: AnalyticsMode[] = ['dictation', 'follow', 'translation', 'imitation']
+const masteryDistribution = ref<Record<AnalyticsMode, number | null>>({
+  dictation: null,
+  follow: null,
+  translation: null,
+  imitation: null,
+})
+const errorDistribution = ref<Record<AnalyticsMode, number>>({
+  dictation: 0,
+  follow: 0,
+  translation: 0,
+  imitation: 0,
 })
 
-// 错误分布
-const errorDistribution = computed(() => {
-  return {
-    spelling: 15,
-    grammar: 20,
-    pronunciation: 25,
-    vocabulary: 18,
-    listening: 22,
+async function loadPracticeAnalytics() {
+  try {
+    const now = Date.now()
+    const records = await courseRepository.getPracticeRecordsByRange(now - 30 * 24 * 60 * 60 * 1000, now)
+    for (const mode of analyticsModes) {
+      const modeRecords = records.filter(record => String(record.mode) === mode)
+      masteryDistribution.value[mode] = modeRecords.length > 0
+        ? Math.round(modeRecords.reduce((sum, record) => sum + record.accuracy, 0) / modeRecords.length * 10) / 10
+        : null
+      errorDistribution.value[mode] = modeRecords.reduce(
+        (sum, record) => sum + (record.incorrectItemIds?.length ?? 0),
+        0,
+      )
+    }
+  } catch (error) {
+    console.error('加载练习模式分析失败:', error)
+    masteryDistribution.value = { dictation: null, follow: null, translation: null, imitation: null }
+    statsError.value = '练习分析数据加载失败，请检查后端服务后重试。'
   }
-})
+}
 
 // 错题复习项
 const errorReviewItems = computed(() => {
@@ -382,7 +399,7 @@ function selectQuickPractice(type: string) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadTodayStats(), courseStore.loadCourses(), practiceStore.loadReviewQueue(), errorStore.loadErrorData().catch(error => console.error('加载错题统计失败:', error))])
+  await Promise.all([loadTodayStats(), loadPracticeAnalytics(), courseStore.loadCourses(), practiceStore.loadReviewQueue(), errorStore.loadErrorData().catch(error => console.error('加载错题统计失败:', error))])
 })
 </script>
 
