@@ -156,6 +156,17 @@ const routes: RouteRecordRaw[] = [
       group: 'tools',
     },
   },
+  // 可恢复的 AI 教学与英语面试共享对话
+  {
+    path: '/conversation',
+    name: 'Conversation',
+    component: () => import('../views/ConversationPage.vue'),
+    meta: {
+      title: 'AI 英语对话',
+      icon: 'ChatDotRound',
+      group: 'learning',
+    },
+  },
   // 保留旧路由（兼容性）
   {
     path: '/ailab',
