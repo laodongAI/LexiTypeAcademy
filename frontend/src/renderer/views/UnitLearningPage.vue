@@ -1,42 +1,4 @@
-<template>
-  <div class="unit-learning-page">
-    <h1>{{ course?.title || '单元整体学习' }}</h1>
-    <div v-if="loading">正在加载…</div>
-    <div v-if="loadError">{{ loadError }}</div>
-    <div v-if="course">
-      <button type="button" @click="learningMode = 'self'">自主学习</button>
-      <button type="button" @click="chooseTeacherMode">AI 老师带学</button>
-      <div v-if="learningMode === 'self'">
-        <button v-for="stage in stages" :key="stage.id" type="button" @click="currentStage = stage.id">{{ stage.label }}</button>
-        <h2>{{ activeStage.label }}</h2>
-        <div v-if="currentStage === 'intro'">{{ course.description }}</div>
-        <div v-if="currentStage === 'reading'">
-          <div v-for="item in readingItems" :key="item.key">{{ item.english }} <button type="button" @click="playText(item.english, item.key)">朗读</button></div>
-        </div>
-        <div v-if="currentStage === 'sentences'">
-          <div v-for="item in sentenceItems" :key="item.key">{{ item.english }} <button type="button" @click="playText(item.english, item.key)">朗读</button></div>
-        </div>
-        <div v-if="currentStage === 'vocabulary'">
-          <div v-for="item in vocabularyItems" :key="item.key">{{ item.english }} {{ item.chinese }} <button type="button" @click="playText(item.english, item.key)">朗读</button></div>
-        </div>
-        <div v-if="currentStage === 'grammar'">
-          <button type="button" @click="generateGrammar">生成语法讲解</button><p>{{ grammarContent }}</p><p>{{ grammarError }}</p>
-        </div>
-        <div v-if="currentStage === 'output'">
-          <p>{{ quizItem?.chinese }}</p><input v-model="quizAnswer" /><button type="button" @click="submitQuiz">提交</button><p>{{ quizResult?.message }}</p>
-        </div>
-        <div v-if="currentStage === 'summary'">小测 {{ quizCorrect }}/{{ quizAttempts }}</div>
-        <button type="button" @click="moveStage(-1)">上一步</button><button type="button" @click="completeAndNext">完成并继续</button>
-      </div>
-      <div v-if="learningMode === 'teacher'">
-        <p>{{ teacherError }}</p>
-        <div ref="messagesRef"><div v-for="message in teacherSession?.messages || []" :key="message.id"><strong>{{ message.role }}</strong><p>{{ message.content }}</p><button type="button" @click="playText(message.content, message.id, 'zh')">朗读</button></div></div>
-        <form @submit.prevent="sendTeacherAnswer"><input v-model="teacherDraft" /><button type="submit">回答老师</button></form>
-      </div>
-    </div>
-    <button type="button" @click="goBack">返回课程</button>
-  </div>
-</template>
+<template><div>Unit learning</div></template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
