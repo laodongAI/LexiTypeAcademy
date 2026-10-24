@@ -20,6 +20,7 @@
 </div>
 <section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace"><div class="teacher-intro"><div><h2>AI 老师正在带你学习</h2><div>老师会一次讲一个重点，向你提问，并根据你的回答继续讲解。</div></div><button type="button" @click="learningMode = 'self'">切换自主学习</button></div><div v-if="teacherError">{{ teacherError }}</div><div class="teacher-messages" ref="messagesRef"><div v-if="!teacherSession?.messages.length && !teacherLoading">点击 AI 老师带学后，老师会开始本单元导入。</div><div v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role"><strong>{{ message.role === 'assistant' ? 'AI 老师' : '你' }}</strong><div>{{ message.content }}</div><small>{{ formatTime(message.createdAt) }}</small><button v-if="message.role === 'assistant'" type="button" @click="playText(message.content, 'teacher-' + message.id, 'zh')">朗读老师讲解</button></div><div v-if="teacherLoading">老师正在思考…</div></div><form class="teacher-composer" @submit.prevent="sendTeacherAnswer"><input v-model="teacherDraft" placeholder="写下你的回答，也可以用中文提问" :disabled="teacherLoading || !teacherSession || teacherSession.status !== 'active'" /><button type="submit" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active' || teacherLoading">{{ teacherLoading ? '老师思考中…' : '回答老师' }}</button></form></section>
 </div>
+</div>
 </template>
 
 <script setup lang="ts">
