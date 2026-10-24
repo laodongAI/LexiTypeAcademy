@@ -241,3 +241,12 @@ cd frontend; npm run build
 - 子舞台事件：`BurnDownStage` 新增 `answer`（正确/错误/期望/阶段）与 `idle`；`ReaderStage` 新增 `activity`（lookup/add-word）。
 - 验证证据（2026-10-24）：`npm run build` 通过；浏览器实测教材视图出现「鲁教版 · 鲁教版小学英语（三年级起点，五四制）→ 三年级 · 上册 → 10 个单元」三级结构；课堂实测底部老师气泡台词为“小玉米，我们开始吧。我们来做词燃尽……第 1 个单词，先听一遍示范，再点开始。”，`POST /api/tts/generate` 返回 200；答错与 20/45 秒超时均触发对应纠错/升级提示，控制台无 error。
 - 附带修复（控制台 35 条 `net::ERR_ABORTED`）：根因为 `unplugin-vue-components` / `unplugin-auto-import` 在开发与构建期间反复重写 `components.d.ts`、`auto-imports.d.ts`，Vite 将其视为源码变更并触发整页刷新，浏览器正在加载的模块被中断。已在 `frontend/vite.config.ts` 的 `server.watch.ignored` 中忽略这两个类型声明文件；验证：修改其时间戳不再触发 page reload，首页与课堂页新鲜加载均为 0 条 error。
+
+## 十、“没有声音”三层根因修复（2026-10-24）
+
+- 状态：已修复并验证；用户反馈现象为课堂有字幕但无声音。
+- 根因1（CSP 拦截媒体）：`frontend/index.html` 的 CSP 未声明 `media-src`，媒体加载回退到 `default-src 'self'`，后端 `http://127.0.0.1:8010/api/tts/audio/*.wav` 与 `blob:` 音频全部被拦截，控制台报 `NotSupportedError: Failed to load because no supported source was found`。修复：显式声明 `media-src 'self' blob: data: http: https:`（保留 http/https 兜底，支持通过 `VITE_TTS_API_URL` 指向局域网 TTS）。
+- 根因2（非法音色导致合成失败但 HTTP 200）：历史设置残留 `ttsEngine=openvoice / ttsVoiceId=openvoice:0`，openvoice 只接受真实克隆音色 `clone:xxx`，后端合成失败仍返回 HTTP 200 + `success:false`，前端只看到字幕。修复：`renderer/stores/settings.ts` 迁移时回退 `melo/melo:0`；`composables/useSpeechPlayer.ts` 增加运行期同款兜底并输出 warn 日志。
+- 根因3（静音开关被持久化为开启）：`lexitype_teacher_voice_muted` 存在 localStorage 且值为 `1`，`useTeacherGuide.say()` 走静音分支只更新字幕不合成语音。修复：改为 **sessionStorage** 会话级存储（新标签页/重启后自动恢复有声）；进入课堂时若检测到静音输出 `info` 日志；`TeacherBubble` 静音态改用琥珀色并让图标表达当前状态（静音=划掉喇叭），标题文案改为“老师语音已静音，点击开启”，避免把“开启声音”误点成静音。
+- 验证证据（2026-10-24，浏览器实测）：课堂页在 `sessionStorage` 静音键为 `null` 时，老师气泡正常出现，文案为“小玉米，我们开始吧。今天我们精读《词根 spect：看见的家族》。鼠标划过句子会自动朗读，遇到生词可以打开词卡。”；控制台出现 `[speech] 开始播放 {key: teacher:3:..., attempt: 1}` 与 `[classroom-teacher] 老师播报结束 {priority: 3, completed: true}`，说明 `await audio.play()` 已成功、整段台词播完；音频命中 IndexedDB 缓存时 `performance` 中无 `/api/tts/generate` 请求（`ttsCount=0` 属缓存命中，非失败）；控制台无 error，无 CSP/NotSupportedError/NotAllowedError。前端 `npm run build` 通过（32.87s）。
+

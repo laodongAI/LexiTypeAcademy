@@ -25,11 +25,13 @@
         <button
           type="button"
           class="control-btn"
-          :title="muted ? '取消静音' : '静音'"
-          :aria-label="muted ? '取消静音' : '静音'"
+          :class="{ 'is-muted': muted }"
+          :title="muted ? '老师语音已静音，点击开启' : '关闭老师语音（只保留字幕）'"
+          :aria-label="muted ? '老师语音已静音，点击开启' : '关闭老师语音（只保留字幕）'"
           @click="$emit('update:muted', !muted)"
         >
-          <el-icon><Mute v-if="!muted" /><Microphone v-else /></el-icon>
+          <!-- 图标表达“当前状态”：静音时显示划掉的喇叭，有声时显示话筒，避免误点 -->
+          <el-icon><Mute v-if="muted" /><Microphone v-else /></el-icon>
         </button>
         <button
           type="button"
@@ -178,6 +180,12 @@ defineEmits<{
 .control-btn:hover:not(:disabled) {
   color: #4f46e5;
   background: #e0e7ff;
+}
+
+/* 静音态使用琥珀色，和“有声”状态明显区分，避免用户误以为没声音是故障 */
+.control-btn.is-muted {
+  color: #b45309;
+  background: #fef3c7;
 }
 
 .control-btn:disabled {

@@ -16,7 +16,14 @@ import { createLogger } from '../../shared/utils/logger'
 /** 日志器：按 classroom-teacher 过滤 */
 const logger = createLogger('classroom-teacher')
 
-/** 静音配置存储键：本机保存，避免每次进入课堂都要重新关闭 */
+/**
+ * 静音配置存储键：会话级保存，避免“永久静音”造成无从排查的“没有声音”
+ *
+ * 历史问题：早期用 localStorage 持久化，一旦误点静音（气泡右侧按钮）就会一直静音，
+ * 用户只看到字幕没有声音，且刷新后仍不恢复。改为 sessionStorage 后：
+ *   - 当前标签页内保持用户选择；
+ *   - 新开标签页 / 重启应用后自动恢复有声状态。
+ */
 const MUTED_STORAGE_KEY = 'lexitype_teacher_voice_muted'
 
 /** 台词优先级：数值越大越重要，高优先级可打断低优先级 */
@@ -37,13 +44,14 @@ export interface TeacherSayOptions {
 }
 
 /**
- * 读取本机静音偏好
- * @returns 是否静音
+ * 读取当前标签页的静音偏好
+ * @returns 是否静音（读不到或异常时一律视为“不静音”，保证课堂默认有声）
  */
 function readMuted(): boolean {
   try {
-    return localStorage.getItem(MUTED_STORAGE_KEY) === '1'
+    return sessionStorage.getItem(MUTED_STORAGE_KEY) === '1'
   } catch {
+    // 隐私模式等场景下 sessionStorage 可能不可用，直接按“有声”处理
     return false
   }
 }
@@ -60,6 +68,12 @@ export function useTeacherGuide() {
   const speaking = ref(false)
   /** 是否静音（仅关闭语音，字幕仍保留） */
   const muted = ref(readMuted())
+
+  // 进入课堂时输出一次静音状态：若用户反馈“没有声音”，日志可第一时间区分
+  // 是“静音开关”还是“合成/播放”问题，避免误判。
+  if (muted.value) {
+    logger.info('老师语音当前处于静音状态，仅显示字幕', { storage: 'sessionStorage' })
+  }
 
   /** 当前台词优先级 */
   let activePriority = 0
@@ -162,12 +176,12 @@ export function useTeacherGuide() {
 
   /**
    * 设置静音开关
-   * @param value 是否静音
+   * @param value 是否静音（仅对当前标签页生效，见 MUTED_STORAGE_KEY 说明）
    */
   function setMuted(value: boolean): void {
     muted.value = value
     try {
-      localStorage.setItem(MUTED_STORAGE_KEY, value ? '1' : '0')
+      sessionStorage.setItem(MUTED_STORAGE_KEY, value ? '1' : '0')
     } catch (error) {
       logger.warn('保存老师静音偏好失败', { error })
     }
@@ -175,7 +189,7 @@ export function useTeacherGuide() {
       stopSpeech('teacher-muted')
       speaking.value = false
     }
-    logger.debug('老师语音静音状态更新', { muted: value })
+    logger.info('老师语音静音状态更新', { muted: value })
   }
 
   /**

@@ -57,6 +57,13 @@
    - 证据：`npm run build` 通过；浏览器实测三级结构（鲁教版 → 三年级·上册 → 10 单元）、老师气泡台词与 `/api/tts/generate` 200、答错与超时提示切换、控制台无 error。
    - 控制台噪声修复：`vite.config.ts` 忽略 `src/renderer/components.d.ts` 与 `auto-imports.d.ts` 的 watch；此前插件在开发/构建时反复重写这两个文件触发整页刷新，造成 35 条 `net::ERR_ABORTED`。修复后新鲜加载首页/课堂页均为 0 error。
 
+10. “没有声音”三层根因修复（2026-10-24，已完成并验证）：
+   - 根因A（CSP 拦截媒体）：`frontend/index.html` 缺少 `media-src`，媒体回退 `default-src 'self'`，后端 WAV 与 `blob:`/`data:` 音频被拦截，报 `NotSupportedError`。已补 `media-src 'self' blob: data: http: https:`。
+   - 根因B（非法音色静默失败）：设置残留 `openvoice / openvoice:0`，后端返回 HTTP 200 但 `success:false`。已在 `settings.ts` 迁移与 `useSpeechPlayer` 运行期双处回退 `melo/melo:0`。
+   - 根因C（静音开关持久化）：`lexitype_teacher_voice_muted` 在 localStorage 为 `1`，`useTeacherGuide` 只显示字幕不合成。已改为 sessionStorage 会话级（新标签页/重启自动有声），进入课堂时输静音状态 info 日志；`TeacherBubble` 静音态改琥珀色、图标表达当前状态，文案改为“老师语音已静音，点击开启”。
+   - 证据：课堂页 sessionStorage 静音键为 `null` 时老师气泡出现（文案“小玉米，我们开始吧。今天我们精读《词根 spect：看见的家族》…”），控制台 `[speech] 开始播放 {key: teacher:3:..., attempt: 1}` 与 `[classroom-teacher] 老师播报结束 {priority: 3, completed: true}`，即 `await audio.play()` 成功且整段播完；命中 IndexedDB 缓存时无 `/api/tts/generate` 网络请求属正常；无 CSP/NotSupportedError/NotAllowedError；`npm run build` 通过（32.87s）。
+   - 排查提示：如果再次出现“有字幕没声音”，先看 `[classroom-teacher]` 是否有“处于静音状态”，再看 `[speech] 播放失败` 的 `src/error`，最后确认 CSP `media-src` 与当前音色是否合法。
+
 ## 环境事实
 
 - Python 虚拟环境：`backend/.venv`（sherpa-onnx、numpy、onnxruntime、soundfile 已装）。
