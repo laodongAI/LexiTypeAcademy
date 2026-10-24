@@ -360,7 +360,8 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 .stage-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .stage-nav button { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #475569; cursor: pointer; font-size: 13px; }
 .stage-nav button.active { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
-.stage-nav button.done .stage-number { background: #dcfce7; color: #166534; }
+.stage-nav button.done { color: #166534; border-color: #86efac; background: #f0fdf4; }
+.stage-nav button.skipped { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
 .stage-number { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f1f5f9; font-size: 11px; font-weight: 800; }
 .stage-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .stage-main { min-width: 0; padding: 24px; }
