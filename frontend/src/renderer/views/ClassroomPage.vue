@@ -452,9 +452,9 @@ function goBack(): void {
  * 同步课程进度：完成课时 + 更新百分比
  * 说明：进度失败不阻塞点评，只记录日志。
  */
-async function syncCourseProgress(): Promise<void> {
+async function syncCourseProgress(): Promise<boolean> {
   try {
-    if (!courseId.value || !lesson.value) return
+    if (!courseId.value || !lesson.value) return false
     const progress = await courseRepository.getCourseProgress(courseId.value)
     const completed = new Set(progress?.completedLessonIds ?? [])
     completed.add(lesson.value.id)
@@ -467,8 +467,10 @@ async function syncCourseProgress(): Promise<void> {
       lastStudiedAt: Date.now(),
     })
     logger.info('课程进度已更新', { completed: completed.size, total })
+    return true
   } catch (error) {
     logger.warn('更新课程进度失败', { error })
+    return false
   }
 }
 
@@ -559,8 +561,12 @@ async function onBurnComplete(payload: {
     dedupeKey: `summary:${lesson.value?.id || lessonId.value}:${mode.value}`,
     dedupeWindowMs: 5000,
   })
-  await syncCourseProgress()
-  completeActiveVisit(payload.durationMs, mode.value)
+  const progressSaved = await syncCourseProgress()
+  if (progressSaved) {
+    completeActiveVisit(payload.durationMs, mode.value)
+  } else {
+    logger.warn('课程进度未成功保存，本次不发布课时完成事件')
+  }
 
   // 燃尽模式固定映射为句子/词两种点评模式
   const metrics: LessonMetrics = {
@@ -621,8 +627,12 @@ async function finishLesson(): Promise<void> {
     dedupeKey: `summary:${lesson.value.id}:${mode.value}`,
     dedupeWindowMs: 5000,
   })
-  await syncCourseProgress()
-  completeActiveVisit(durationMs, mode.value)
+  const progressSaved = await syncCourseProgress()
+  if (progressSaved) {
+    completeActiveVisit(durationMs, mode.value)
+  } else {
+    logger.warn('课程进度未成功保存，本次不发布课时完成事件')
+  }
   await presentFeedback(metrics, durationMs)
 }
 
