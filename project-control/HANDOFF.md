@@ -127,3 +127,16 @@
 - 当前状态：代码提交 `6bb6fab842e006e1f78bc8227cf9eb098d284d28` 的 Frontend quality 与 Backend quality 均 PASS；未做 Windows/浏览器 E2E，不应宣称端到端 VERIFIED。证据：[Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120807)、[Backend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120779)。
 - 下一步：检查 TypeScript 类型兼容与生产构建；修复 CI 发现的问题；确认入口/课堂/直接 URL 规则一致；再创建 PR 并记录准确的 workflow 结果。
 - 重要边界：当前仅做方法适配和不兼容阻断，不会自动提取文章中的词汇，不新增音素课堂，也不重分类历史课程。
+
+
+## 单元整体学习 + 双模式课堂交接（2026-10-24）
+
+- 分支：`feat/unit-learning-modes-2026-10-24`。
+- 设计文档：`docs/design/unit-learning-modes-v1.md`。
+- 页面：`frontend/src/renderer/views/UnitLearningPage.vue`。
+- 路由：`frontend/src/renderer/router/index.ts`，路由名 `UnitLearning`，路径 `/courses/:courseId/learn`。
+- 入口：`frontend/src/renderer/views/CourseDetailPage.vue` 的“开始单元学习”；原有每个课时的“进入课堂”保留。
+- 自主模式：通读、重点句、重点词、AI 语法、输出小测、阶段进度检查点；跟读入口复用既有 `LessonPracticePage.vue?mode=follow`。
+- AI 模式：复用 `conversationCoreService` 的已持久化 `ai-tutor` 会话，关联课程与上下文，不新建消息/内容表。
+- 状态：Frontend quality PASS（TypeScript typecheck + production build，https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684942）；Backend quality PASS（https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684818）。浏览器 E2E 尚未运行。严禁宣称语音、ASR、AI 教学体验已通过端到端验证；CI 通过也不能替代实机验收。
+- 下一步：检查 GitHub Actions 的 frontend typecheck/build 与 backend quality；修复发现的类型/构建问题；验证会话恢复、空内容、跟读评分跳转、刷新检查点与窄屏布局；更新证据后再合并。

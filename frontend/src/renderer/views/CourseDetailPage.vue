@@ -101,9 +101,12 @@
         <template #header>
           <div class="card-header">
             <span>课时列表</span>
-            <el-button type="primary" size="small" :icon="Plus" @click="handleAddLesson">
-              添加课时
-            </el-button>
+            <el-space wrap>
+              <el-button type="primary" @click="startUnitLearning">开始单元学习</el-button>
+              <el-button size="small" :icon="Plus" @click="handleAddLesson">
+                添加课时
+              </el-button>
+            </el-space>
           </div>
         </template>
         
@@ -277,6 +280,11 @@ function formatDate(timestamp: number) {
     month: '2-digit',
     day: '2-digit'
   })
+}
+
+/** 进入整单元学习流程，不要求学员先判断词/句/段落内容类型。 */
+function startUnitLearning() {
+  router.push({ name: 'UnitLearning', params: { courseId: courseId.value } })
 }
 
 /**
