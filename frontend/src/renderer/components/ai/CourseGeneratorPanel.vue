@@ -128,7 +128,7 @@
             继续生成课程
           </el-button>
           <el-button @click="goToPractice">
-            立即学习 →
+            查看课程并开始学习 →
           </el-button>
         </template>
       </el-result>
@@ -239,7 +239,8 @@ function resetAll() {
 }
 
 function goToPractice() {
-  router.push('/practice')
+  if (savedId.value) router.push(`/courses/${encodeURIComponent(savedId.value)}`)
+  else router.push('/course-repository')
 }
 </script>
 
