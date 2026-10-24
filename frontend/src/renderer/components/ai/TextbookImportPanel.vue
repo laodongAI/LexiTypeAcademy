@@ -457,7 +457,13 @@ async function addSupplementUnit() {
       return
     }
     const maxNumber = Math.max(0, ...unitOptions.value.map(unit => Number(unit.unit_num) || 0))
-    unitOptions.value = [...unitOptions.value, { unit_num: maxNumber + 1, title, topics: [], generatedTypes: getExistingTypes(getExistingCourseForUnit(title)) }]
+    const newUnit: UnitOption = { unit_num: maxNumber + 1, title, topics: [], generatedTypes: getExistingTypes(getExistingCourseForUnit(title)) }
+    unitOptions.value = [...unitOptions.value, newUnit]
+    const gradeKey = selectedGradeKey()
+    const cachedUnits = courseSystemStore.getUnits(publisherForm.publisher.trim(), textbookForm.series.trim(), textbookForm.textbookName.trim(), gradeKey) || []
+    if (!cachedUnits.some(unit => unit.title.toLocaleLowerCase() === title.toLocaleLowerCase())) {
+      courseSystemStore.saveUnits(publisherForm.publisher.trim(), textbookForm.series.trim(), textbookForm.textbookName.trim(), [...cachedUnits, { unit_num: newUnit.unit_num, title, topics: [] }], gradeKey)
+    }
     unitForm.unitTitles = [...unitForm.unitTitles, title]
     ElMessage.success('已添加补充单元；生成内容会归属当前出版社、系列和教材')
   } catch {
