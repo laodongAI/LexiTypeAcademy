@@ -79,7 +79,7 @@ export async function generateCourseDraftFromChineseText(
   }
 
   if (params.focus === 'phrase') {
-    const singleWordItems = nonEmptyItems.filter((item) => !/\\s/.test(String(item.word).trim()))
+    const singleWordItems = nonEmptyItems.filter((item) => !/\s/.test(String(item.word).trim()))
     if (singleWordItems.length > 0) {
       const examples = singleWordItems.slice(0, 3).map((item) => String(item.word).trim()).join('、')
       throw new Error(`当前选择的是“常用表达/搭配”，但生成结果包含单个词（${examples}）。请重新生成，确保每项是由多个单词组成的完整表达。`)
