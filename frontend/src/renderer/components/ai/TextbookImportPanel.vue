@@ -636,9 +636,12 @@ async function generateCourseFromTextbook() {
         continue
       }
       const existingTypes = getExistingTypes(getExistingCourseForUnit(unitTitle))
+      for (const type of selectedTypes) {
+        if (existingTypes.includes(type)) markCheckpointTask(activeCheckpoint, unitTitle, type, lessons)
+      }
       let wordsForPhonics: WordEntry[] = []
 
-      if (selectedTypes.includes('words') && !existingTypes.includes('words')) {
+      if (selectedTypes.includes('words') && !existingTypes.includes('words') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'words'))) {
         generationProgress.currentType = 'words'
         const wordsContent = await ai.generateTextbookWordsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
           coreCount,
@@ -684,8 +687,9 @@ async function generateCourseFromTextbook() {
           updatedAt: now,
         })
       }
+      if (selectedTypes.includes('words')) markCheckpointTask(activeCheckpoint, unitTitle, 'words', lessons)
 
-      if (selectedTypes.includes('sentences') && !existingTypes.includes('sentences')) {
+      if (selectedTypes.includes('sentences') && !existingTypes.includes('sentences') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'sentences'))) {
         generationProgress.currentType = 'sentences'
         const sentencesContent = await ai.generateTextbookSentencesContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (sentencesContent.sentences || [])
@@ -714,8 +718,9 @@ async function generateCourseFromTextbook() {
           updatedAt: now,
         })
       }
+      if (selectedTypes.includes('sentences')) markCheckpointTask(activeCheckpoint, unitTitle, 'sentences', lessons)
 
-      if (selectedTypes.includes('passage') && !existingTypes.includes('passage')) {
+      if (selectedTypes.includes('passage') && !existingTypes.includes('passage') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'passage'))) {
         generationProgress.currentType = 'passage'
         const passageContent = await ai.generateTextbookPassageContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (passageContent.paragraphs || [])
@@ -744,8 +749,9 @@ async function generateCourseFromTextbook() {
           updatedAt: now,
         })
       }
+      if (selectedTypes.includes('passage')) markCheckpointTask(activeCheckpoint, unitTitle, 'passage', lessons)
 
-      if (selectedTypes.includes('grammar') && !existingTypes.includes('grammar')) {
+      if (selectedTypes.includes('grammar') && !existingTypes.includes('grammar') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'grammar'))) {
         generationProgress.currentType = 'grammar'
         const grammarContent = await ai.generateTextbookGrammarContent(textbookForm.textbookName.trim(), unitTitle.trim())
         const items: LessonItem[] = (grammarContent.points || [])
@@ -780,8 +786,9 @@ async function generateCourseFromTextbook() {
           updatedAt: now,
         })
       }
+      if (selectedTypes.includes('grammar')) markCheckpointTask(activeCheckpoint, unitTitle, 'grammar', lessons)
 
-      if (selectedTypes.includes('phonics') && !existingTypes.includes('phonics')) {
+      if (selectedTypes.includes('phonics') && !existingTypes.includes('phonics') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'phonics'))) {
         generationProgress.currentType = 'phonics'
         const sampleWords = wordsForPhonics.slice(0, 8).map((w) => String(w.word || '').trim()).filter(Boolean).join(', ')
         const phonicsContent = await ai.generateTextbookPhonicsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
@@ -817,6 +824,7 @@ async function generateCourseFromTextbook() {
           updatedAt: now,
         })
       }
+      if (selectedTypes.includes('phonics')) markCheckpointTask(activeCheckpoint, unitTitle, 'phonics', lessons)
 
       const courseTitle = `${textbookForm.textbookName} - ${unitTitle}`
       if (lessons.length > 0) courses.push({
