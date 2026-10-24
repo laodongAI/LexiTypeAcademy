@@ -151,10 +151,13 @@ export class ConversationCoreService {
 
     const log = await commonRepository.getAITaskLog(session.id)
     if (!log) throw new Error('找不到已保存的会话，请刷新会话列表')
-    const userMessage = makeMessage('user', userText)
+    // 如果上一次请求超时，用户消息已经持久化；用同一条尾部消息重试，避免重复追加。
+    const lastMessage = session.messages[session.messages.length - 1]
+    const retryingPersistedMessage = lastMessage?.role === 'user' && lastMessage.content === userText
+    const userMessage = retryingPersistedMessage ? lastMessage : makeMessage('user', userText)
     const pending: ConversationSession = {
       ...session,
-      messages: [...session.messages, userMessage],
+      messages: retryingPersistedMessage ? [...session.messages] : [...session.messages, userMessage],
       updatedAt: Date.now(),
     }
 
