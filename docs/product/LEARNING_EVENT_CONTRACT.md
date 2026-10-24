@@ -23,6 +23,7 @@ type LearningEventType =
   | 'study_plan_task_completed'
   | 'conversation_completed'
   | 'conversation_abandoned'
+  | 'conversation_feedback_saved'
 
 interface LearningEvent {
   eventId: string
@@ -53,6 +54,7 @@ interface LearningEvent {
 | `study_plan_task_completed` | 自定义计划任务完成状态保存成功 | `study_plan_tasks.done_at` | 任务完成数只统计计划看板 |
 | `conversation_completed` | 用户明确结束 AI 对话 | `ai_task_logs` 中的会话记录 | 不直接增加学习分钟或掌握度 |
 | `conversation_abandoned` | 用户将 AI 对话标记为放弃 | `ai_task_logs` 中的会话记录 | 不视为学习完成 |
+| `conversation_feedback_saved` | 用户主动把面试反馈加入今日计划 | 学习计划中的持久化自定义任务 + 事件关联元数据 | 只计计划任务，不直接增加掌握度 |
 
 ## 4. 幂等与持久化
 
@@ -78,6 +80,7 @@ interface LearningEvent {
 - `reviewService.ts`：单次复习保存后发布事件；批量复习以一条汇总事件记录，避免 N 次额外请求。
 - `HomePage.vue`：自定义计划任务保存为完成后发布事件。
 - `ConversationPage.vue` / `conversationCoreService.ts`：会话持久化并由用户明确结束/放弃后发布对话生命周期事件。
+- `ConversationPage.vue`：用户主动将英语面试反馈加入今日学习计划时，先持久化计划任务，再发布 `conversation_feedback_saved` 关联事件；不会自动把 AI 评分写成掌握度。
 
 ## 7. 验收清单
 
