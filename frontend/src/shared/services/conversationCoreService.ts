@@ -81,6 +81,7 @@ function parseStored(log: AITaskLog): StoredConversation | null {
     updatedAt: Number(input.updatedAt ?? log.createdAt),
     linkedCourseId: input.linkedCourseId,
     linkedLessonId: input.linkedLessonId,
+    contextSummary: input.contextSummary,
   }
 }
 
