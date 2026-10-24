@@ -118,6 +118,7 @@ import {
   type ConversationScenarioId,
   type ConversationSession,
 } from '../../shared/services/conversationCoreService'
+import { learningDashboardService } from '../../shared/services/learningDashboardService'
 
 const sessions = ref<ConversationSession[]>([])
 const selectedSessionId = ref<number | null>(null)
@@ -166,7 +167,28 @@ async function loadSessions() {
 async function createNewSession() {
   errorMessage.value = ''
   try {
-    const session = await conversationCoreService.createSession(scenarioId.value)
+    let linked: { courseId?: string; lessonId?: string; contextSummary?: string } = {}
+    if (scenarioId.value === 'ai-tutor') {
+      // 只把可追溯的已保存学习数据作为教学上下文，不将模型猜测写回学习画像。
+      try {
+        const dashboard = await learningDashboardService.load()
+        const target = dashboard.resumeTarget
+        if (target) {
+          linked = {
+            courseId: target.courseId,
+            lessonId: target.lessonId,
+            contextSummary: `current course "${target.courseTitle}", current lesson "${target.lessonTitle}", course completion ${target.completionPercentage}%`,
+          }
+        }
+        if (dashboard.dueWords.length) {
+          const words = dashboard.dueWords.slice(0, 5).map(item => item.word).join(', ')
+          linked.contextSummary = [linked.contextSummary, `due review words: ${words}`].filter(Boolean).join('; ')
+        }
+      } catch (contextError) {
+        console.warn('读取学习上下文失败，仍允许创建普通教学会话:', contextError)
+      }
+    }
+    const session = await conversationCoreService.createSession(scenarioId.value, undefined, linked)
     sessions.value = [session, ...sessions.value]
     selectedSessionId.value = session.id
     draft.value = ''
