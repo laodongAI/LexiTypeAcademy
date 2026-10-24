@@ -24,6 +24,15 @@
       <el-col :xs="12" :sm="6"><el-card shadow="never"><strong>{{ count('warn') }}</strong><span>警告</span></el-card></el-col>
       <el-col :xs="12" :sm="6"><el-card shadow="never"><strong>{{ apiFailures }}</strong><span>接口失败</span></el-card></el-col>
     </el-row>
+    <el-card shadow="never" class="backend-log-card">
+      <div class="backend-log-heading">
+        <div><strong>后端文件日志</strong><p>读取 backend/logs/app.log 的最近记录，最多 500 行。</p></div>
+        <el-button :loading="backendLogsLoading" @click="loadBackendLogs">刷新后端日志</el-button>
+      </div>
+      <el-alert v-if="backendLogsMessage" :title="backendLogsMessage" :type="backendLogsAvailable ? 'info' : 'warning'" show-icon :closable="false" />
+      <pre v-if="backendLogs.length" class="backend-log-lines">{{ backendLogs.join('\\n') }}</pre>
+      <el-empty v-else description="暂无可显示的后端日志" :image-size="60" />
+    </el-card>
     <el-card shadow="never">
       <div class="filters"><el-input v-model="query" clearable placeholder="搜索来源、事件或详情" /><el-select v-model="level" clearable placeholder="全部级别"><el-option label="调试" value="debug" /><el-option label="信息" value="info" /><el-option label="警告" value="warn" /><el-option label="错误" value="error" /></el-select><el-select v-model="source" clearable placeholder="全部来源"><el-option v-for="item in sources" :key="item" :label="item" :value="item" /></el-select></div>
       <el-table :data="filtered" row-key="id" stripe>
@@ -53,6 +62,10 @@ const healthStatus = ref<'unknown' | 'ok' | 'error'>('unknown')
 const healthMessage = ref('')
 const healthCheckedAt = ref<number | null>(null)
 const healthInfo = ref<BackendHealth | null>(null)
+const backendLogs = ref<string[]>([])
+const backendLogsLoading = ref(false)
+const backendLogsAvailable = ref(false)
+const backendLogsMessage = ref('')
 const query = ref('')
 const level = ref<DiagnosticLevel | ''>('')
 const source = ref('')
@@ -64,6 +77,23 @@ const filtered = computed(() => {
 })
 const apiFailures = computed(() => logs.value.filter((item) => item.source === 'api' && item.level === 'error').length)
 function refresh() { logs.value = getDiagnosticLogs() }
+async function loadBackendLogs() {
+  backendLogsLoading.value = true
+  try {
+    const result = await apiGet<{ available: boolean; lines: string[]; message?: string }>('/api/diagnostics/backend-logs', { limit: 200 })
+    backendLogsAvailable.value = Boolean(result?.available)
+    backendLogs.value = Array.isArray(result?.lines) ? result.lines : []
+    backendLogsMessage.value = result?.message || (result?.available ? '显示最近的后端日志。' : '后端日志当前不可用。')
+  } catch (error) {
+    backendLogsAvailable.value = false
+    backendLogs.value = []
+    backendLogsMessage.value = error instanceof Error ? error.message : String(error)
+    addDiagnosticLog('error', 'backend-logs', '读取后端日志失败', backendLogsMessage.value)
+    refresh()
+  } finally {
+    backendLogsLoading.value = false
+  }
+}
 async function checkBackend() {
   healthLoading.value = true
   healthCheckedAt.value = Date.now()
@@ -89,7 +119,7 @@ function label(value: DiagnosticLevel) { return ({ debug: '调试', info: '信�
 function tagType(value: DiagnosticLevel): 'info' | 'success' | 'warning' | 'danger' { if (value === 'error') return 'danger'; if (value === 'warn') return 'warning'; if (value === 'debug') return 'info'; return 'success' }
 function exportLogs() { const blob = new Blob([JSON.stringify(filtered.value, null, 2)], { type: 'application/json;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'lexitype-diagnostics-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json'; link.click(); URL.revokeObjectURL(url); ElMessage.success('已导出当前筛选日志') }
 async function clearLogs() { try { await ElMessageBox.confirm('确定清空本地诊断日志？此操作不可撤销。', '清空日志', { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' }); clearDiagnosticLogs(); refresh(); ElMessage.success('日志已清空') } catch { /* 用户取消 */ } }
-onMounted(() => { refresh(); unsubscribe = subscribeDiagnosticLogs(refresh); void checkBackend() })
+onMounted(() => { refresh(); unsubscribe = subscribeDiagnosticLogs(refresh); void checkBackend(); void loadBackendLogs() })
 onUnmounted(() => unsubscribe?.())
 </script>
 
@@ -103,6 +133,10 @@ onUnmounted(() => unsubscribe?.())
 .health-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .health-heading p, .health-message, .health-meta { margin:6px 0 0; color:var(--text-color-secondary); line-height:1.5; overflow-wrap:anywhere; }
 .health-message { color:var(--text-color); }
+.backend-log-card { margin: 16px 0; }
+.backend-log-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.backend-log-heading p { margin:6px 0 0; color:var(--text-color-secondary); font-size:13px; }
+.backend-log-lines { max-height:360px; overflow:auto; margin:12px 0 0; padding:12px; border-radius:6px; background:var(--bg-color); color:var(--text-color); font-size:12px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .summary { margin:16px 0; }
 .summary :deep(.el-card__body) { display:flex; align-items:baseline; gap:10px; }
 .summary strong { font-size:24px; color:var(--text-color); }
@@ -112,5 +146,5 @@ onUnmounted(() => unsubscribe?.())
 details { margin-top:6px; color:var(--text-color-secondary); }
 summary { cursor:pointer; font-size:12px; }
 pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; padding:10px; background:var(--bg-color); border-radius:6px; }
-@media (max-width:760px) { .page-header { flex-direction:column; } .filters { grid-template-columns:1fr; } }
+@media (max-width:760px) { .page-header { flex-direction:column; } .filters { grid-template-columns:1fr; } .backend-log-heading { align-items:flex-start; flex-direction:column; } }
 </style>
