@@ -734,6 +734,7 @@ async function generateCourseFromTextbook() {
             } as LessonItem
           })
           .filter((v): v is LessonItem => v !== null)
+        if (!items.length) throw new Error('单词生成结果为空，已保留断点，请重试该内容类型')
 
         if (withAudio) {
           items = await withAudioForItems(items, 'word')
@@ -766,6 +767,7 @@ async function generateCourseFromTextbook() {
             } as LessonItem
           })
           .filter((v): v is LessonItem => v !== null)
+        if (!items.length) throw new Error('句子生成结果为空，已保留断点，请重试该内容类型')
 
         if (withAudio) {
           items = await withAudioForItems(items, 'sentence')
@@ -798,6 +800,7 @@ async function generateCourseFromTextbook() {
             } as LessonItem
           })
           .filter((v): v is LessonItem => v !== null)
+        if (!items.length) throw new Error('短文生成结果为空，已保留断点，请重试该内容类型')
 
         if (withAudio) {
           items = await withAudioForItems(items, 'passage')
@@ -840,6 +843,7 @@ async function generateCourseFromTextbook() {
             } as LessonItem
           })
           .filter((v): v is LessonItem => v !== null)
+        if (!items.length) throw new Error('语法生成结果为空，已保留断点，请重试该内容类型')
 
         lessons.push({
           id: createId('tb_lesson', now, unitTitle, 'grammar'),
@@ -879,6 +883,7 @@ async function generateCourseFromTextbook() {
             } as LessonItem
           })
           .filter((v): v is LessonItem => v !== null)
+        if (!items.length) throw new Error('发音练习生成结果为空，已保留断点，请重试该内容类型')
 
         lessons.push({
           id: createId('tb_lesson', now, unitTitle, 'phonics'),
@@ -1131,12 +1136,29 @@ onMounted(async () => {
     unitForm.withAudio = checkpoint.withAudio
     unitForm.coreCount = checkpoint.coreCount
     unitForm.extraCount = checkpoint.extraCount
-    generationProgress.totalUnits = checkpoint.unitTitles.length
-    generationProgress.doneUnits = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.includes(task)).length
-    generationProgress.currentUnit = checkpoint.currentUnit || ''
-    generationProgress.currentType = checkpoint.currentType || ''
-    generationProgress.active = checkpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === checkpoint.key
-    step.value = 2
+    const latestCheckpoint = readGenerationCheckpoint() || checkpoint
+    generationProgress.totalUnits = latestCheckpoint.unitTitles.length
+    generationProgress.doneUnits = latestCheckpoint.completedTasks.filter(task => latestCheckpoint.unitTitles.includes(task)).length
+    generationProgress.currentUnit = latestCheckpoint.currentUnit || ''
+    generationProgress.currentType = latestCheckpoint.currentType || ''
+    generationProgress.active = latestCheckpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === latestCheckpoint.key
+    if (latestCheckpoint.status === 'completed') {
+      const selectedTextbook = textbookOptions.value.find(tb => tb.name === latestCheckpoint.textbookName)
+      const gradeTag = latestCheckpoint.grade || selectedTextbook?.grade || ''
+      const semesterTag = selectedTextbook?.semester || ''
+      pendingCourses.value = latestCheckpoint.unitTitles.map(unitTitle => ({
+        title: latestCheckpoint.textbookName + ' - ' + unitTitle,
+        description: latestCheckpoint.publisher + ' / ' + latestCheckpoint.series,
+        category: 'special' as const,
+        difficulty: 'intermediate' as const,
+        lessons: latestCheckpoint.lessonsByUnit[unitTitle] || [],
+        tags: ['AI', 'Textbook', latestCheckpoint.publisher, latestCheckpoint.series, unitTitle, `Textbook:${latestCheckpoint.textbookName}`, gradeTag ? `Grade:${gradeTag}` : '', semesterTag ? `Semester:${semesterTag}` : ''].filter(Boolean),
+      })).filter(course => course.lessons.length > 0)
+      step.value = pendingCourses.value.length ? 3 : 2
+      checkpointStatus.value = '后台生成已完成；已恢复预览，请检查并保存课程。'
+    } else {
+      step.value = 2
+    }
     checkpointStatus.value = checkpoint.status === 'running'
       ? '教材生成任务已保存；已完成单元可恢复，当前请求若中断会从最近完成单元继续。'
       : '发现教材生成断点，可点击“批量生成课程”继续未完成单元。'
