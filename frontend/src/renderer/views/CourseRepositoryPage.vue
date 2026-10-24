@@ -233,7 +233,7 @@
           show-icon
           :closable="false"
           title="按课程集合管理"
-          description="AI 中文生成和音频导入课程可在生成时指定集合；教材课程继续使用教材系列、册和单元视图。旧课程没有集合信息时会进入“未归类课程”，不会丢失。"
+          description="集合已独立保存于后端数据库；旧 Collection: 标签会幂等迁移为集合归属，原标签保留。教材课程继续使用教材系列、册和单元视图；无归属课程仍会显示在“未归类课程”。"
           class="hierarchy-hint"
         />
         <el-collapse v-if="collectionGroups.length" class="collection-collapse">
@@ -253,6 +253,16 @@
                   <small>{{ course.lessons?.length || 0 }} 个课时 · {{ getDifficultyText(course.difficulty) }}</small>
                 </div>
                 <div class="collection-course-actions">
+                  <el-select
+                    :model-value="collectionByCourseId.get(course.id) || ''"
+                    size="small"
+                    placeholder="移动到集合"
+                    clearable
+                    style="width: 150px"
+                    @change="assignCourseToCollection($event || '', course)"
+                  >
+                    <el-option v-for="option in persistedCollections" :key="option.id" :label="getCollectionPath(option)" :value="option.id" />
+                  </el-select>
                   <el-button size="small" @click="goToCourse(course)">课程详情</el-button>
                   <el-button v-if="!course.inLearningList" size="small" type="primary" plain @click="addToLearning(course)">加入学习</el-button>
                   <el-button v-else size="small" type="success" plain @click="goToCourse(course)">继续学习</el-button>
@@ -506,6 +516,7 @@ import { useLearningStore } from '../stores/learningStore'
 import type { Course } from '../../shared/types/course'
 import { buildTextbookGroups } from '../../shared/utils/courseTaxonomy'
 import { buildCourseCollectionGroups } from '../../shared/utils/courseCollectionGroups'
+import { courseCollectionService, type CourseCollection } from '../../shared/services/courseCollectionService'
 
 type CourseSource = string | { type: string }
 
@@ -599,7 +610,81 @@ const filteredTotal = computed(() => filteredCourses.value.length)
 
 // 教材三级分组：教材系列 → 年级册 → 单元课程
 const textbookGroups = computed(() => buildTextbookGroups(filteredCourses.value))
-const collectionGroups = computed(() => buildCourseCollectionGroups(filteredCourses.value))
+const persistedCollections = ref<CourseCollection[]>([])
+const collectionByCourseId = computed(() => {
+  const map = new Map<string, string>()
+  for (const collection of persistedCollections.value) {
+    for (const courseId of collection.courseIds) map.set(courseId, collection.id)
+  }
+  return map
+})
+const collectionGroups = computed(() => {
+  const assignedIds = new Set<string>()
+  const groups = persistedCollections.value.map((collection) => {
+    const members = filteredCourses.value.filter((course) => collection.courseIds.includes(course.id))
+    members.forEach((course) => assignedIds.add(course.id))
+    return { key: collection.id, title: getCollectionPath(collection), courses: members, isUncategorized: false }
+  })
+  const textbooks = filteredCourses.value.filter((course) => {
+    const tags = course.tags ?? []
+    return !assignedIds.has(course.id) && (tags.includes('Textbook') || tags.some((tag) => String(tag || '').startsWith('Textbook:')))
+  })
+  if (textbooks.length) {
+    textbooks.forEach((course) => assignedIds.add(course.id))
+    groups.push({ key: '__textbook__', title: '教材课程（切换教材视图查看层级）', courses: textbooks, isUncategorized: false })
+  }
+  const unassigned = filteredCourses.value.filter((course) => !assignedIds.has(course.id))
+  if (unassigned.length) groups.push({ key: '__uncategorized__', title: '未归类课程', courses: unassigned, isUncategorized: true })
+  return groups.sort((a, b) => a.isUncategorized === b.isUncategorized ? a.title.localeCompare(b.title, 'zh-Hans-CN') : (a.isUncategorized ? 1 : -1))
+})
+
+function getCollectionPath(collection: CourseCollection): string {
+  const byId = new Map(persistedCollections.value.map((item) => [item.id, item]))
+  const parts = [collection.name]
+  let parentId = collection.parentId
+  const visited = new Set<string>([collection.id])
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId)
+    const parent = byId.get(parentId)
+    if (!parent) break
+    parts.unshift(parent.name)
+    parentId = parent.parentId
+  }
+  return parts.join(' / ')
+}
+
+async function loadCollections() {
+  await courseCollectionService.migrateLegacyTags()
+  persistedCollections.value = await courseCollectionService.list()
+}
+
+async function createCollection() {
+  try {
+    const result = await ElMessageBox.prompt('请输入课程集合名称', '新建课程集合', {
+      confirmButtonText: '创建',
+      cancelButtonText: '取消',
+      inputPlaceholder: '例如：商务英语 / 面试英语',
+      inputValidator: (value: string) => Boolean(value.trim()) || '集合名称不能为空',
+    })
+    await courseCollectionService.create({ name: result.value.trim() })
+    await loadCollections()
+    ElMessage.success('课程集合已创建')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error instanceof Error ? error.message : '创建集合失败')
+  }
+}
+
+async function assignCourseToCollection(collectionId: string, course: Course) {
+  try {
+    if (collectionId) await courseCollectionService.assignCourse(collectionId, course.id)
+    else await courseCollectionService.unassignCourse(course.id)
+    await loadCollections()
+    ElMessage.success('课程归属已更新')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '更新课程归属失败')
+    await loadCollections()
+  }
+}
 
 // 导入对话框
 const showImportDialog = ref(false)
@@ -946,8 +1031,8 @@ function formatDate(date: string | Date | number) {
 }
 
 // 挂载时加载
-onMounted(() => {
-  loadCourses()
+onMounted(async () => {
+  await Promise.all([loadCourses(), loadCollections()])
 })
 </script>
 
