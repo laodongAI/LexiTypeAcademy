@@ -31,7 +31,15 @@
           :md="8"
           :lg="6"
         >
-          <el-card class="action-card" shadow="hover" @click="navigateTo(action.path)">
+          <el-card
+            class="action-card"
+            shadow="hover"
+            role="button"
+            tabindex="0"
+            @click="navigateTo(action.path)"
+            @keydown.enter.prevent="navigateTo(action.path)"
+            @keydown.space.prevent="navigateTo(action.path)"
+          >
             <el-icon class="action-icon" :size="30">
               <component :is="action.icon" />
             </el-icon>
