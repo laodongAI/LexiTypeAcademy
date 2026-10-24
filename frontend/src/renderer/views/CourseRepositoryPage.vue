@@ -228,6 +228,13 @@
 
       <!-- 通用课程层级：课程集合 → 课程 → 课时 -->
       <div v-else-if="viewMode === 'hierarchy'" class="collection-hierarchy">
+        <div class="hierarchy-toolbar">
+          <span>独立课程集合 · 支持父子层级与课程归属</span>
+          <el-button type="primary" size="small" @click="createCollection">
+            <el-icon><Plus /></el-icon>
+            新建集合
+          </el-button>
+        </div>
         <el-alert
           type="info"
           show-icon
@@ -515,7 +522,6 @@ import { useCourseStore } from '../stores/courseStore'
 import { useLearningStore } from '../stores/learningStore'
 import type { Course } from '../../shared/types/course'
 import { buildTextbookGroups } from '../../shared/utils/courseTaxonomy'
-import { buildCourseCollectionGroups } from '../../shared/utils/courseCollectionGroups'
 import { courseCollectionService, type CourseCollection } from '../../shared/services/courseCollectionService'
 
 type CourseSource = string | { type: string }
