@@ -148,8 +148,12 @@ export function apiGet<T>(path: string, query?: Record<string, QueryValue>): Pro
  * @param path 接口路径
  * @param body 请求体
  */
-export function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  return apiRequest<T>('POST', path, { body })
+export function apiPost<T>(
+  path: string,
+  body?: unknown,
+  options: Omit<ApiRequestOptions, 'body' | 'query'> = {},
+): Promise<T> {
+  return apiRequest<T>('POST', path, { body, ...options })
 }
 
 /**
