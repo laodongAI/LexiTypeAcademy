@@ -5,8 +5,8 @@
 <div v-if="!loading && !loadError && course">
 <section class="mode-picker"><span class="section-kicker">选择学习方式</span><h2>今天，你想怎么学？</h2><div class="mode-cards"><button type="button" class="mode-card" :class="{ selected: learningMode === 'self' }" @click="learningMode = 'self'"><strong>自主学习</strong><span>自己点读、跟读、完成小测，查看真实作答反馈。</span><b>{{ learningMode === 'self' ? '正在使用' : '自己开始' }}</b></button><button type="button" class="mode-card teacher-mode" :class="{ selected: learningMode === 'teacher' }" @click="chooseTeacherMode"><strong>AI 老师带学</strong><span>老师讲解、提问、等待回答，再根据回答纠错并带你继续。</span><b>{{ teacherLoading ? '准备中…' : learningMode === 'teacher' ? '老师课堂中' : '请老师带我学' }}</b></button></div></section>
 <div v-if="learningMode === 'self'">
-<section class="progress-strip"><strong>单元学习流程</strong><span>{{ progressPercent }}% 完成</span><div class="progress-track"><span :style="{ width: progressPercent + '%' }"></span></div></section>
-<nav class="stage-nav"><button v-for="(stage, index) in stages" :key="stage.id" type="button" :class="{ active: currentStage === stage.id, done: completedStages.includes(stage.id) }" @click="currentStage = stage.id">{{ index + 1 }}. {{ stage.label }}</button></nav>
+<section class="progress-strip"><strong>单元学习流程</strong><span>{{ progressPercent }}% 已完成 · {{ skippedCount }} 个阶段已跳过</span><div class="progress-track"><span :style="{ width: progressPercent + '%' }"></span></div></section>
+<nav class="stage-nav"><button v-for="(stage, index) in stages" :key="stage.id" type="button" :class="{ active: currentStage === stage.id, done: completedStages.includes(stage.id), skipped: skippedStages.includes(stage.id) }" @click="currentStage = stage.id">{{ completedStages.includes(stage.id) ? '✓' : skippedStages.includes(stage.id) ? '↷' : index + 1 }}. {{ stage.label }}</button></nav>
 <div class="stage-layout"><main class="stage-main"><div class="stage-heading"><span class="section-kicker">STAGE {{ stageIndex + 1 }} / {{ stages.length }}</span><h2>{{ activeStage.label }}</h2><div>{{ activeStage.description }}</div></div>
 <div v-if="currentStage === 'intro'" class="intro-panel"><h3>先建立整单元的整体认识</h3><div>{{ course.description || '本单元将通过原文理解、重点句、词汇、语法和输出练习，逐步建立完整的语言能力。' }}</div><div class="overview-grid"><div><strong>{{ readingItems.length }}</strong><span>篇章/对话</span></div><div><strong>{{ sentenceItems.length }}</strong><span>重点句</span></div><div><strong>{{ vocabularyItems.length }}</strong><span>词汇/短语</span></div></div></div>
 <div v-if="currentStage === 'reading'" class="material-list"><div v-for="item in readingItems" :key="item.key" class="material-card"><strong>{{ item.lessonTitle }}</strong><h3>{{ item.english }}</h3><div v-if="showTranslations && item.chinese">{{ item.chinese }}</div><button type="button" @click="playText(item.english, item.key)">朗读</button><button v-if="item.lessonId && item.practiceItemId" type="button" @click="openFollowRead(item)">跟读评分</button><button type="button" @click="showTranslations = !showTranslations">{{ showTranslations ? '隐藏翻译' : '显示翻译' }}</button></div><div v-if="!readingItems.length">本单元暂时没有篇章/对话原文，可以继续学习重点句和词汇。</div></div>
@@ -14,7 +14,7 @@
 <div v-if="currentStage === 'vocabulary'" class="vocabulary-grid"><div v-for="item in vocabularyItems" :key="item.key" class="vocabulary-card"><h3>{{ item.english }}</h3><span>{{ item.phonetic }}</span><div>{{ item.chinese || '暂无中文释义' }}</div><button type="button" @click="playText(item.english, item.key)">朗读单词</button><button v-if="item.lessonId && item.practiceItemId" type="button" @click="openFollowRead(item)">跟读评分</button><div v-if="item.examples?.length">例句：{{ item.examples[0] }}</div></div><div v-if="!vocabularyItems.length">本单元暂无独立词汇课，请补充重点词条。</div></div>
 <div v-if="currentStage === 'grammar'" class="grammar-panel"><h3>从本单元真实句子中理解语法</h3><div>AI 将基于本单元材料生成讲解，不会改写原教材。</div><button type="button" :disabled="grammarLoading" @click="generateGrammar">{{ grammarLoading ? '生成中…' : '生成语法讲解' }}</button><div v-if="grammarError">{{ grammarError }}</div><div v-if="grammarContent" class="generated-content">{{ grammarContent }}</div></div>
 <div v-if="currentStage === 'output'" class="quiz-card"><div v-if="quizItem"><h3>{{ quizItem.chinese || '请根据提示写出英文' }}</h3><div>{{ quizItem.kind === 'sentence' ? '根据中文提示写出完整英文句子。' : '根据中文释义写出对应英文单词。' }}</div><input v-model="quizAnswer" :placeholder="quizItem.kind === 'sentence' ? '输入英文句子' : '输入英文单词'" @keydown.enter.prevent="submitQuiz" /><button type="button" :disabled="!quizAnswer.trim()" @click="submitQuiz">提交答案</button><button type="button" @click="playText(quizItem.english, 'quiz-reference')">听参考发音</button><div v-if="quizResult">{{ quizResult.correct ? '回答正确。' : '还需要练习。' }} {{ quizResult.message }}</div><div v-if="quizResult">参考答案：{{ quizItem.english }}</div><button v-if="quizResult" type="button" @click="nextQuiz">下一题</button></div><div v-else>本单元没有足够的句子或词汇来生成小测。</div></div>
-<div v-if="currentStage === 'summary'" class="summary-panel"><h3>本次单元学习记录</h3><div>完成 {{ completedStages.length }} / {{ stages.length }} 个阶段；小测提交 {{ quizAttempts }} 次，正确 {{ quizCorrect }} 次。</div><div>跳过阶段不代表已掌握内容。</div><button type="button" @click="resetUnitProgress">重新开始本单元流程</button></div>
+<div v-if="currentStage === 'summary'" class="summary-panel"><h3>本次单元学习记录</h3><div>已完成 {{ completedStages.length }} / {{ stages.length }} 个阶段；跳过 {{ skippedCount }} 个；小测提交 {{ quizAttempts }} 次，正确 {{ quizCorrect }} 次。</div><div>跳过阶段不会计入完成率，也不代表已掌握内容。</div><button type="button" @click="resetUnitProgress">重新开始本单元流程</button></div>
 <footer class="stage-footer"><button type="button" :disabled="stageIndex === 0" @click="moveStage(-1)">上一步</button><button v-if="currentStage !== 'summary'" type="button" @click="skipStage">跳过本阶段</button><button v-if="currentStage !== 'summary'" type="button" class="primary-action" @click="completeAndNext">完成并继续</button><button v-if="currentStage === 'summary'" type="button" class="primary-action" @click="goBack">返回单元详情</button></footer>
 </main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div><label><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><div>学习建议：先理解整体，再拆解重点，最后尝试独立输出。</div></aside></div>
 </div>
@@ -62,6 +62,7 @@ const loadError = ref('')
 const learningMode = ref<LearningMode>('self')
 const currentStage = ref<StageId>('intro')
 const completedStages = ref<StageId[]>([])
+const skippedStages = ref<StageId[]>([])
 const showTranslations = ref(true)
 const grammarContent = ref('')
 const grammarLoading = ref(false)
@@ -90,6 +91,7 @@ const stages: { id: StageId; label: string; description: string }[] = [
 const activeStage = computed(() => stages.find(stage => stage.id === currentStage.value) || stages[0])
 const stageIndex = computed(() => stages.findIndex(stage => stage.id === currentStage.value))
 const progressPercent = computed(() => Math.round((completedStages.value.length / stages.length) * 100))
+const skippedCount = computed(() => skippedStages.value.length)
 const readingItems = computed<TeachingMaterial[]>(() => {
   const lessons = course.value?.lessons.filter(lesson => [ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape)) || []
   return lessons.flatMap(lesson => lesson.items.filter(item => item.english?.trim()).map(item => ({
@@ -106,7 +108,7 @@ const sentenceItems = computed<TeachingMaterial[]>(() => {
     }
     if ([ContentShape.Passage, ContentShape.Dialog].includes(lesson.contentShape)) {
       return lesson.items.flatMap(item => splitSentences(item.english || '').map((sentence, index) => ({
-        key: `${item.id}-sentence-${index}`, lessonTitle: lesson.title, lessonId: lesson.id, practiceItemId: item.id, english: sentence.text, chinese: index === 0 ? item.chinese || '' : '', kind: 'sentence' as const,
+        key: `${item.id}-sentence-${index}`, lessonTitle: `${lesson.title} · 从原文提取`, english: sentence.text, chinese: '', kind: 'sentence' as const,
       })))
     }
     return []
@@ -142,7 +144,7 @@ function saveCheckpoint(): void {
   if (!courseId.value) return
   try {
     localStorage.setItem(checkpointKey(), JSON.stringify({
-      currentStage: currentStage.value, completedStages: completedStages.value,
+      currentStage: currentStage.value, completedStages: completedStages.value, skippedStages: skippedStages.value,
       quizAttempts: quizAttempts.value, quizCorrect: quizCorrect.value, quizIndex: quizIndex.value,
       grammarContent: grammarContent.value,
       updatedAt: Date.now(),
@@ -153,16 +155,17 @@ function loadCheckpoint(): void {
   try {
     const raw = localStorage.getItem(checkpointKey())
     if (!raw) return
-    const saved = JSON.parse(raw) as { currentStage?: StageId; completedStages?: StageId[]; quizAttempts?: number; quizCorrect?: number; quizIndex?: number; grammarContent?: string }
+    const saved = JSON.parse(raw) as { currentStage?: StageId; completedStages?: StageId[]; skippedStages?: StageId[]; quizAttempts?: number; quizCorrect?: number; quizIndex?: number; grammarContent?: string }
     if (stages.some(stage => stage.id === saved.currentStage)) currentStage.value = saved.currentStage!
     if (Array.isArray(saved.completedStages)) completedStages.value = saved.completedStages.filter(id => stages.some(stage => stage.id === id))
+    if (Array.isArray(saved.skippedStages)) skippedStages.value = saved.skippedStages.filter(id => stages.some(stage => stage.id === id) && !completedStages.value.includes(id))
     quizAttempts.value = Math.max(0, Number(saved.quizAttempts || 0))
     quizCorrect.value = Math.max(0, Number(saved.quizCorrect || 0))
     quizIndex.value = Math.max(0, Number(saved.quizIndex || 0))
     grammarContent.value = typeof saved.grammarContent === 'string' ? saved.grammarContent : ''
   } catch { /* ignore a damaged checkpoint and start a clean flow */ }
 }
-watch([currentStage, completedStages, quizAttempts, quizCorrect, quizIndex], saveCheckpoint, { deep: true })
+watch([currentStage, completedStages, skippedStages, quizAttempts, quizCorrect, quizIndex], saveCheckpoint, { deep: true })
 
 async function loadCourse(): Promise<void> {
   loading.value = true
@@ -183,16 +186,20 @@ function moveStage(delta: number): void {
 }
 function completeAndNext(): void {
   if (!completedStages.value.includes(currentStage.value)) completedStages.value = [...completedStages.value, currentStage.value]
+  skippedStages.value = skippedStages.value.filter(id => id !== currentStage.value)
   moveStage(1)
 }
 function skipStage(): void {
-  if (!completedStages.value.includes(currentStage.value)) completedStages.value = [...completedStages.value, currentStage.value]
+  if (!completedStages.value.includes(currentStage.value) && !skippedStages.value.includes(currentStage.value)) {
+    skippedStages.value = [...skippedStages.value, currentStage.value]
+  }
   moveStage(1)
-  ElMessage.info('已跳过本阶段；阶段完成记录不代表已掌握内容。')
+  ElMessage.info('已跳过本阶段；跳过内容不会计入已完成进度或掌握成绩。')
 }
 function resetUnitProgress(): void {
   currentStage.value = 'intro'
   completedStages.value = []
+  skippedStages.value = []
   quizAttempts.value = 0
   quizCorrect.value = 0
   quizIndex.value = 0
@@ -353,7 +360,8 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 .stage-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .stage-nav button { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #475569; cursor: pointer; font-size: 13px; }
 .stage-nav button.active { color: #1d4ed8; border-color: #93c5fd; background: #eff6ff; }
-.stage-nav button.done .stage-number { background: #dcfce7; color: #166534; }
+.stage-nav button.done { color: #166534; border-color: #86efac; background: #f0fdf4; }
+.stage-nav button.skipped { color: #92400e; border-color: #fcd34d; background: #fffbeb; }
 .stage-number { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #f1f5f9; font-size: 11px; font-weight: 800; }
 .stage-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .stage-main { min-width: 0; padding: 24px; }
