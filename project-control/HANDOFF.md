@@ -124,6 +124,6 @@
 - 核心规则：`frontend/src/shared/utils/learningMethodCompatibility.ts`。
 - 修改文件：`frontend/src/renderer/components/classroom/ClassroomEntryDialog.vue`、`frontend/src/renderer/views/ClassroomPage.vue`。
 - 新设计文档：`docs/design/learning-method-compatibility-v1.md`。
-- 当前状态：代码已写入功能分支；尚未确认 GitHub Actions 结果，未做 Windows/浏览器 E2E，不应宣称 VERIFIED。
+- 当前状态：代码提交 `6bb6fab842e006e1f78bc8227cf9eb098d284d28` 的 Frontend quality 与 Backend quality 均 PASS；未做 Windows/浏览器 E2E，不应宣称端到端 VERIFIED。证据：[Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120807)、[Backend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40080120779)。
 - 下一步：检查 TypeScript 类型兼容与生产构建；修复 CI 发现的问题；确认入口/课堂/直接 URL 规则一致；再创建 PR 并记录准确的 workflow 结果。
 - 重要边界：当前仅做方法适配和不兼容阻断，不会自动提取文章中的词汇，不新增音素课堂，也不重分类历史课程。
