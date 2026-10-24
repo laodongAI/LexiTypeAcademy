@@ -127,6 +127,21 @@
             </div>
           </div>
           <el-empty v-else description="计划暂无待学课时" :image-size="64" />
+          <div v-if="dashboard.planDashboard.customTasks.length" class="custom-task-list">
+            <div v-for="task in dashboard.planDashboard.customTasks" :key="task.id" class="task-row">
+              <el-checkbox
+                :model-value="task.doneToday"
+                @change="toggleCustomTask(task, Boolean($event))"
+              >
+                <span :class="{ 'task-done': task.doneToday }">{{ task.title }}</span>
+              </el-checkbox>
+              <el-tag v-if="task.doneToday" size="small" type="success">已完成</el-tag>
+            </div>
+          </div>
+          <div v-else class="custom-task-empty muted">
+            还没有自定义今日任务，可在学习计划中添加。
+            <el-button link @click="navigateTo('/plans')">添加任务</el-button>
+          </div>
           <div class="task-row review-task">
             <div class="task-copy">
               <strong>{{ dashboard.planDashboard.dueReviewCount }} 个单词待复习</strong>
@@ -225,6 +240,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   ArrowRight,
   Edit,
@@ -236,6 +252,8 @@ import {
   VideoPlay,
 } from '@element-plus/icons-vue'
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
+import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
+import type { PlanCustomTask } from '../../shared/types/studyPlan'
 import type { HomeLearningDashboard } from '../../shared/services/learningDashboardService'
 
 const router = useRouter()
@@ -268,6 +286,20 @@ function openLesson(courseId: string, lessonId: string) {
     params: { lessonId },
     query: { courseId, mode: 'reader' },
   })
+}
+
+async function toggleCustomTask(task: PlanCustomTask, done: boolean) {
+  const planId = dashboard.value?.activePlan?.id
+  if (!planId) return
+  try {
+    await studyPlanRepository.updateTask(task.id, { doneAt: done ? Date.now() : null })
+    const updated = await studyPlanRepository.getDashboard(planId)
+    if (dashboard.value) dashboard.value.planDashboard = updated
+    ElMessage.success(done ? '今日任务已完成' : '已取消任务完成状态')
+  } catch (error) {
+    console.error('更新今日任务失败:', error)
+    ElMessage.error('任务状态保存失败，请检查本地服务后重试')
+  }
 }
 
 function formatDate(timestamp: number) {
@@ -360,6 +392,9 @@ onMounted(async () => {
 .task-copy { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
 .task-copy strong { font-size: 14px; }
 .review-task { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--border-color-light); }
+.custom-task-list { display: flex; flex-direction: column; }
+.custom-task-empty { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 12px 0; }
+.task-done { color: var(--text-color-secondary); text-decoration: line-through; }
 .word-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
 .word-item { padding: 12px; border-radius: 8px; background: var(--el-fill-color-lighter); }
 .word-item > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
