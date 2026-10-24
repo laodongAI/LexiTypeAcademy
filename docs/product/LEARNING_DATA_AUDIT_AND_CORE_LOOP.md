@@ -127,7 +127,7 @@ interface LearningEvent {
 
 - 代码静态审查：已完成第一轮，并继续扩展事件和对话内核。
 - GitHub 主干提交：已直接提交到 `main`；后续按用户要求继续在主干上迭代。
-- 前端类型检查与生产构建：本执行环境未运行；已新增 GitHub Actions 工作流，需从 Actions 界面确认实际结果。
+- 前端类型检查与生产构建：GitHub Actions run #46 已通过（`npm ci`、`npm run typecheck`、`npm run build`）；验证使用临时 PR merge commit，临时 PR 已关闭且未合并。
 - 后端 API/数据库集成测试：未运行。
 - Windows 实机刷新/重启恢复：未验证。
 - 因此相关实现状态为 `IMPLEMENTED_UNVERIFIED`，不可标记 `VERIFIED`。
