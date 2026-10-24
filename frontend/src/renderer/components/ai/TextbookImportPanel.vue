@@ -155,7 +155,7 @@
 
         <div class="step-actions">
           <el-button :disabled="loading" @click="step = 1">← 上一步</el-button>
-          <el-button type="primary" :loading="loading" @click="generateCoursesFromTextbook">
+          <el-button type="primary"  :loading="loading" :disabled="checkpointStatus.includes('正在后台生成')" @click="generateCoursesFromTextbook">
             ✨ 批量生成课程
           </el-button>
         </div>
@@ -230,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getAIService } from '../../../shared/services/ai'
@@ -343,6 +343,7 @@ interface TextbookGenerationCheckpoint {
 
 const GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
 const checkpointStatus = ref('')
+let checkpointPollId: number | undefined
 
 function makeGenerationKey(publisher: string, series: string, textbookName: string) {
   return [publisher, series, textbookName].map(value => value.trim()).join('|')
@@ -609,6 +610,7 @@ async function generateCourseFromTextbook() {
     generationProgress.totalUnits = selectedUnits.length
     generationProgress.doneUnits = activeCheckpoint.completedTasks.filter(task => selectedUnits.includes(task)).length
     activeCheckpoint.status = 'running'
+    ;(window as unknown as { __lexitypeTextbookGenerationKey?: string }).__lexitypeTextbookGenerationKey = key
     persistGenerationCheckpoint(activeCheckpoint)
 
     for (const unitTitle of selectedUnits) {
@@ -857,6 +859,10 @@ async function generateCourseFromTextbook() {
     addDiagnosticLog('error', 'textbook-course-generation', '教材课程生成失败；已完成单元已保存，可断点继续', error.value)
     ElMessage.error(error.value)
   } finally {
+    const runtime = window as unknown as { __lexitypeTextbookGenerationKey?: string }
+    if (runtime.__lexitypeTextbookGenerationKey === makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)) {
+      delete runtime.__lexitypeTextbookGenerationKey
+    }
     loading.value = false
     generationProgress.active = false
     generationProgress.currentUnit = ''
@@ -1006,6 +1012,23 @@ function goToPractice() {
 onMounted(async () => {
   const checkpoint = readGenerationCheckpoint()
   if (!checkpoint) return
+  const runtime = window as unknown as { __lexitypeTextbookGenerationKey?: string }
+  if (checkpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === checkpoint.key) {
+    checkpointStatus.value = '该教材正在后台生成，切换页面不会取消任务。'
+    checkpointPollId = window.setInterval(() => {
+      const latest = readGenerationCheckpoint()
+      if (!latest || latest.status === 'running') return
+      if (checkpointPollId !== undefined) window.clearInterval(checkpointPollId)
+      checkpointPollId = undefined
+      checkpointStatus.value = latest.status === 'completed'
+        ? '后台生成已完成；请检查预览并保存课程。'
+        : '后台任务已暂停，可点击“批量生成课程”从最近完成的内容类型继续。'
+    }, 1200)
+  } else if (checkpoint.status === 'running') {
+    checkpoint.status = 'paused'
+    persistGenerationCheckpoint(checkpoint)
+    checkpointStatus.value = '检测到上次运行中断；已完成的内容类型已保存，可从断点继续。'
+  }
   try {
     publisherForm.publisher = checkpoint.publisher
     await fetchSeries(false)
@@ -1025,6 +1048,10 @@ onMounted(async () => {
   } catch (e) {
     console.warn('恢复教材生成任务上下文失败', e)
   }
+})
+
+onUnmounted(() => {
+  if (checkpointPollId !== undefined) window.clearInterval(checkpointPollId)
 })
 </script>
 
