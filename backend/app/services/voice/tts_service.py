@@ -281,11 +281,27 @@ class TTSService:
         settings = get_settings()
         engines = self.list_engines()
         current = get_engine(settings.tts_engine or "melo")
+        default_available, default_reason = (
+            engine_available(current) if current is not None else (False, "未知的默认 TTS 引擎")
+        )
+
+        # OpenVoice 依赖 Melo 基底模型；仅有克隆转换模型文件不足以完成合成。
+        if current is not None and current.supports_clone:
+            base_engine = get_engine("melo")
+            base_available, base_reason = (
+                engine_available(base_engine) if base_engine is not None else (False, "缺少 Melo 基底引擎定义")
+            )
+            if not base_available:
+                default_available = False
+                default_reason = f"OpenVoice 基底模型不可用：{base_reason}"
 
         return {
             "engine": self._engine_id or (settings.tts_engine or "melo"),
             "engineName": current.display_name if current else "unknown",
-            "modelReady": any(item["available"] for item in engines),
+            # 健康状态必须反映配置的默认引擎，而不是任意一个可用引擎。
+            "modelReady": default_available,
+            "defaultEngineAvailable": default_available,
+            "defaultEngineReason": default_reason or None,
             "loaded": self._engine is not None,
             "numSpeakers": self._num_speakers,
             "sampleRate": self._sample_rate,
