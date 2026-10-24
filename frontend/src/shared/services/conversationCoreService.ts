@@ -6,6 +6,7 @@
  */
 import { commonRepository } from '../database/repositories/commonRepository'
 import { apiPost } from './apiClient'
+import { learningEventService } from './learningEventService'
 import type { AITaskLog } from '../types/common'
 
 export type ConversationScenarioId = 'ai-tutor' | 'english-interview'
@@ -27,6 +28,7 @@ export interface ConversationSession {
   updatedAt: number
   linkedCourseId?: string
   linkedLessonId?: string
+  contextSummary?: string
 }
 
 interface StoredConversation {
@@ -38,6 +40,7 @@ interface StoredConversation {
   updatedAt: number
   linkedCourseId?: string
   linkedLessonId?: string
+  contextSummary?: string
 }
 
 interface ChatResponse {
@@ -115,7 +118,7 @@ export class ConversationCoreService {
   async createSession(
     scenarioId: ConversationScenarioId,
     title?: string,
-    linked?: { courseId?: string; lessonId?: string },
+    linked?: { courseId?: string; lessonId?: string; contextSummary?: string },
   ): Promise<ConversationSession> {
     const now = Date.now()
     const stored: StoredConversation = {
@@ -127,6 +130,7 @@ export class ConversationCoreService {
       updatedAt: now,
       linkedCourseId: linked?.courseId,
       linkedLessonId: linked?.lessonId,
+      contextSummary: linked?.contextSummary,
     }
     const id = await commonRepository.createAITaskLog({
       type: SESSION_TYPE,
@@ -159,6 +163,7 @@ export class ConversationCoreService {
       const response = await apiPost<ChatResponse>('/api/ai/chat', {
         messages: [
           { role: 'system', content: SCENARIO_PROMPTS[session.scenarioId] },
+          ...(pending.contextSummary ? [{ role: 'system', content: `Verified learner context from saved learning data: ${pending.contextSummary}. Use this only as helpful context; do not claim completion or mastery beyond these facts.` }] : []),
           ...pending.messages.map(message => ({ role: message.role, content: message.content })),
         ],
         requestId: `conversation-${session.id}-${userMessage.id}`,
@@ -183,6 +188,14 @@ export class ConversationCoreService {
     if (!log) throw new Error('找不到已保存的会话')
     const updated = { ...session, status, updatedAt: Date.now() }
     await this.persist(updated, log, status)
+    void learningEventService.record({
+      eventType: status === 'completed' ? 'conversation_completed' : 'conversation_abandoned',
+      occurredAt: updated.updatedAt,
+      activityId: String(updated.id),
+      courseId: updated.linkedCourseId,
+      lessonId: updated.linkedLessonId,
+      metadata: { scenarioId: updated.scenarioId, messageCount: updated.messages.length },
+    }).catch(error => console.warn('记录对话生命周期事件失败，不影响已保存的会话状态:', error))
     return updated
   }
 
@@ -200,6 +213,7 @@ export class ConversationCoreService {
       updatedAt: session.updatedAt,
       linkedCourseId: session.linkedCourseId,
       linkedLessonId: session.linkedLessonId,
+      contextSummary: session.contextSummary,
     }
     await commonRepository.updateAITaskLog(session.id, {
       status: 'completed',
