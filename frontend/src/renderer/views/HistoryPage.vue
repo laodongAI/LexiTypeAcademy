@@ -237,7 +237,7 @@ async function loadHistory() {
     commonRepository.getLearningRecords(0, now),
     learningService.getLearningCourses(),
     courseRepository.getAllCourses(),
-  ])
+  ] as const)
 
   const labels = ['练习记录', '复习日志', '复习词汇', '打字记录', '课堂记录', '课程进度', '课程目录']
   const warnings = results.flatMap((result, index) => result.status === 'rejected' ? [labels[index]] : [])
