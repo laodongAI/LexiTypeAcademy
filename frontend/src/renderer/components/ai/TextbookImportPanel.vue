@@ -146,7 +146,8 @@
 
         <div v-if="generationProgress.active" class="generation-progress">
           <div class="progress-header">
-            <span>已完成单元：{{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
+            <span>已完成内容项：{{ generationProgress.doneTasks }}/{{ generationProgress.totalTasks }}</span>
+            <span class="progress-meta">完整单元 {{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
             <span v-if="generationProgress.currentUnit" class="progress-detail">
               {{ generationProgress.currentUnit }}<span v-if="generationProgress.currentType"> · {{ generationProgress.currentType }}</span>
             </span>
@@ -309,11 +310,13 @@ const generationProgress = reactive({
   active: false,
   totalUnits: 0,
   doneUnits: 0,
+  totalTasks: 0,
+  doneTasks: 0,
   currentUnit: '',
   currentType: '' as '' | 'words' | 'sentences' | 'passage' | 'grammar' | 'phonics',
   get percentage() {
-    if (!this.totalUnits) return 0
-    return Math.min(100, Math.round((this.doneUnits / this.totalUnits) * 100))
+    if (!this.totalTasks) return 0
+    return Math.min(100, Math.round((this.doneTasks / this.totalTasks) * 100))
   },
 })
 
@@ -376,6 +379,8 @@ function readGenerationCheckpoint(): TextbookGenerationCheckpoint | null {
 
 function persistGenerationCheckpoint(checkpoint: TextbookGenerationCheckpoint) {
   checkpoint.updatedAt = Date.now()
+  generationProgress.totalTasks = checkpoint.unitTitles.length * checkpoint.contentTypes.length
+  generationProgress.doneTasks = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
   try {
     localStorage.setItem(GENERATION_CHECKPOINT_KEY, JSON.stringify(checkpoint))
     checkpointStatus.value = '断点已保存：' + new Date(checkpoint.updatedAt).toLocaleTimeString()
@@ -666,6 +671,8 @@ async function generateCourseFromTextbook() {
     const activeCheckpoint = checkpoint as TextbookGenerationCheckpoint
     generationProgress.totalUnits = selectedUnits.length
     generationProgress.doneUnits = activeCheckpoint.completedTasks.filter(task => selectedUnits.includes(task)).length
+    generationProgress.totalTasks = selectedUnits.length * selectedTypes.length
+    generationProgress.doneTasks = activeCheckpoint.completedTasks.filter(task => selectedUnits.some(unit => selectedTypes.some(type => task === generationTaskKey(unit, type)))).length
     activeCheckpoint.status = 'running'
     activeCheckpoint.key = key
     activeCheckpoint.grade = gradeKey
@@ -1087,6 +1094,8 @@ onMounted(async () => {
     generationProgress.active = true
     generationProgress.totalUnits = checkpoint.unitTitles.length
     generationProgress.doneUnits = checkpoint.completedTasks.filter(task => checkpoint!.unitTitles.includes(task)).length
+    generationProgress.totalTasks = checkpoint.unitTitles.length * checkpoint.contentTypes.length
+    generationProgress.doneTasks = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
     generationProgress.currentUnit = checkpoint.currentUnit || ''
     generationProgress.currentType = checkpoint.currentType || ''
     checkpointPollId = window.setInterval(() => {
@@ -1094,6 +1103,8 @@ onMounted(async () => {
       if (!latest) return
       generationProgress.totalUnits = latest.unitTitles.length
       generationProgress.doneUnits = latest.completedTasks.filter(task => latest.unitTitles.includes(task)).length
+      generationProgress.totalTasks = latest.unitTitles.length * latest.contentTypes.length
+      generationProgress.doneTasks = latest.completedTasks.filter(task => latest.unitTitles.some(unit => latest.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
       generationProgress.currentUnit = latest.currentUnit || ''
       generationProgress.currentType = latest.currentType || ''
       if (latest.status === 'running') return
@@ -1146,6 +1157,8 @@ onMounted(async () => {
     const latestCheckpoint = readGenerationCheckpoint() || checkpoint
     generationProgress.totalUnits = latestCheckpoint.unitTitles.length
     generationProgress.doneUnits = latestCheckpoint.completedTasks.filter(task => latestCheckpoint.unitTitles.includes(task)).length
+    generationProgress.totalTasks = latestCheckpoint.unitTitles.length * latestCheckpoint.contentTypes.length
+    generationProgress.doneTasks = latestCheckpoint.completedTasks.filter(task => latestCheckpoint.unitTitles.some(unit => latestCheckpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
     generationProgress.currentUnit = latestCheckpoint.currentUnit || ''
     generationProgress.currentType = latestCheckpoint.currentType || ''
     generationProgress.active = latestCheckpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === latestCheckpoint.key
