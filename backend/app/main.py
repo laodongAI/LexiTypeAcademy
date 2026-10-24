@@ -20,6 +20,7 @@ from app.api.routers import (
     ai,
     asr,
     courses,
+    collections,
     health,
     migration,
     practice,
@@ -28,6 +29,8 @@ from app.api.routers import (
     study_plans,
     tts,
 )
+from app.db.base import ENGINE, Base
+from app.db.models import CourseCollection, CourseCollectionMembership
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 
@@ -49,6 +52,13 @@ def create_app() -> FastAPI:
     """
     # 读取全局配置
     settings = get_settings()
+
+    # 仅为新增的课程集合表执行幂等建表，不改动现有业务表结构。
+    # 旧版本数据库无需手工重建，课程归属关系采用独立表渐进迁移。
+    Base.metadata.create_all(
+        bind=ENGINE,
+        tables=[CourseCollection.__table__, CourseCollectionMembership.__table__],
+    )
 
     # 应用元信息用于自动生成的 OpenAPI 文档
     app = FastAPI(
@@ -80,6 +90,7 @@ def create_app() -> FastAPI:
 
     # 注册课程与课时业务路由（课程 CRUD、课时 CRUD、课程进度）
     app.include_router(courses.router, prefix="/api")
+    app.include_router(collections.router, prefix="/api")
     app.include_router(courses.lesson_router, prefix="/api")
     app.include_router(courses.progress_router, prefix="/api")
 
