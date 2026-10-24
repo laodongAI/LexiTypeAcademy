@@ -14,6 +14,8 @@
  * 后端基础地址
  * 说明：本地单机部署，端口默认 8010，避免与其它项目占用的 8000 冲突。
  */
+import { addDiagnosticLog } from './diagnosticLogService'
+
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined) || 'http://127.0.0.1:8010'
 
@@ -91,7 +93,8 @@ export async function apiRequest<T>(
   const url = `${API_BASE_URL}${path}${buildQuery(options.query)}`
 
   // 记录请求开始，debug 级别避免生产环境刷屏
-  console.debug(`[api] ${method} ${url}`)
+  const startedAt = Date.now()
+  addDiagnosticLog('debug', 'api', '请求开始：' + method + ' ' + path)
 
   let response: Response
   try {
@@ -104,6 +107,7 @@ export async function apiRequest<T>(
   } catch (error) {
     // 网络层失败（后端未启动、超时、跨域被拒）
     const message = error instanceof Error ? error.message : String(error)
+    addDiagnosticLog('error', 'api', '请求无法连接：' + method + ' ' + path, message)
     console.error(`[api] ${method} ${url} 请求失败：${message}`)
     throw new ApiError(0, `无法连接本地后端服务：${message}`)
   }
@@ -122,16 +126,27 @@ export async function apiRequest<T>(
     } catch {
       // 非 JSON 错误体：保留原始文本
     }
+    addDiagnosticLog('error', 'api', '请求失败：' + method + ' ' + path + ' (' + response.status + ')', detail)
     console.error(`[api] ${method} ${url} 返回 ${response.status}：${detail}`)
     throw new ApiError(response.status, detail)
   }
 
   // 空响应体（例如 204）返回 null
-  if (!raw) return null as T
+  if (!raw) {
+    addDiagnosticLog('debug', 'api', '请求成功：' + method + ' ' + path + '，耗时 ' + (Date.now() - startedAt) + 'ms')
+    return null as T
+  }
 
   // 记录成功日志
   console.debug(`[api] ${method} ${url} 成功（${raw.length} 字节）`)
-  return JSON.parse(raw) as T
+  try {
+    const parsed = JSON.parse(raw) as T
+    addDiagnosticLog('debug', 'api', '请求成功：' + method + ' ' + path + '，耗时 ' + (Date.now() - startedAt) + 'ms')
+    return parsed
+  } catch (error) {
+    addDiagnosticLog('error', 'api', '响应不是有效 JSON：' + method + ' ' + path, error)
+    throw new ApiError(response.status, '后端响应格式异常：返回内容不是有效 JSON')
+  }
 }
 
 /**
