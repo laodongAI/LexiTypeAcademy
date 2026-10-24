@@ -143,3 +143,11 @@
 - `ClassroomPage.vue` 根据 `Lesson.contentShape` 推荐默认模式：Word/Phrase → 词燃尽，Sentence → 句子燃尽，Passage/Dialog → 精读；显式 `mode` 参数优先，保留用户选择。
 - 用户把词汇课切到精读模式时给出方法提示；短文切到词燃尽时提示先整体理解，避免把文章拆成孤立单词。
 - 状态：IMPLEMENTED_UNVERIFIED；需要通过最新前端类型检查/构建，并在浏览器验证不同 contentShape 的默认模式和手动切换。
+
+
+## P0-12 中文生成学习目标显式化（本轮追加）
+
+- 中文生成面板新增“主题词汇 / 常用表达与搭配”选择；目标类型传入 AI 生成服务，单次生成与分批生成均通过提示词约束单词或多词表达。
+- 草稿转换保留 `ContentShape.Word` / `ContentShape.Phrase`，课堂可据此推荐相应模式。
+- UI 明确说明完整句型、对话、短文精读仍需独立生成模板，避免把词汇生成能力夸大为全内容类型支持。
+- 状态：IMPLEMENTED_UNVERIFIED；等待前端 CI，仍需用真实模型核验短语自然度、重复率和目标遵循率。
