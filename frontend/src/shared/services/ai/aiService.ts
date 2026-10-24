@@ -318,9 +318,13 @@ export class AIService {
     lessonCount: number,
     wordsPerLesson: number,
     fallbackCourseName: string,
-    onProgress?: (content: string) => void
+    onProgress?: (content: string) => void,
+    focus: 'word' | 'phrase' = 'word'
   ): Promise<CourseGenerationResponse> {
     const systemPrompt = 'You are an expert English teacher. Always respond with valid JSON only.';
+    const contentLabel = focus === 'phrase' ? 'English phrases and collocations' : 'English vocabulary words';
+    const contentExample = focus === 'phrase' ? 'check in' : 'reservation';
+    const contentMeaning = focus === 'phrase' ? 'to register at a hotel or airport' : 'an arrangement to keep something for someone';
 
     // 源素材过长时截断：批次请求会重复携带，避免请求体膨胀
     const trimmedSource = sourceText.length > 6000 ? `${sourceText.slice(0, 6000)}\n...(truncated)` : sourceText;
@@ -557,7 +561,8 @@ Return JSON only:
   async generateCourseFromAudio(
     transcription: string,
     lessonCount: number = 5,
-    wordsPerLesson: number = 10
+    wordsPerLesson: number = 10,
+    focus: 'word' | 'phrase' = 'word'
   ): Promise<CourseGenerationResponse> {
     const systemPrompt = 'You are an expert English teacher. Always respond with valid JSON only.';
     const totalWords = lessonCount * wordsPerLesson;
@@ -575,7 +580,7 @@ Return JSON only:
 
       // 小规模课程：单次生成，显式给出 JSON 结构
       const prompt = `
-Based on the following audio transcription, create an English typing practice course.
+Based on the following source text, create an English typing practice course focused on ${focus === 'phrase' ? 'natural multi-word phrases and collocations' : 'single vocabulary words'}. Do not return full sentences or unrelated content.
 
 **Transcription:**
 ${transcription}
