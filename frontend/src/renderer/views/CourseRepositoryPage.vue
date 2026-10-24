@@ -7,9 +7,10 @@
 <template>
   <div class="course-repository-page">
     <header class="page-header">
-      <div>
+      <div class="page-heading">
+        <div class="page-kicker"><el-icon><Collection /></el-icon><span>LEARNING LIBRARY</span></div>
         <h2 class="page-title">课程仓库</h2>
-        <p class="page-subtitle">浏览与管理你创建或导入的课程。</p>
+        <p class="page-subtitle">整理教材与课程，让每一份学习资料都更容易找到。</p>
       </div>
 
       <div class="header-actions">
@@ -27,7 +28,7 @@
     <div class="toolbar-row">
       <el-input
         v-model="searchQuery"
-        placeholder="搜索课程..."
+        placeholder="搜索课程名称、教材或描述…"
         clearable
         @input="handleSearch"
       >
@@ -130,19 +131,11 @@
       <template #header>
         <div class="card-header">
           <span>共 {{ total }} 个课程</span>
-          <el-radio-group v-model="viewMode" size="small">
-            <el-radio-button value="grid">
-              <el-icon><Grid /></el-icon>
-            </el-radio-button>
-            <el-radio-button value="list">
-              <el-icon><List /></el-icon>
-            </el-radio-button>
-            <el-radio-button value="hierarchy">
-              <el-icon><FolderOpened /></el-icon>
-            </el-radio-button>
-            <el-radio-button value="textbook">
-              <el-icon><Collection /></el-icon>
-            </el-radio-button>
+          <el-radio-group v-model="viewMode" class="view-switcher" size="default" aria-label="课程展示方式">
+            <el-radio-button value="grid"><el-icon><Grid /></el-icon><span>卡片</span></el-radio-button>
+            <el-radio-button value="list"><el-icon><List /></el-icon><span>列表</span></el-radio-button>
+            <el-radio-button value="hierarchy"><el-icon><FolderOpened /></el-icon><span>集合</span></el-radio-button>
+            <el-radio-button value="textbook"><el-icon><Collection /></el-icon><span>教材</span></el-radio-button>
           </el-radio-group>
         </div>
       </template>
@@ -263,14 +256,13 @@
             <el-button size="small" type="danger" plain @click="loadCollections">重试加载</el-button>
           </template>
         </el-alert>
-        <el-alert
-          type="info"
-          show-icon
-          :closable="false"
-          title="按课程集合管理"
-          description="集合已独立保存于后端数据库；旧 Collection: 标签会幂等迁移为集合归属，原标签保留。教材课程继续使用教材系列、册和单元视图；无归属课程仍会显示在“未归类课程”。"
-          class="hierarchy-hint"
-        />
+        <div class="hierarchy-note">
+          <span class="hierarchy-note-icon"><el-icon><FolderOpened /></el-icon></span>
+          <div class="hierarchy-note-copy">
+            <strong>按课程集合整理</strong>
+            <p>集合归属独立保存；教材课程请切换到「教材」视图查看系列、年级册与单元。尚未归类的课程也会保留在列表中。</p>
+          </div>
+        </div>
         <el-collapse v-if="collectionGroups.length" class="collection-collapse">
           <el-collapse-item v-for="group in collectionGroups" :key="group.key" :name="group.key">
             <template #title>
@@ -1445,4 +1437,286 @@ onMounted(async () => {
   flex: none;
   color: var(--text-color-secondary);
 }
+
+/* 课程仓库页面视觉整理：沿用项目现有主题变量，不影响全局主题 */
+.course-repository-page {
+  width: 100%;
+  max-width: 1360px;
+  padding-bottom: 24px;
+}
+
+.page-header {
+  align-items: center;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  border: 1px solid var(--border-color-light);
+  border-radius: 16px;
+  background: var(--el-bg-color, #fff);
+}
+
+.page-heading { min-width: 0; }
+
+.page-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: var(--el-color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.page-kicker :deep(.el-icon) { font-size: 14px; }
+
+.page-title {
+  margin-bottom: 6px;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+
+.page-subtitle {
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 400;
+}
+
+.header-actions { flex: none; gap: 10px; }
+
+.header-actions :deep(.el-button) {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-weight: 600;
+}
+
+.toolbar-row {
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border-color-light);
+  border-radius: 14px;
+  background: var(--el-bg-color, #fff);
+}
+
+.toolbar-row :deep(.el-input__wrapper) {
+  min-height: 38px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px var(--border-color-light) inset;
+}
+
+.toolbar-actions { gap: 6px; }
+
+.toolbar-actions :deep(.el-button) { border-radius: 8px; }
+
+.filter-panel {
+  padding: 16px 18px 4px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--bg-color-page);
+}
+
+.courses-card {
+  overflow: hidden;
+  border-radius: 16px;
+  border-color: var(--border-color-light);
+}
+
+.courses-card :deep(.el-card__header) {
+  padding: 14px 18px;
+  border-bottom-color: var(--border-color-light);
+  background: var(--el-bg-color, #fff);
+}
+
+.courses-card :deep(.el-card__body) { padding: 18px; }
+
+.courses-card .card-header {
+  min-height: 34px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.courses-card .card-header > span {
+  color: var(--text-color-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.view-switcher :deep(.el-radio-button__inner) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.view-switcher :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.view-switcher :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.course-card {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--el-bg-color, #fff);
+}
+
+.course-card :deep(.el-card__body) { padding: 18px; }
+
+.course-card .course-title {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.course-card .course-description {
+  min-height: 40px;
+  line-height: 1.55;
+}
+
+.course-card .course-actions {
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color-light);
+}
+
+.course-card .course-actions :deep(.el-button) { border-radius: 8px; }
+
+.hierarchy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color-light);
+  border-radius: 12px;
+  background: var(--bg-color-page);
+}
+
+.hierarchy-note-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.hierarchy-note-copy { min-width: 0; }
+
+.hierarchy-note-copy strong {
+  display: block;
+  margin: 1px 0 4px;
+  color: var(--text-color);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.hierarchy-note-copy p {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.collection-collapse :deep(.el-collapse-item__header) {
+  min-height: 54px;
+  padding: 0 14px;
+  border-radius: 10px;
+}
+
+.collection-collapse :deep(.el-collapse-item__wrap) { border-bottom: 0; }
+.collection-collapse :deep(.el-collapse-item__content) { padding: 8px 12px 16px; }
+
+.collection-course-row {
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: var(--el-bg-color, #fff);
+  transition: border-color .18s ease, background-color .18s ease;
+}
+
+.collection-course-row:hover { border-color: var(--el-border-color); }
+
+.series-block {
+  padding: 20px;
+  border-radius: 15px;
+  background: var(--el-bg-color, #fff);
+}
+
+.series-head {
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.series-title h3 { font-size: 17px; line-height: 1.4; }
+.series-title span { display: inline-block; margin-top: 2px; }
+
+.volume-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+.volume-card { border-radius: 12px; }
+.volume-card :deep(.el-card__header) { padding: 14px 15px; }
+.volume-card :deep(.el-card__body) { padding: 10px; }
+.volume-head strong { line-height: 1.45; }
+
+.unit-row {
+  min-height: 54px;
+  padding: 10px 11px;
+  border-color: transparent;
+  border-radius: 9px;
+}
+
+.unit-row:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.unit-no {
+  min-width: 62px;
+  padding: 5px 7px;
+  border-radius: 7px;
+}
+
+.unit-info strong { font-size: 13px; line-height: 1.45; }
+.unit-info small { line-height: 1.5; }
+
+.pagination { padding-top: 16px; }
+
+@media (max-width: 860px) {
+  .page-header { align-items: flex-start; flex-direction: column; padding: 20px; }
+  .header-actions { width: 100%; }
+  .header-actions :deep(.el-button) { flex: 1; }
+  .toolbar-row { flex-direction: column; }
+  .toolbar-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 560px) {
+  .page-title { font-size: 24px; }
+  .page-header { padding: 18px 16px; }
+  .courses-card :deep(.el-card__body) { padding: 12px; }
+  .courses-card :deep(.el-card__header) { padding: 12px; }
+  .courses-card .card-header { align-items: flex-start; flex-direction: column; }
+  .view-switcher { width: 100%; display: flex; }
+  .view-switcher :deep(.el-radio-button) { flex: 1; }
+  .view-switcher :deep(.el-radio-button__inner) { width: 100%; padding: 0 7px; }
+  .series-block { padding: 14px; border-radius: 12px; }
+  .series-head { align-items: flex-start; }
+  .unit-row { gap: 8px; padding: 9px 7px; }
+  .unit-no { min-width: 54px; }
+}
+
 </style>
