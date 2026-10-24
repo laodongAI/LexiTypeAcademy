@@ -276,7 +276,16 @@ onMounted(async () => {
   }
   
   lessonTitle.value = lesson.title
-  lessonItems.value = lesson.items || []
+  const requestedItemId = route.query.itemId
+  const availableItems = lesson.items || []
+  lessonItems.value = typeof requestedItemId === 'string'
+    ? availableItems.filter(item => item.id === requestedItemId)
+    : availableItems
+  if (typeof requestedItemId === 'string' && lessonItems.value.length === 0) {
+    ElMessage.warning('该错题已不在当前课时中，请返回错题列表重新选择')
+    router.back()
+    return
+  }
   
   if (lessonItems.value.length === 0) {
     ElMessage.warning('该课时暂无练习内容')
