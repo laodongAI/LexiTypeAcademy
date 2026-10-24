@@ -289,3 +289,6 @@ cd frontend; npm run build
 - 系列/教材/单元目录增加并发请求去重；单元缓存按出版社、系列、年级、教材名称隔离；主用面板采用最多 2 个单元并发 worker，降低串行 AI 往返的总等待时间。
 - 详细审计：`docs/tasks/TEXTBOOK_GENERATION_AUDIT_2026-10-24.md`。
 - 状态：代码已提交；最新前端 CI 尚待最终结果；浏览器/Windows E2E、刷新恢复和真实模型性能压测均为 NOT_RUN。后台任务目前仍是前端 localStorage 检查点方案，不是后端常驻任务队列。
+
+
+- 补充优化：`frontend/src/shared/services/apiClient.ts` 对同一路径/查询参数的并发 GET 做请求合并（不缓存已完成响应，避免陈旧数据）；手动补充单元写入年级隔离的目录缓存；保存课程时禁止仅凭同名标题跨出版社/系列合并。
