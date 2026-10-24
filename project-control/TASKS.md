@@ -311,3 +311,16 @@ cd frontend; npm run build
 - 设计文档：`docs/design/learning-method-compatibility-v1.md`。
 - 保护边界：未修改历史课程内容；未自动把篇章转换成词汇课；未将音标字段等同于音素教学能力。
 - 待验证：前端 typecheck/build、直接 URL 兼容性、入口弹窗默认模式、无词根数据时词根模式禁用、窄屏禁用态显示。
+
+
+## 单元整体学习 + 双模式课堂（2026-10-24）
+
+- 状态：DOING；功能分支已提交实现，CI/浏览器 E2E 待验证。
+- 设计：`docs/design/unit-learning-modes-v1.md`。
+- 新增 `frontend/src/renderer/views/UnitLearningPage.vue`，按整个 Course/单元聚合现有 lessons/items，流程为单元导入 → 通读篇章/对话 → 重点句子 → 重点词汇 → 语法 → 输出检查 → 总结。
+- 新增自主学习模式：原文朗读、显示/隐藏翻译、重点句/词展示、语法讲解按需调用现有 AI、基于真实文本提交的小测与即时相似度反馈；阶段进度/小测统计保存本地检查点。
+- 跟读：链接到既有 `LessonPracticePage.vue?mode=follow`，复用当前练习和结果反馈，不伪造 ASR/发音准确率。
+- 新增 AI 老师模式：复用 `conversationCoreService` 与现有持久化会话，关联课程 ID 和本单元材料；按协议一次讲一个重点、提问、等待回答并反馈。会话保存到既有 ai_task_logs，不新增表。
+- 新增路由 `UnitLearning`，课程详情提供“开始单元学习”入口；旧的逐课时课堂入口保留。
+- 数据边界：不迁移或改写原课程，不新增内容表；语法讲解为 AI 临时生成内容，未写回原教材。
+- 待验证：前端 typecheck/build；AI 会话恢复；TTS/跟读跳转；无篇章/无词汇/无句子的空状态；刷新后进度恢复；Windows/浏览器 E2E。
