@@ -44,6 +44,63 @@ def list_collections() -> dict[str, Any]:
     return {"items": items, "total": len(items)}
 
 
+@router.post("/migrate-legacy-tags")
+def migrate_legacy_collection_tags() -> dict[str, Any]:
+    """幂等地把旧 Collection: 标签迁移到正式集合关系表，不删除或改写原标签。"""
+    migrated_collections = 0
+    assigned_courses = 0
+    with session_scope() as session:
+        courses = list(session.scalars(select(Course)))
+        existing_memberships = {
+            item.course_id: item
+            for item in session.scalars(select(CourseCollectionMembership))
+        }
+        collections_by_name = {
+            item.name: item
+            for item in session.scalars(select(CourseCollection))
+        }
+        now = _now_ms()
+        for course in courses:
+            if course.id in existing_memberships:
+                continue
+            tags = course.tags if isinstance(course.tags, list) else []
+            legacy_name = next(
+                (str(tag)[len("Collection:"):].strip() for tag in tags
+                 if isinstance(tag, str) and tag.startswith("Collection:") and str(tag)[len("Collection:"):].strip()),
+                None,
+            )
+            if not legacy_name:
+                continue
+            collection = collections_by_name.get(legacy_name)
+            if collection is None:
+                collection = CourseCollection(
+                    id=f"collection_legacy_{time.time_ns()}",
+                    name=legacy_name,
+                    parent_id=None,
+                    description="由旧课程标签自动迁移",
+                    sort_order=0,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(collection)
+                session.flush()
+                collections_by_name[legacy_name] = collection
+                migrated_collections += 1
+            membership = CourseCollectionMembership(
+                course_id=course.id,
+                collection_id=collection.id,
+                created_at=now,
+            )
+            session.add(membership)
+            existing_memberships[course.id] = membership
+            assigned_courses += 1
+    return {
+        "createdCollections": migrated_collections,
+        "assignedCourses": assigned_courses,
+        "preservedLegacyTags": True,
+    }
+
+
 @router.post("")
 def create_collection(payload: dict[str, Any]) -> dict[str, Any]:
     name = str(payload.get("name") or "").strip()
