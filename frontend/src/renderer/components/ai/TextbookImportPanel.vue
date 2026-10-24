@@ -1195,9 +1195,13 @@ onMounted(async () => {
     } else {
       step.value = 2
     }
-    checkpointStatus.value = checkpoint.status === 'running'
-      ? '教材生成任务已保存；已完成单元可恢复，当前请求若中断会从最近完成单元继续。'
-      : '发现教材生成断点，可点击“批量生成课程”继续未完成单元。'
+    if (latestCheckpoint.status === 'completed') {
+      checkpointStatus.value = '后台生成已完成；已恢复预览，请检查并保存课程。'
+    } else if (latestCheckpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === latestCheckpoint.key) {
+      checkpointStatus.value = '该教材正在后台生成，切换页面不会取消任务。'
+    } else {
+      checkpointStatus.value = '发现教材生成断点；已完成的内容类型已保存，可点击“批量生成课程”继续。'
+    }
   } catch (e) {
     console.warn('恢复教材生成任务上下文失败', e)
   }
