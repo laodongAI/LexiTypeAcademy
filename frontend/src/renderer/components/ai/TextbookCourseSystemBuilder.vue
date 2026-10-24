@@ -304,6 +304,33 @@ function saveCheckpoint(task: TextbookGenerationCheckpoint) {
   recoverableCheckpoint.value = task.status === 'completed' ? null : task
 }
 
+function readPreviousDraft(textbookName: string, publisherName: string, seriesName: string): PendingCourseData | null {
+  try {
+    const raw = localStorage.getItem('textbook_generation_completed_draft_v1')
+    if (!raw) return null
+    const draft = JSON.parse(raw) as PendingCourseData
+    const expectedTitle = `${publisherName}${seriesName}《${textbookName}》`
+    return draft?.title === expectedTitle && Array.isArray(draft.lessons) ? draft : null
+  } catch { return null }
+}
+
+function getCompletedKeysFromDraft(draft: PendingCourseData | null, selected: TextbookUnitMeta[], types: CourseType[]): string[] {
+  if (!draft) return []
+  const keys: string[] = []
+  for (const unit of selected) {
+    for (const type of types) {
+      const prefix = `Unit ${unit.unit_num} `
+      const found = draft.lessons.some(lesson => {
+        if (type === 'words') return lesson.title === `${prefix}词汇`
+        if (type === 'sentences') return lesson.title === `${prefix}课文`
+        return lesson.title.startsWith(`${prefix}音标 `)
+      })
+      if (found) keys.push(`${unit.unit_num}:${type}`)
+    }
+  }
+  return keys
+}
+
 function getAIOrNull(): AIService | null {
   if (!props.isAIConfigured || !props.aiService) {
     emit('require-config')
@@ -542,7 +569,8 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     return
   }
 
-  const alreadyGenerated = resumeTask ? [] : selectedUnits.filter(u => u.generated && !(u.generatedTypes?.length))
+  const previousDraft = resumeTask ? null : readPreviousDraft(selectedTextbookName.value, publisher.value, series.value)
+  const alreadyGenerated = resumeTask ? [] : selectedUnits.filter(u => u.generated && !(previousDraft && getCompletedKeysFromDraft(previousDraft, [u], selectedCourseTypes.value).length))
   if (alreadyGenerated.length > 0) {
     try {
       await ElMessageBox.confirm(
@@ -565,7 +593,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     textbookName: selectedTextbookName.value,
     selectedUnits: selectedUnits.map(({ unit_num, title, topics, generated, generatedTypes }) => ({ unit_num, title, topics, generated, generatedTypes })),
     selectedTypes: [...selectedCourseTypes.value], options: { ...generationOptions.value },
-    lessons: [], completedKeys: [], failedKeys: [], status: 'running', startedAt: Date.now(), updatedAt: Date.now()
+    lessons: [...(previousDraft?.lessons || [])], completedKeys: getCompletedKeysFromDraft(previousDraft, selectedUnits, selectedCourseTypes.value), failedKeys: [], status: 'running', startedAt: Date.now(), updatedAt: Date.now()
   }
   if (resumeTask) {
     publisher.value = task.publisher; series.value = task.series; gradeLevel.value = task.gradeLevel
@@ -589,7 +617,6 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
       for (const type of task.selectedTypes) {
         const taskKey = `${unit.unit_num}:${type}`
         if (completed.has(taskKey)) { addLog(`  ↷ ${type} 已完成，跳过`); continue }
-        if ((unit.generatedTypes || []).includes(type)) { completed.add(taskKey); task.completedKeys = [...completed]; addLog(`  ↷ ${type} 已有生成记录，跳过增补`); saveCheckpoint(task); continue }
         task.current = taskKey; saveCheckpoint(task)
         addLog(`  -> 生成 ${type}`)
         const startedAt = Date.now()
