@@ -66,8 +66,8 @@
     <el-card class="ability-distribution-card">
       <template #header>
         <div class="card-header">
-          <span>📊 能力等级分布</span>
-          <el-button text size="small">7天趋势 ↓</el-button>
+          <span>📊 练习模式准确率</span>
+          <span class="stats-caption">近 30 天</span>
         </div>
       </template>
 
@@ -79,19 +79,12 @@
         >
           <div class="ability-label">{{ getAbilityLabel(key) }}</div>
           <div class="ability-bar">
-            <div class="ability-fill" :style="{ width: value + '%' }"></div>
+            <div v-if="value !== null" class="ability-fill" :style="{ width: value + '%' }"></div>
           </div>
-          <div class="ability-value">{{ value }}%</div>
+          <div class="ability-value">{{ value === null ? '—' : value + '%' }}</div>
         </div>
       </div>
 
-      <!-- 等级标注 -->
-      <div class="level-note">
-        <el-tag type="success" size="small">A1</el-tag>
-        <el-tag type="warning" size="small">A2</el-tag>
-        <el-tag type="info" size="small">B1</el-tag>
-        <el-tag size="small">B2+</el-tag>
-      </div>
     </el-card>
 
     <!-- 错误分析 -->
@@ -148,19 +141,18 @@ interface Stats {
 }
 
 interface MasteryDistribution {
-  listening: number
-  speaking: number
-  reading: number
-  writing: number
-  [key: string]: number
+  dictation: number | null
+  follow: number | null
+  translation: number | null
+  imitation: number | null
+  [key: string]: number | null
 }
 
 interface ErrorDistribution {
-  spelling: number
-  grammar: number
-  pronunciation: number
-  vocabulary: number
-  listening: number
+  dictation: number
+  follow: number
+  translation: number
+  imitation: number
   [key: string]: number
 }
 
@@ -174,10 +166,10 @@ const props = defineProps<{
 function getAbilityLabel(key: string | number): string {
   const keyStr = String(key)
   const labels: Record<string, string> = {
-    listening: '🎤 听力',
-    speaking: '🗣️ 口语',
-    reading: '📖 阅读',
-    writing: '✍️ 书写',
+    dictation: '🎧 听写',
+    follow: '🗣️ 跟读',
+    translation: '✍️ 翻译',
+    imitation: '🎙️ 模仿',
   }
   return labels[keyStr] || keyStr
 }
@@ -186,11 +178,10 @@ function getAbilityLabel(key: string | number): string {
 function getErrorLabel(type: string | number): string {
   const typeStr = String(type)
   const labels: Record<string, string> = {
-    spelling: '拼写错误',
-    grammar: '语法错误',
-    pronunciation: '发音错误',
-    vocabulary: '词汇错误',
-    listening: '听力错误',
+    dictation: '听写错题',
+    follow: '跟读错题',
+    translation: '翻译错题',
+    imitation: '模仿错题',
   }
   return labels[typeStr] || typeStr
 }
@@ -206,30 +197,28 @@ function getErrorPercentage(type: string | number, distribution: ErrorDistributi
 function getErrorColor(type: string | number): string {
   const typeStr = String(type)
   const colors: Record<string, string> = {
-    spelling: '#F56C6C',
-    grammar: '#E6A23C',
-    pronunciation: '#409EFF',
-    vocabulary: '#67C23A',
-    listening: '#AD7BF5',
+    dictation: '#AD7BF5',
+    follow: '#409EFF',
+    translation: '#E6A23C',
+    imitation: '#67C23A',
   }
   return colors[typeStr] || '#909399'
 }
 
 // 获取改进建议
 function getImprovementTip(distribution: ErrorDistribution): string {
+  const total = Object.values(distribution).reduce((sum, value) => sum + value, 0)
+  if (total === 0) return '完成练习并提交答案后，这里会显示近 30 天的错题分布。'
   const maxType = Object.entries(distribution).reduce((a, b) =>
     b[1] > a[1] ? b : a
   )[0]
-  
   const tips: Record<string, string> = {
-    spelling: '建议增加打字练习，重点关注高频词汇的拼写',
-    grammar: '建议进行语法专项训练，复习基础语法规则',
-    pronunciation: '建议增加跟读练习，对比标准发音',
-    vocabulary: '建议扩展词汇量，用词汇卡片进行记忆',
-    listening: '建议增加听力材料输入，从简单内容开始',
+    dictation: '建议先完整听一遍，再按短句听写并对照原文。',
+    follow: '建议先听标准示范，再录音回听并针对不清晰的部分重练。',
+    translation: '建议先独立完成翻译，再比较标准表达并记录差异。',
+    imitation: '建议分句模仿语音节奏，录音回听后再进行一次练习。',
   }
-  
-  return tips[maxType] || '继续努力！'
+  return tips[maxType] || '继续保持练习，逐步提升能力'
 }
 </script>
 
