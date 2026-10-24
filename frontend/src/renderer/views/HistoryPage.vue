@@ -255,7 +255,7 @@ async function loadHistory() {
   const learningCourses = fulfilled(results[5])
   const courses = fulfilled(results[6])
 
-  const courseMap = new Map((courses ?? []).map(course => [course.id, course]))
+  const courseMap = new Map<string, Course>((courses ?? []).map(course => [course.id, course] as const))
   const courseIds = [...new Set([
     ...(practiceRecords ?? []).slice(0, 300).map(record => record.courseId),
     ...(learningRecords ?? []).filter(record => record.courseId).slice(0, 300).map(record => record.courseId as string),
