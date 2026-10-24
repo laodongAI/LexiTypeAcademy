@@ -42,6 +42,8 @@ interface LearningEvent {
 }
 ```
 
+事件字段约定：`occurredAt` 与 `durationMs` 均使用毫秒；`result.accuracy` 统一为 0–1（例如 0.85 表示 85%），练习记录原始的 0–100 百分比在发布事件时归一化。`correctCount` / `totalCount` 使用非负整数。
+
 ## 3. 事件语义和触发点
 
 | 事件 | 触发条件 | 权威业务记录 | 是否计入指标 |
