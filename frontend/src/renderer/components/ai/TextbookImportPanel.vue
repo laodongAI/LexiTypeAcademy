@@ -331,6 +331,9 @@ interface TextbookGenerationCheckpoint {
   publisher: string
   series: string
   textbookName: string
+  grade?: string
+  currentUnit?: string
+  currentType?: 'words' | 'sentences' | 'passage' | 'grammar' | 'phonics'
   unitTitles: string[]
   contentTypes: Array<'words' | 'sentences' | 'passage' | 'grammar' | 'phonics'>
   withAudio: boolean
@@ -354,8 +357,12 @@ function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promis
 const checkpointStatus = ref('')
 let checkpointPollId: number | undefined
 
-function makeGenerationKey(publisher: string, series: string, textbookName: string) {
-  return [publisher, series, textbookName].map(value => value.trim()).join('|')
+function selectedGradeKey(): string {
+  return textbookForm.grade.trim() || textbookOptions.value.find(tb => tb.name === textbookForm.textbookName)?.grade?.trim() || ''
+}
+
+function makeGenerationKey(publisher: string, series: string, textbookName: string, grade = '') {
+  return [publisher, series, grade, textbookName].map(value => value.trim()).join('|')
 }
 
 function readGenerationCheckpoint(): TextbookGenerationCheckpoint | null {
@@ -647,17 +654,21 @@ async function generateCourseFromTextbook() {
     const coreCount = unitForm.coreCount
     const extraCount = unitForm.extraCount
 
-    const key = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    const gradeKey = selectedGradeKey()
+    const key = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName, gradeKey)
     const config = { unitTitles: selectedUnits, contentTypes: selectedTypes, withAudio, coreCount, extraCount }
     let checkpoint = readGenerationCheckpoint()
-    const checkpointMatches = !!checkpoint && checkpoint.key === key && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
+    const legacyKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    const checkpointMatches = !!checkpoint && (checkpoint.key === key || (checkpoint.key === legacyKey && (!checkpoint.grade || checkpoint.grade === gradeKey))) && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
     if (!checkpointMatches) {
-      checkpoint = { key, publisher: publisherForm.publisher.trim(), series: textbookForm.series.trim(), textbookName: textbookForm.textbookName.trim(), ...config, completedTasks: [], lessonsByUnit: {}, updatedAt: Date.now() }
+      checkpoint = { key, publisher: publisherForm.publisher.trim(), series: textbookForm.series.trim(), textbookName: textbookForm.textbookName.trim(), grade: gradeKey, ...config, completedTasks: [], lessonsByUnit: {}, updatedAt: Date.now() }
     }
     const activeCheckpoint = checkpoint as TextbookGenerationCheckpoint
     generationProgress.totalUnits = selectedUnits.length
     generationProgress.doneUnits = activeCheckpoint.completedTasks.filter(task => selectedUnits.includes(task)).length
     activeCheckpoint.status = 'running'
+    activeCheckpoint.key = key
+    activeCheckpoint.grade = gradeKey
     ;(window as unknown as { __lexitypeTextbookGenerationKey?: string }).__lexitypeTextbookGenerationKey = key
     persistGenerationCheckpoint(activeCheckpoint)
 
@@ -693,6 +704,7 @@ async function generateCourseFromTextbook() {
 
       if (selectedTypes.includes('words') && !existingTypes.includes('words') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'words'))) {
         generationProgress.currentType = 'words'
+        activeCheckpoint.currentUnit = unitTitle; activeCheckpoint.currentType = 'words'; persistGenerationCheckpoint(activeCheckpoint)
         const wordsContent = await ai.generateTextbookWordsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
           coreCount,
           extraCount,
@@ -741,6 +753,7 @@ async function generateCourseFromTextbook() {
 
       if (selectedTypes.includes('sentences') && !existingTypes.includes('sentences') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'sentences'))) {
         generationProgress.currentType = 'sentences'
+        activeCheckpoint.currentUnit = unitTitle; activeCheckpoint.currentType = 'sentences'; persistGenerationCheckpoint(activeCheckpoint)
         const sentencesContent = await ai.generateTextbookSentencesContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (sentencesContent.sentences || [])
           .map((s, idx) => {
@@ -772,6 +785,7 @@ async function generateCourseFromTextbook() {
 
       if (selectedTypes.includes('passage') && !existingTypes.includes('passage') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'passage'))) {
         generationProgress.currentType = 'passage'
+        activeCheckpoint.currentUnit = unitTitle; activeCheckpoint.currentType = 'passage'; persistGenerationCheckpoint(activeCheckpoint)
         const passageContent = await ai.generateTextbookPassageContent(textbookForm.textbookName.trim(), unitTitle.trim())
         let items: LessonItem[] = (passageContent.paragraphs || [])
           .map((p, idx) => {
@@ -803,6 +817,7 @@ async function generateCourseFromTextbook() {
 
       if (selectedTypes.includes('grammar') && !existingTypes.includes('grammar') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'grammar'))) {
         generationProgress.currentType = 'grammar'
+        activeCheckpoint.currentUnit = unitTitle; activeCheckpoint.currentType = 'grammar'; persistGenerationCheckpoint(activeCheckpoint)
         const grammarContent = await ai.generateTextbookGrammarContent(textbookForm.textbookName.trim(), unitTitle.trim())
         const items: LessonItem[] = (grammarContent.points || [])
           .map((pt, idx) => {
@@ -840,6 +855,7 @@ async function generateCourseFromTextbook() {
 
       if (selectedTypes.includes('phonics') && !existingTypes.includes('phonics') && !activeCheckpoint.completedTasks.includes(generationTaskKey(unitTitle, 'phonics'))) {
         generationProgress.currentType = 'phonics'
+        activeCheckpoint.currentUnit = unitTitle; activeCheckpoint.currentType = 'phonics'; persistGenerationCheckpoint(activeCheckpoint)
         const sampleWords = wordsForPhonics.slice(0, 8).map((w) => String(w.word || '').trim()).filter(Boolean).join(', ')
         const phonicsContent = await ai.generateTextbookPhonicsContent(textbookForm.textbookName.trim(), unitTitle.trim(), {
           sampleWords: sampleWords || 'apple, cat',
@@ -908,7 +924,7 @@ async function generateCourseFromTextbook() {
     ElMessage.error(error.value)
   } finally {
     const runtime = window as unknown as { __lexitypeTextbookGenerationKey?: string }
-    if (runtime.__lexitypeTextbookGenerationKey === makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)) {
+    if (runtime.__lexitypeTextbookGenerationKey === makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName, selectedGradeKey())) {
       delete runtime.__lexitypeTextbookGenerationKey
     }
     loading.value = false
@@ -1063,14 +1079,39 @@ onMounted(async () => {
   const runtime = window as unknown as { __lexitypeTextbookGenerationKey?: string }
   if (checkpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === checkpoint.key) {
     checkpointStatus.value = '该教材正在后台生成，切换页面不会取消任务。'
+    generationProgress.active = true
+    generationProgress.totalUnits = checkpoint.unitTitles.length
+    generationProgress.doneUnits = checkpoint.completedTasks.filter(task => checkpoint!.unitTitles.includes(task)).length
+    generationProgress.currentUnit = checkpoint.currentUnit || ''
+    generationProgress.currentType = checkpoint.currentType || ''
     checkpointPollId = window.setInterval(() => {
       const latest = readGenerationCheckpoint()
-      if (!latest || latest.status === 'running') return
+      if (!latest) return
+      generationProgress.totalUnits = latest.unitTitles.length
+      generationProgress.doneUnits = latest.completedTasks.filter(task => latest.unitTitles.includes(task)).length
+      generationProgress.currentUnit = latest.currentUnit || ''
+      generationProgress.currentType = latest.currentType || ''
+      if (latest.status === 'running') return
       if (checkpointPollId !== undefined) window.clearInterval(checkpointPollId)
       checkpointPollId = undefined
+      generationProgress.active = false
       checkpointStatus.value = latest.status === 'completed'
-        ? '后台生成已完成；请检查预览并保存课程。'
+        ? '后台生成已完成；已恢复预览，请检查并保存课程。'
         : '后台任务已暂停，可点击“批量生成课程”从最近完成的内容类型继续。'
+      if (latest.status === 'completed') {
+        const selectedTextbook = textbookOptions.value.find(tb => tb.name === latest.textbookName)
+        const gradeTag = latest.grade || selectedTextbook?.grade || ''
+        const semesterTag = selectedTextbook?.semester || ''
+        pendingCourses.value = latest.unitTitles.map(unitTitle => ({
+          title: latest.textbookName + ' - ' + unitTitle,
+          description: latest.publisher + ' / ' + latest.series,
+          category: 'special' as const,
+          difficulty: 'intermediate' as const,
+          lessons: latest.lessonsByUnit[unitTitle] || [],
+          tags: ['AI', 'Textbook', latest.publisher, latest.series, unitTitle, `Textbook:${latest.textbookName}`, gradeTag ? `Grade:${gradeTag}` : '', semesterTag ? `Semester:${semesterTag}` : ''].filter(Boolean),
+        })).filter(course => course.lessons.length > 0)
+        if (pendingCourses.value.length) step.value = 3
+      }
     }, 1200)
   } else if (checkpoint.status === 'running') {
     checkpoint.status = 'paused'
@@ -1083,12 +1124,18 @@ onMounted(async () => {
     textbookForm.series = checkpoint.series
     await fetchTextbooks(false)
     textbookForm.textbookName = checkpoint.textbookName
+    textbookForm.grade = checkpoint.grade || textbookOptions.value.find(tb => tb.name === checkpoint.textbookName)?.grade || ''
     await parseUnits()
     unitForm.unitTitles = checkpoint.unitTitles
     unitForm.contentTypes = checkpoint.contentTypes
     unitForm.withAudio = checkpoint.withAudio
     unitForm.coreCount = checkpoint.coreCount
     unitForm.extraCount = checkpoint.extraCount
+    generationProgress.totalUnits = checkpoint.unitTitles.length
+    generationProgress.doneUnits = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.includes(task)).length
+    generationProgress.currentUnit = checkpoint.currentUnit || ''
+    generationProgress.currentType = checkpoint.currentType || ''
+    generationProgress.active = checkpoint.status === 'running' && runtime.__lexitypeTextbookGenerationKey === checkpoint.key
     step.value = 2
     checkpointStatus.value = checkpoint.status === 'running'
       ? '教材生成任务已保存；已完成单元可恢复，当前请求若中断会从最近完成单元继续。'
