@@ -342,7 +342,7 @@ async function loadHistory() {
   if (learningRecords) timestampSources.push(
     learningRecords.filter(record => record.activityType === 'lesson-feedback' || record.activityType === 'game').map(record => record.createdAt),
   )
-  stats.value.learningDays = timestampSources.length
+  stats.value.learningDays = warnings.length === 0 && timestampSources.length
     ? new Set(timestampSources.flat().map(dateKey)).size
     : null
   loading.value = false
