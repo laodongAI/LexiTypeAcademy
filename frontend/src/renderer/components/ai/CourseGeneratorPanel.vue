@@ -87,8 +87,8 @@
         type="info"
         show-icon
         :closable="false"
-        :title="form.focus === 'phrase' ? '本方式当前生成的是表达与搭配课程' : '本方式当前生成的是主题词汇课程'"
-        :description="form.focus === 'phrase' ? '建议通过情景补全、搭配辨析、短语拼写和例句迁移来学习固定表达；当前仍以表达条目为核心，不等于完整对话课程。' : '建议采用听音辨词、词形与词义回忆、例句理解、主动检索及间隔复习。单词清单不应直接按短文精读流程教学。'"
+        :title="pendingFocus === 'phrase' ? '本方式当前生成的是表达与搭配课程' : '本方式当前生成的是主题词汇课程'"
+        :description="pendingFocus === 'phrase' ? '建议通过情景补全、搭配辨析、短语拼写和例句迁移来学习固定表达；当前仍以表达条目为核心，不等于完整对话课程。' : '建议采用听音辨词、词形与词义回忆、例句理解、主动检索及间隔复习。单词清单不应直接按短文精读流程教学。'"
         class="learning-method-hint"
       />
       <h4>📋 课程预览</h4>
@@ -170,6 +170,7 @@ const loading = ref(false)
 const error = ref('')
 const savedId = ref('')
 const pendingCourse = ref<CourseDraft | null>(null)
+const pendingFocus = ref<'word' | 'phrase'>('word')
 
 const form = reactive({
   courseName: '',
@@ -196,6 +197,7 @@ async function generateCourse() {
 
   loading.value = true
   try {
+    pendingFocus.value = form.focus
     pendingCourse.value = await generateCourseDraftFromChineseText({
       courseName: form.courseName,
       chineseText: form.chineseText,
@@ -241,6 +243,7 @@ async function saveCourse() {
 
 function clearPending() {
   pendingCourse.value = null
+  pendingFocus.value = 'word'
   error.value = ''
   savedId.value = ''
 }
