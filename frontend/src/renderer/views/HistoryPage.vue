@@ -154,6 +154,7 @@ const loadWarning = ref('')
 const selectedMonth = ref(new Date())
 const recordFilter = ref('')
 const records = ref<HistoryRecord[]>([])
+const allHistoryRecords = ref<HistoryRecord[]>([])
 const stats = ref<{
   practiceMinutes: number | null
   reviewWords: number | null
@@ -184,7 +185,7 @@ const calendarDays = computed<CalendarDay[]>(() => {
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1)
   const gridStart = new Date(firstDay)
   gridStart.setDate(firstDay.getDate() - firstDay.getDay())
-  const activityDays = new Set(records.value.map(record => dateKey(record.occurredAt)))
+  const activityDays = new Set(allHistoryRecords.value.map(record => dateKey(record.occurredAt)))
   const todayKey = dateKey(Date.now())
   return Array.from({ length: 42 }, (_, index) => {
     const date = new Date(gridStart)
@@ -325,7 +326,8 @@ async function loadHistory() {
     })
   }
 
-  records.value = history.sort((a, b) => b.occurredAt - a.occurredAt).slice(0, 2000)
+  allHistoryRecords.value = history.sort((a, b) => b.occurredAt - a.occurredAt)
+  records.value = allHistoryRecords.value.slice(0, 2000)
   stats.value.practiceMinutes = practiceRecords
     ? Math.round(practiceRecords.reduce((sum, record) => sum + record.duration, 0) / 60000)
     : null
