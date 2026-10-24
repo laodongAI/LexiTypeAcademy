@@ -165,6 +165,11 @@
           <el-col :span="12">
             <el-card class="log-card">
               <template #header>生成日志</template>
+              <div v-if="recoverableCheckpoint" class="generation-progress">
+                <div class="progress-label"><span>{{ recoverableCheckpoint.current || (recoverableCheckpoint.status === 'failed' ? '等待重试' : '任务状态') }}</span><span>{{ generationProgress }}%</span></div>
+                <el-progress :percentage="generationProgress" :status="recoverableCheckpoint.status === 'failed' ? 'exception' : undefined" />
+                <div class="progress-meta">已完成 {{ recoverableCheckpoint.completedKeys.length }} / {{ recoverableCheckpoint.selectedUnits.length * recoverableCheckpoint.selectedTypes.length }} 项 · 最近更新 {{ new Date(recoverableCheckpoint.updatedAt).toLocaleTimeString() }}</div>
+              </div>
               <div class="log-box">
                 <div v-if="generationLogs.length === 0" class="log-empty">等待开始...</div>
                 <div v-for="(l, idx) in generationLogs" :key="idx" class="log-line">{{ l }}</div>
@@ -245,6 +250,12 @@ const presets = ref<Preset[]>([])
 const selectedPresetName = ref<string>('')
 
 const selectedUnitsCount = computed(() => units.value.filter(u => u.selected).length)
+const generationProgress = computed(() => {
+  const task = recoverableCheckpoint.value
+  if (!task) return 0
+  const total = Math.max(1, task.selectedUnits.length * task.selectedTypes.length)
+  return Math.min(100, Math.round(task.completedKeys.length / total * 100))
+})
 
 // Deduplicate concurrent requests caused by overlapping reactive watchers.
 const pendingCatalogRequests = new Map<string, Promise<unknown>>()
@@ -275,6 +286,7 @@ interface TextbookGenerationCheckpoint {
   error?: string
 }
 const CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const runningGenerationTasks = new Set<string>()
 const recoverableCheckpoint = ref<TextbookGenerationCheckpoint | null>(null)
 function readCheckpoint(): TextbookGenerationCheckpoint | null {
   try {
@@ -513,6 +525,10 @@ async function clearCache() {
 }
 
 async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = null) {
+  if (resumeTask && runningGenerationTasks.has(resumeTask.id)) {
+    ElMessage.info('该任务仍在后台执行，返回此页面即可查看最新状态。')
+    return
+  }
   const aiService = getAIOrNull()
   if (!aiService) return
   if (!selectedTextbookName.value) {
@@ -558,6 +574,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     generationOptions.value = { ...task.options }
   }
   task.status = 'running'; task.error = undefined; saveCheckpoint(task)
+  runningGenerationTasks.add(task.id)
   const lessons: Lesson[] = [...task.lessons]
   const completed = new Set(task.completedKeys)
   task.failedKeys = []
@@ -707,6 +724,12 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     saveCheckpoint(task)
     addLog(task.failedKeys.length ? `本轮结束：${task.completedKeys.length} 项完成，${task.failedKeys.length} 项失败，可继续重试` : `全部任务完成，共 ${task.completedKeys.length} 项，耗时 ${((Date.now() - task.startedAt) / 1000).toFixed(1)} 秒`)
 
+    if (lessons.length === 0 && task.failedKeys.length > 0) {
+      errorText.value = '本轮没有生成可用课程内容。任务检查点已保存，可点击“继续/重试未完成任务”。'
+      activeStep.value = 2
+      return
+    }
+
     const pendingCourse: PendingCourseData = {
       title: `${publisher.value}${series.value}《${selectedTextbookName.value}》`,
       description: `教材导入生成（${gradeLevel.value}，单元数：${selectedUnits.length}，类型：${selectedCourseTypes.value.join(', ')}）`,
@@ -725,6 +748,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
     addLog(`任务中断，可继续执行：${task.error}`)
     throw e
   } finally {
+    runningGenerationTasks.delete(task.id)
     generating.value = false
   }
 }
@@ -768,7 +792,10 @@ watch(selectedTextbookName, async () => {
 onMounted(async () => {
   loadPresets()
   const saved = readCheckpoint()
-  if (saved && saved.status !== 'completed') recoverableCheckpoint.value = saved
+  if (saved && saved.status !== 'completed') {
+    recoverableCheckpoint.value = saved
+    activeStep.value = 2
+  }
   const completedDraft = localStorage.getItem('textbook_generation_completed_draft_v1')
   if (completedDraft) {
     try {
