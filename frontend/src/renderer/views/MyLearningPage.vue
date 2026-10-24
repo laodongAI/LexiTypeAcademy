@@ -6,8 +6,20 @@
 
 <template>
   <div class="my-learning-page">
-    <!-- 学习统计 -->
-    <el-row :gutter="20" class="stats-row">
+    <el-alert
+      v-if="learningStore.error"
+      class="load-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="'学习数据暂时无法读取：' + learningStore.error"
+    >
+      <template #default>
+        <el-button size="small" @click="loadData">重新加载</el-button>
+      </template>
+    </el-alert>
+    <!-- 学习统计只在数据成功读取后展示，避免故障时把默认零值当成真实统计 -->
+    <el-row v-if="!learningStore.error" :gutter="20" class="stats-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
           <el-statistic title="学习中课程" :value="stats.inProgress">
@@ -82,7 +94,10 @@
       </template>
 
       <!-- 空状态 -->
-      <el-empty v-if="filteredCourses.length === 0" description="还没有学习课程">
+      <el-empty v-if="learningStore.error" description="学习列表读取失败，重新加载后再试" :image-size="80">
+        <el-button type="primary" @click="loadData">重新加载</el-button>
+      </el-empty>
+      <el-empty v-else-if="filteredCourses.length === 0" description="还没有学习课程">
         <el-button type="primary" @click="goToCourseRepository">
           浏览课程仓库
         </el-button>
@@ -302,6 +317,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+.load-alert { margin-bottom: 16px; }
 .my-learning-page {
   padding: 20px;
   max-width: 1400px;
