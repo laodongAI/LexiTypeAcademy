@@ -230,7 +230,7 @@
       <div v-else-if="viewMode === 'hierarchy'" class="collection-hierarchy">
         <div class="hierarchy-toolbar">
           <span>独立课程集合 · 支持父子层级与课程归属</span>
-          <el-button type="primary" size="small" @click="createCollection">
+          <el-button type="primary" size="small" @click="showCreateCollectionForm = !showCreateCollectionForm">
             <el-icon><Plus /></el-icon>
             新建集合
           </el-button>
@@ -617,6 +617,9 @@ const filteredTotal = computed(() => filteredCourses.value.length)
 // 教材三级分组：教材系列 → 年级册 → 单元课程
 const textbookGroups = computed(() => buildTextbookGroups(filteredCourses.value))
 const persistedCollections = ref<CourseCollection[]>([])
+const showCreateCollectionForm = ref(false)
+const newCollectionName = ref('')
+const newCollectionParentId = ref('')
 const collectionByCourseId = computed(() => {
   const map = new Map<string, string>()
   for (const collection of persistedCollections.value) {
@@ -665,18 +668,23 @@ async function loadCollections() {
 }
 
 async function createCollection() {
+  const name = newCollectionName.value.trim()
+  if (!name) {
+    ElMessage.warning('请输入课程集合名称')
+    return
+  }
   try {
-    const result = await ElMessageBox.prompt('请输入课程集合名称', '新建课程集合', {
-      confirmButtonText: '创建',
-      cancelButtonText: '取消',
-      inputPlaceholder: '例如：商务英语 / 面试英语',
-      inputValidator: (value: string) => Boolean(value.trim()) || '集合名称不能为空',
+    await courseCollectionService.create({
+      name,
+      parentId: newCollectionParentId.value || null,
     })
-    await courseCollectionService.create({ name: result.value.trim() })
+    newCollectionName.value = ''
+    newCollectionParentId.value = ''
+    showCreateCollectionForm.value = false
     await loadCollections()
     ElMessage.success('课程集合已创建')
   } catch (error) {
-    if (error !== 'cancel' && error !== 'close') ElMessage.error(error instanceof Error ? error.message : '创建集合失败')
+    ElMessage.error(error instanceof Error ? error.message : '创建集合失败')
   }
 }
 
