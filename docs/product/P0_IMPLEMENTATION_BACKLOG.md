@@ -106,7 +106,7 @@
 | 任务 | 状态 | 证据/下一步 |
 |---|---|---|
 | P0-01 首页内容可信度 | IMPLEMENTED_UNVERIFIED | 首页已移除固定统计、静态任务和虚构课程，改为英语学习入口与诚实空状态；待执行前端构建和人工检查 |
-| P0-02 首页路由 | IMPLEMENTED_UNVERIFIED（部分） | 已移除旧的 `/courses?id` 继续学习入口；真实学习进度服务接入后仍需实现和验证课时位置恢复 |
+| P0-02 首页恢复学习 | IMPLEMENTED_UNVERIFIED | 首页从持久化 `currentLessonId` 恢复课时，课堂进入时写回当前位置；待刷新/重启、删除课时和 Windows 实机导航验证 |
 | P0-03 学习计划持久化与契约核验 | IN_PROGRESS | 已确认前端仓库与看板接口存在；后端集成、SQLite 重启恢复和过时路由注释仍需验证 |
 | P0-04 TTS 端到端诊断 | IN_PROGRESS | 已修正健康检查对默认引擎的判断，并新增 `defaultEngineAvailable` / `defaultEngineReason` 响应字段；仍需后端测试、接口验证和 Windows 实机播放验证 |
 | P0-05 学习进度与首页闭环 | IMPLEMENTED_UNVERIFIED | 已新增首页聚合服务、真实继续学习/今日任务/复习建议，并在进入课堂时保存课时位置；待前端构建、API 故障态和 Windows 重启恢复验证 |
