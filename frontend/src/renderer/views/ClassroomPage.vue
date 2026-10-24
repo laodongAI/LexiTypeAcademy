@@ -38,6 +38,7 @@ import LessonFeedbackDialog from '../components/classroom/LessonFeedbackDialog.v
 import TeacherBubble from '../components/classroom/TeacherBubble.vue'
 import { useTeacherGuide } from '../composables/useTeacherGuide'
 import type { ClassroomMode } from '../../shared/types/classroom'
+import { getLearningMethodUnavailableReason, isLearningMethodAvailable, recommendLearningMethod } from '../../shared/utils/learningMethodCompatibility'
 
 /** 日志器 */
 const logger = createLogger('classroom')
@@ -65,9 +66,11 @@ const mode = ref<ClassroomMode>('reader')
 
 /** 根据课时内容形态推荐学习模式，避免词汇清单默认进入短文精读。 */
 function recommendedModeForLesson(target: Lesson): ClassroomMode {
-  if (target.contentShape === ContentShape.Word || target.contentShape === ContentShape.Phrase) return 'burn-word'
-  if (target.contentShape === ContentShape.Sentence) return 'burn-sentence'
-  return 'reader'
+  return recommendLearningMethod(target)
+}
+
+function modeUnavailableReason(target: ClassroomMode): string {
+  return lesson.value ? getLearningMethodUnavailableReason(lesson.value, target) : ''
 }
 
 const learningMethodHint = computed(() => {
@@ -396,6 +399,10 @@ function onReaderActivity(payload: {
  */
 function switchMode(next: ClassroomMode): void {
   if (mode.value === next) return
+  if (!lesson.value || !isLearningMethodAvailable(lesson.value, next)) {
+    ElMessage.warning(modeUnavailableReason(next) || '当前课时暂不支持这种学习方式')
+    return
+  }
   mode.value = next
   logger.info('切换课堂模式', { mode: next })
   // 切换后立即讲解新玩法，帮助学员建立操作预期
@@ -830,10 +837,16 @@ async function loadCourse(): Promise<void> {
     }
 
     lesson.value = target
-    // 用户未显式指定课堂模式时，根据内容形态选择更合适的默认方法。
-    // URL 中的 mode 表示用户明确选择，必须优先尊重。
-    if (!route.query.mode) {
+    // 入口弹窗、课堂导航与直接 URL 访问共用同一套兼容性规则。
+    // URL 指定了不适用的方法时，不强行渲染错误舞台，回退到推荐方法并修正地址。
+    const requestedMode = route.query.mode ? String(route.query.mode) as ClassroomMode : null
+    if (requestedMode && isLearningMethodAvailable(target, requestedMode)) {
+      mode.value = requestedMode
+    } else {
       mode.value = recommendedModeForLesson(target)
+      if (route.query.mode) {
+        void router.replace({ path: route.path, query: { ...route.query, mode: mode.value } })
+      }
     }
 
     // 进入课堂时立即持久化当前课时，确保刷新/重启后首页可以恢复学习位置。
@@ -938,7 +951,9 @@ onBeforeUnmount(() => {
           :key="tab.key"
           type="button"
           class="mode-tab"
-          :class="{ active: mode === tab.key }"
+          :class="{ active: mode === tab.key, disabled: !lesson || !isLearningMethodAvailable(lesson, tab.key) }"
+          :disabled="!lesson || !isLearningMethodAvailable(lesson, tab.key)"
+          :title="lesson && !isLearningMethodAvailable(lesson, tab.key) ? modeUnavailableReason(tab.key) : tab.label"
           @click="switchMode(tab.key)"
         >
           <el-icon><component :is="tab.icon" /></el-icon>
@@ -1275,6 +1290,15 @@ onBeforeUnmount(() => {
 
 .mode-tab:hover {
   color: #0f172a;
+}
+
+.mode-tab:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.mode-tab:disabled:hover {
+  color: #64748b;
 }
 
 .mode-tab.active {

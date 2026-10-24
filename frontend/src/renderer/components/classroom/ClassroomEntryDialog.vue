@@ -21,6 +21,7 @@ import {
 } from '@element-plus/icons-vue'
 import type { Lesson } from '../../../shared/types/course'
 import type { ClassroomMode, ClassroomOptions } from '../../../shared/types/classroom'
+import { getLearningMethodUnavailableReason, isLearningMethodAvailable, recommendLearningMethod } from '../../../shared/utils/learningMethodCompatibility'
 
 /** 模式卡片配置 */
 interface ModeCard {
@@ -80,14 +81,15 @@ const sentenceCount = computed(() => {
 /** 预计时长（分钟）：按每 8 条内容 1 分钟估算，最少 3 分钟 */
 const estimatedMinutes = computed(() => Math.max(3, Math.round(itemCount.value / 8)))
 
-/** 是否有可练习的单词 */
-const hasWords = computed(() => itemCount.value > 0)
+const recommendedMode = computed<ClassroomMode>(() => props.lesson ? recommendLearningMethod(props.lesson) : 'classic')
 
-/** 是否具备整句内容（用于句子燃尽） */
-const hasSentences = computed(() => {
-  const items = props.lesson?.items ?? []
-  return items.some(item => (item.english || '').trim().split(/\s+/).length > 1)
-})
+function isModeAvailable(mode: ClassroomMode): boolean {
+  return Boolean(props.lesson && isLearningMethodAvailable(props.lesson, mode))
+}
+
+function modeUnavailableReason(mode: ClassroomMode): string {
+  return props.lesson ? getLearningMethodUnavailableReason(props.lesson, mode) : '请先选择一个课时。'
+}
 
 /** 模式卡片列表 */
 const modeCards = computed<ModeCard[]>(() => [
@@ -98,7 +100,7 @@ const modeCards = computed<ModeCard[]>(() => [
     tags: ['悬停朗读', '词卡', '不打断阅读'],
     icon: Reading,
     tone: 'teal',
-    recommended: true,
+    recommended: recommendedMode.value === 'reader',
   },
   {
     key: 'burn-sentence',
@@ -107,6 +109,7 @@ const modeCards = computed<ModeCard[]>(() => [
     tags: ['逐词遮蔽', '自动回退', '整句复现'],
     icon: MagicStick,
     tone: 'amber',
+    recommended: recommendedMode.value === 'burn-sentence',
   },
   {
     key: 'burn-word',
@@ -115,6 +118,7 @@ const modeCards = computed<ModeCard[]>(() => [
     tags: ['五级提示', '听音拼写', '拼写自测'],
     icon: EditPen,
     tone: 'violet',
+    recommended: recommendedMode.value === 'burn-word',
   },
   {
     key: 'root',
@@ -123,6 +127,7 @@ const modeCards = computed<ModeCard[]>(() => [
     tags: ['词根成组', '整组听读', '遮中文'],
     icon: Collection,
     tone: 'blue',
+    recommended: recommendedMode.value === 'root',
   },
 ])
 
@@ -131,12 +136,6 @@ const modeCards = computed<ModeCard[]>(() => [
  * @param mode 模式标识
  * @returns 是否可进入
  */
-function isModeAvailable(mode: ClassroomMode): boolean {
-  if (mode === 'burn-sentence') return hasSentences.value
-  if (mode === 'burn-word' || mode === 'root') return hasWords.value
-  return true
-}
-
 /** 当前选中模式的说明（用于底部提示） */
 const selectedDescription = computed(() => {
   return modeCards.value.find(card => card.key === selectedMode.value)?.description ?? ''
@@ -162,6 +161,7 @@ function closeDialog(): void {
  * 确认进入课堂
  */
 function confirmEnter(): void {
+  if (props.lesson && !isModeAvailable(selectedMode.value)) return
   emit('enter', selectedMode.value, {
     hoverEnabled: hoverEnabled.value,
     showChinese: showChinese.value,
@@ -185,7 +185,7 @@ watch(
   () => props.modelValue,
   visible => {
     if (visible) {
-      selectedMode.value = 'reader'
+      selectedMode.value = recommendedMode.value
       hoverEnabled.value = true
       showChinese.value = true
     }
@@ -252,6 +252,8 @@ watch(
             { active: selectedMode === card.key, disabled: !isModeAvailable(card.key) },
           ]"
           :aria-pressed="selectedMode === card.key"
+          :aria-disabled="!isModeAvailable(card.key)"
+          :disabled="!isModeAvailable(card.key)"
           @click="selectMode(card.key)"
         >
           <span class="mode-icon">
@@ -262,6 +264,7 @@ watch(
             <span v-if="card.recommended" class="mode-badge">推荐</span>
           </span>
           <span class="mode-desc">{{ card.description }}</span>
+          <span v-if="!isModeAvailable(card.key)" class="mode-unavailable">{{ modeUnavailableReason(card.key) }}</span>
           <span class="mode-tags">
             <span v-for="tag in card.tags" :key="tag">{{ tag }}</span>
           </span>
@@ -540,6 +543,12 @@ watch(
   font-size: 12.5px;
   line-height: 1.65;
   color: #64748b;
+}
+
+ .mode-unavailable {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #b45309;
 }
 
 .mode-tags {
