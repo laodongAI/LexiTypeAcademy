@@ -256,24 +256,23 @@ async function loadTodayStats() {
 function startPracticeWithRecommendation(action: string) {
   switch (action) {
     case 'remedy-listening':
-      // 启动听力补救课程
-      startQuickPractice('dictation', 'medium')
+      void startQuickPractice('dictation', 'medium')
       break
     case 'remedy-speaking':
-      // 启动口语训练
-      startQuickPractice('follow', 'medium')
+      void startQuickPractice('follow', 'medium')
       break
     case 'review-errors':
-      // 启动错题复习
       startErrorReview()
       break
-    case 'continue-course':
-      // 继续课程
+    case 'continue-course': {
       const courseId = activeCourses.value[0]?.id
-      if (courseId) {
-        launchCoursePractice(courseId)
+      if (courseId) launchCoursePractice(courseId)
+      else {
+        ElMessage.info('当前还没有可继续的课程，请先到课程仓库选择课程')
+        void router.push({ name: 'CourseRepository' })
       }
       break
+    }
   }
 }
 
@@ -293,10 +292,60 @@ function launchCoursePractice(courseId: string) {
   }
 }
 
-// 启动快速练习
-function startQuickPractice(type: string, level: string) {
-  activeTab.value = 'quick'
-  // 预留：后续可将 type/level 写入 query 或 store 触发对应模式
+// 启动快速练习：将入口动作真正路由到课时练习，而不是只切换标签页
+async function startQuickPractice(type: string, _level: string) {
+  const modeMap: Record<string, { mode: PracticeModeKey; label: string }> = {
+    dictation: { mode: 'dictation', label: '听力/听写训练' },
+    follow: { mode: 'follow', label: '口语跟读训练' },
+    translation: { mode: 'translation', label: '翻译训练' },
+    imitation: { mode: 'imitation', label: '发音模仿训练' },
+  }
+  const target = modeMap[type]
+  if (!target) {
+    activeTab.value = 'quick'
+    ElMessage.info('该练习模式暂不支持直接启动，请从快速练习中选择')
+    return
+  }
+
+  try {
+    if (courseStore.courses.length === 0) await courseStore.loadCourses()
+    if (courseStore.courses.length === 0) {
+      ElMessage.warning('还没有可练习的课程。请先到课程仓库创建或导入包含练习内容的课程。')
+      await router.push({ name: 'CourseRepository' })
+      return
+    }
+
+    const candidate = courseStore.courses.find(course => (course.lessons?.length ?? 0) > 0)
+    if (!candidate) {
+      ElMessage.warning('当前课程还没有课时，请先在课程仓库补充课时内容。')
+      await router.push({ name: 'CourseRepository' })
+      return
+    }
+
+    await courseStore.loadCourseById(candidate.id)
+    const loadedCourse = courseStore.currentCourse
+    const lesson = loadedCourse?.lessons?.find(item => (item.items?.length ?? 0) > 0)
+      ?? loadedCourse?.lessons?.[0]
+    if (!loadedCourse || !lesson) {
+      ElMessage.warning('没有找到可用课时，请先检查课程内容。')
+      await router.push({ name: 'CourseRepository' })
+      return
+    }
+    if (!lesson.items?.length) {
+      ElMessage.warning('该课时没有练习题目，请先生成或补充课时内容。')
+      await router.push({ name: 'CourseRepository' })
+      return
+    }
+
+    await router.push({
+      name: 'LessonPractice',
+      params: { lessonId: lesson.id },
+      query: { courseId: loadedCourse.id, mode: target.mode, source: 'practice-center' },
+    })
+  } catch (error) {
+    console.error('启动快速练习失败:', error)
+    ElMessage.error('启动练习失败，请检查课程数据或后端服务后重试')
+  }
 }
 
 // 启动错题复习
@@ -319,8 +368,8 @@ function selectQuickPractice(type: string) {
   startQuickPractice(type, 'medium')
 }
 
-onMounted(() => {
-  loadTodayStats()
+onMounted(async () => {
+  await Promise.all([loadTodayStats(), courseStore.loadCourses(), practiceStore.loadReviewQueue()])
 })
 </script>
 
