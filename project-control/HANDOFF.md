@@ -97,3 +97,12 @@
 - 任务检查点保存在浏览器 localStorage，包含已完成课程、成功/失败项、当前项和时间戳；页面离开不会主动取消当前循环，回到页面可查看进度、恢复或重试失败项。完成草稿按出版社/系列/教材名称匹配，增补时保留已有内容，只补未完成的内容类型。
 - 限制必须保留：这是前端后台任务，不等同于后端常驻任务。浏览器标签页关闭/崩溃时正在执行的 HTTP 请求无法从中间状态续跑，恢复时需重新请求该项；已完成的单元/类型可跳过。跨浏览器/清理 localStorage 不保证恢复。
 - 验证状态：`NOT_RUN`，请查看最新 Frontend quality workflow；上一提交 `093c72b` 的 TypeScript 检查因模板按钮事件签名失败，已修复为 lambda 绑定，需确认新提交 CI。未做 Windows 实机或真实 AI 模型耗时测试。
+
+
+## 教材生成模块可靠性/性能优化补充（2026-10-24）
+
+- 主用页面：`frontend/src/renderer/components/ai/TextbookImportPanel.vue`；旧版页面：`TextbookCourseSystemBuilder.vue`；共享目录缓存：`frontend/src/shared/services/courseSystemStore.ts`。
+- 已处理：默认不全选单元、补充单元入口、按教材身份匹配已有课程、内容类型级检查点、空内容质量闸门、后台完成后恢复预览、年级隔离的单元缓存、目录请求去重、两个单元并发生成。
+- 生成耗时的代码层原因：每单元按选择类型调用多次 AI，开启音频后还会调用多批 TTS；现用最大并发 2 缩短串行等待，但未实测真实模型耗时，也未实现自动调节并发。
+- 断点边界：路由切换时当前异步任务可继续；刷新/崩溃后从已完成内容类型恢复，正在执行的单次 HTTP 请求需要重试。检查点在当前浏览器 localStorage，不是后端常驻任务队列。
+- 审计报告：`docs/tasks/TEXTBOOK_GENERATION_AUDIT_2026-10-24.md`。浏览器/Windows E2E 与真实模型压测均 NOT_RUN；以最新 GitHub Actions 结论更新 CI 状态。
