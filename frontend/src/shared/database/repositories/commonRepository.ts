@@ -25,7 +25,7 @@ export interface LearningListItem {
   courseId: string;
   /** 加入学习列表的时间（毫秒） */
   addedAt: number;
-  /** 累计学习时长（毫秒，可选） */
+  /** 累计学习时长（分钟，与学习服务统计口径一致，可选） */
   totalStudyTime?: number;
 }
 
