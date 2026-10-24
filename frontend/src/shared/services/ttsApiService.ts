@@ -73,8 +73,12 @@ export interface TTSHealthResponse {
   engine?: string
   /** 引擎名称 */
   engineName?: string
-  /** 模型文件是否就绪 */
+  /** 配置的默认引擎及其依赖模型文件是否就绪 */
   modelReady?: boolean
+  /** 配置的默认引擎是否可用 */
+  defaultEngineAvailable?: boolean
+  /** 默认引擎不可用的原因 */
+  defaultEngineReason?: string | null
   /** 模型是否已加载到内存 */
   loaded?: boolean
   /** 采样率 */
