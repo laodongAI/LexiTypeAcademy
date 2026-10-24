@@ -137,6 +137,9 @@
             <el-radio-button value="list">
               <el-icon><List /></el-icon>
             </el-radio-button>
+            <el-radio-button value="hierarchy">
+              <el-icon><FolderOpened /></el-icon>
+            </el-radio-button>
             <el-radio-button value="textbook">
               <el-icon><Collection /></el-icon>
             </el-radio-button>
@@ -221,6 +224,43 @@
             </el-dropdown>
           </div>
         </el-card>
+      </div>
+
+      <!-- 通用课程层级：课程集合 → 课程 → 课时 -->
+      <div v-else-if="viewMode === 'hierarchy'" class="collection-hierarchy">
+        <el-alert
+          type="info"
+          show-icon
+          :closable="false"
+          title="按课程集合管理"
+          description="AI 中文生成和音频导入课程可在生成时指定集合；教材课程继续使用教材系列、册和单元视图。旧课程没有集合信息时会进入“未归类课程”，不会丢失。"
+          class="hierarchy-hint"
+        />
+        <el-collapse v-if="collectionGroups.length" class="collection-collapse">
+          <el-collapse-item v-for="group in collectionGroups" :key="group.key" :name="group.key">
+            <template #title>
+              <div class="collection-heading">
+                <el-icon><FolderOpened /></el-icon>
+                <strong>{{ group.title }}</strong>
+                <el-tag size="small" :type="group.isUncategorized ? 'info' : 'success'">{{ group.courses.length }} 门课程</el-tag>
+              </div>
+            </template>
+            <div class="collection-course-list">
+              <div v-for="course in group.courses" :key="course.id" class="collection-course-row">
+                <div class="collection-course-main">
+                  <strong class="collection-course-title" @click="goToCourse(course)">{{ course.title }}</strong>
+                  <p>{{ course.description || '暂无描述' }}</p>
+                  <small>{{ course.lessons?.length || 0 }} 个课时 · {{ getDifficultyText(course.difficulty) }}</small>
+                </div>
+                <div class="collection-course-actions">
+                  <el-button size="small" @click="goToCourse(course)">课程详情</el-button>
+                  <el-button v-if="!course.inLearningList" size="small" type="primary" plain @click="addToLearning(course)">加入学习</el-button>
+                  <el-button v-else size="small" type="success" plain @click="goToCourse(course)">继续学习</el-button>
+                </div>
+              </div>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
       </div>
 
       <!-- 教材分级视图：教材系列 → 年级册 → 单元课程 -->
@@ -457,6 +497,7 @@ import {
   RefreshRight,
   Close,
   Collection,
+  FolderOpened,
   ArrowRight,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -464,6 +505,7 @@ import { useCourseStore } from '../stores/courseStore'
 import { useLearningStore } from '../stores/learningStore'
 import type { Course } from '../../shared/types/course'
 import { buildTextbookGroups } from '../../shared/utils/courseTaxonomy'
+import { buildCourseCollectionGroups } from '../../shared/utils/courseCollectionGroups'
 
 type CourseSource = string | { type: string }
 
@@ -491,7 +533,7 @@ const filters = ref({
 })
 
 // 视图模式：卡片 / 列表 / 教材分级
-const viewMode = ref<'grid' | 'list' | 'textbook'>('grid')
+const viewMode = ref<'grid' | 'list' | 'hierarchy' | 'textbook'>('hierarchy')
 
 // 选中的课程
 const selectedCourses = ref<string[]>([])
@@ -557,6 +599,7 @@ const filteredTotal = computed(() => filteredCourses.value.length)
 
 // 教材三级分组：教材系列 → 年级册 → 单元课程
 const textbookGroups = computed(() => buildTextbookGroups(filteredCourses.value))
+const collectionGroups = computed(() => buildCourseCollectionGroups(filteredCourses.value))
 
 // 导入对话框
 const showImportDialog = ref(false)
@@ -1068,6 +1111,22 @@ onMounted(() => {
 }
 
 /* 教材分级视图 */
+.hierarchy-hint { margin-bottom: 16px; }
+.collection-collapse { border-top: 0; }
+.collection-heading { display: flex; align-items: center; gap: 10px; width: 100%; padding-right: 12px; }
+.collection-heading strong { font-size: 15px; }
+.collection-course-list { display: flex; flex-direction: column; gap: 10px; }
+.collection-course-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-color-light); border-radius: 8px; }
+.collection-course-main { min-width: 0; }
+.collection-course-title { cursor: pointer; color: var(--text-color); }
+.collection-course-title:hover { color: var(--primary-color); }
+.collection-course-main p { margin: 6px 0; color: var(--text-color-secondary); overflow-wrap: anywhere; }
+.collection-course-main small { color: var(--text-color-secondary); }
+.collection-course-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 720px) {
+  .collection-course-row { align-items: flex-start; flex-direction: column; }
+  .collection-course-actions { width: 100%; }
+}
 .textbook-view {
   display: flex;
   flex-direction: column;
