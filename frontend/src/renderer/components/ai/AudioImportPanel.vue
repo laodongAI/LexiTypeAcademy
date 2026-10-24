@@ -150,7 +150,7 @@
             继续导入音频
           </el-button>
           <el-button @click="goToPractice">
-            立即学习 →
+            查看课程并开始学习 →
           </el-button>
         </template>
       </el-result>
@@ -190,6 +190,7 @@ import { getAIService } from '../../../shared/services/ai'
 import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { courseDraftFromGenerationResponse } from '../../utils/aiCourseDraft'
 import { useCourseStore } from '../../stores/courseStore'
+import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 
 const router = useRouter()
 const courseStore = useCourseStore()
@@ -237,6 +238,7 @@ function handleRemove() {
 }
 
 async function recognizeAndGenerate() {
+  addDiagnosticLog('info', 'audio-course-generation', '开始音频识别与课程生成', { segmentMode: form.segmentMode, lessonCount: form.lessonCount })
   error.value = ''
   savedId.value = ''
 
@@ -262,6 +264,7 @@ async function recognizeAndGenerate() {
       throw new Error(asrResult.error || 'ASR 识别失败')
     }
 
+    addDiagnosticLog('info', 'audio-course-generation', '音频识别成功', { segmentCount: asrResult.segments?.length ?? 0 })
     const transcription = String(asrResult.fullText || '').trim()
     if (!transcription) {
       throw new Error('ASR 返回文本为空')
@@ -276,9 +279,11 @@ async function recognizeAndGenerate() {
     })
 
     step.value = 2
+    addDiagnosticLog('info', 'audio-course-generation', '音频课程草稿生成成功', { lessons: pendingCourse.value.lessons.length })
     ElMessage.success('课程已生成，可预览后保存')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '音频识别/生成失败'
+    addDiagnosticLog('error', 'audio-course-generation', '音频识别或课程生成失败', error.value)
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -297,9 +302,11 @@ async function saveCourse() {
   try {
     const id = await courseStore.createCourse(pendingCourse.value)
     savedId.value = id
+    addDiagnosticLog('info', 'audio-course-generation', '音频课程保存成功', { courseId: id })
     ElMessage.success('课程已保存到课程仓库')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '保存失败'
+    addDiagnosticLog('error', 'audio-course-generation', '音频课程保存失败', error.value)
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -320,7 +327,8 @@ function resetAll() {
 }
 
 function goToPractice() {
-  router.push('/practice')
+  if (savedId.value) router.push(`/courses/${encodeURIComponent(savedId.value)}`)
+  else router.push('/course-repository')
 }
 </script>
 
@@ -415,6 +423,8 @@ function goToPractice() {
 }
 
 // 预览
+.method-warning { margin-bottom: 16px; }
+
 .preview-card {
   margin-bottom: 20px;
 
