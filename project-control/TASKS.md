@@ -307,7 +307,7 @@ cd frontend; npm run build
 - 状态：实现已提交到功能分支，CI/typecheck/build 尚待运行；浏览器 E2E NOT_RUN。
 - 新增统一规则：`frontend/src/shared/utils/learningMethodCompatibility.ts`，供课堂入口与课堂页共用。
 - 修复：入口弹窗按内容形态动态推荐；不适用的方法禁用并显示原因；课堂导航阻止不兼容切换；直接 URL 指定不兼容模式时回退到推荐模式。
-- 规则：word/phrase → 词燃尽；sentence → 句子燃尽（需有完整多词句）；passage/dialog → 精读，句子燃尽仅在内容前置条件满足时可用；词根课堂要求真实 root/rootGroupId 元数据。
+- 规则：word/phrase → 词燃尽；sentence → 句子燃尽（需有完整多词句）；passage/dialog → 精读，必须先拆分为独立句子后才能做句子燃尽；词根课堂要求单词课中至少两个词条共享明确 root/rootGroupId 分组。
 - 设计文档：`docs/design/learning-method-compatibility-v1.md`。
 - 保护边界：未修改历史课程内容；未自动把篇章转换成词汇课；未将音标字段等同于音素教学能力。
 - 待验证：前端 typecheck/build、直接 URL 兼容性、入口弹窗默认模式、无词根数据时词根模式禁用、窄屏禁用态显示。
