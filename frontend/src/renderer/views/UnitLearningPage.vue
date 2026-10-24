@@ -417,3 +417,4 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
   .stage-footer { flex-direction: column; }
   .stage-footer-right { justify-content: flex-end; flex-wrap: wrap; }
 }
+</style>
