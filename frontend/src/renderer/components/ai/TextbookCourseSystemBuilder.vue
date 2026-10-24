@@ -373,23 +373,26 @@ async function parseUnits(forceRefresh: boolean) {
   loading.value = true
   errorText.value = ''
   try {
-    const cached = forceRefresh ? null : courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value)
-    if (cached && cached.length > 0) {
+    const previousUnits = courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value) || []
+    const cached = forceRefresh ? null : previousUnits
+    if (cached.length > 0) {
       units.value = cached.map(u => ({ ...u, selected: true }))
       return
     }
 
-    if (forceRefresh) {
-      courseSystemStore.clearUnits(publisher.value, series.value, selectedTextbookName.value)
-    }
-
     const result = await aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value)
-    const list: TextbookUnitMeta[] = (result?.units || []).map((u: any) => ({
-      unit_num: Number(u.unit_num) || 0,
-      title: String(u.title || '').trim(),
-      topics: Array.isArray(u.topics) ? u.topics.map((t: any) => String(t)) : [],
-      generated: false
-    })).filter((u: TextbookUnitMeta) => !!u.title)
+    const list: TextbookUnitMeta[] = (result?.units || []).map((u: any) => {
+      const unit_num = Number(u.unit_num) || 0
+      const title = String(u.title || '').trim()
+      const previous = previousUnits.find(old => old.title === title || (old.unit_num === unit_num && unit_num > 0))
+      return {
+        unit_num,
+        title,
+        topics: Array.isArray(u.topics) ? u.topics.map((t: any) => String(t)) : [],
+        generated: previous?.generated ?? false,
+        generatedTypes: previous?.generatedTypes ?? [],
+      }
+    }).filter((u: TextbookUnitMeta) => !!u.title)
 
     courseSystemStore.saveUnits(publisher.value, series.value, selectedTextbookName.value, list)
     units.value = list.map(u => ({ ...u, selected: true }))
