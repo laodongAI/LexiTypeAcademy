@@ -110,4 +110,5 @@
 | P0-03 学习计划持久化与契约核验 | IN_PROGRESS | 已确认前端仓库与看板接口存在；后端集成、SQLite 重启恢复和过时路由注释仍需验证 |
 | P0-04 TTS 端到端诊断 | IN_PROGRESS | 已修正健康检查对默认引擎的判断，并新增 `defaultEngineAvailable` / `defaultEngineReason` 响应字段；仍需后端测试、接口验证和 Windows 实机播放验证 |
 | P0-05 学习进度与首页闭环 | IMPLEMENTED_UNVERIFIED | 已新增首页聚合服务、真实继续学习/今日任务/复习建议，并在进入课堂时保存课时位置；待前端构建、API 故障态和 Windows 重启恢复验证 |
-| P0-06 共享对话内核 | TODO（设计已补充） | 先完成学习事件契约，再审计 AI Provider/会话能力；按设计文档渐进实施 |
+| P0-07 学习事件与统计口径 | IMPLEMENTED_UNVERIFIED（第一版） | 已定义事件契约并接入课时开始/完成/放弃、练习提交、复习提交、计划任务完成和对话结束/放弃；事件暂存于 `ai_task_logs`，正式独立事件表与强幂等仍待迁移 |
+| P0-06 共享对话内核 | IMPLEMENTED_UNVERIFIED（第一版） | 已在 main 新增共享会话服务与 AI 教学/英语面试场景，复用 `/api/ai/chat` 和 SQLite `ai_task_logs` JSON 持久化；待构建、刷新恢复、错误重试与长会话验证 |
