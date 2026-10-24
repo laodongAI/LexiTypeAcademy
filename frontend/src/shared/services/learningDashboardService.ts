@@ -62,7 +62,7 @@ export class LearningDashboardService {
       (a, b) => (b.lastStudiedAt ?? b.addedAt ?? 0) - (a.lastStudiedAt ?? a.addedAt ?? 0),
     )
     const resumeTarget = await this.resolveResumeTarget(sortedCourses, warnings)
-    const activePlan = activePlans[0] ?? null
+    const activePlan = [...activePlans].sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
     let planDashboard: PlanDashboard | null = null
     if (activePlan) {
       try {
