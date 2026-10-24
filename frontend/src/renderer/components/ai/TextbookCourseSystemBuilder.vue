@@ -460,14 +460,14 @@ async function parseUnits(forceRefresh: boolean) {
   loading.value = true
   errorText.value = ''
   try {
-    const previousUnits = courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value) || []
+    const previousUnits = courseSystemStore.getUnits(publisher.value, series.value, selectedTextbookName.value, gradeLevel.value) || []
     const cached = forceRefresh ? null : previousUnits
     if (cached && cached.length > 0) {
       units.value = cached.map(u => ({ ...u, selected: false }))
       return
     }
 
-    const result = await sharedCatalogRequest(`units:${publisher.value}|${series.value}|${selectedTextbookName.value}`, () => aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value))
+    const result = await sharedCatalogRequest(`units:${publisher.value}|${series.value}|${gradeLevel.value}|${selectedTextbookName.value}`, () => aiService.parseTextbookUnits(publisher.value, series.value, selectedTextbookName.value))
     const list: TextbookUnitMeta[] = (result?.units || []).map((u: any) => {
       const unit_num = Number(u.unit_num) || 0
       const title = String(u.title || '').trim()
@@ -481,7 +481,7 @@ async function parseUnits(forceRefresh: boolean) {
       }
     }).filter((u: TextbookUnitMeta) => !!u.title)
 
-    courseSystemStore.saveUnits(publisher.value, series.value, selectedTextbookName.value, list)
+    courseSystemStore.saveUnits(publisher.value, series.value, selectedTextbookName.value, list, gradeLevel.value)
     units.value = list.map(u => ({ ...u, selected: false }))
   } catch (e: any) {
     errorText.value = e?.message || '解析单元失败'
@@ -726,7 +726,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
           task.completedKeys = [...completed]
           task.lessons = [...lessons]
           task.failedKeys = task.failedKeys.filter(key => key !== taskKey)
-          courseSystemStore.markUnitTypeAsGenerated(task.publisher, task.series, task.textbookName, unit.title, type)
+          courseSystemStore.markUnitTypeAsGenerated(task.publisher, task.series, task.textbookName, unit.title, type, task.gradeLevel)
           addLog(`  ✓ ${type} 生成成功（${((Date.now() - startedAt) / 1000).toFixed(1)} 秒）`)
           saveCheckpoint(task)
         } catch (e: any) {
@@ -740,7 +740,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
 
       const generatedTypes = [...new Set([...(unit.generatedTypes || []), ...task.selectedTypes.filter(type => completed.has(`${unit.unit_num}:${type}`))])]
       if (generatedTypes.length) courseSystemStore.saveUnits(task.publisher, task.series, task.textbookName,
-        (courseSystemStore.getUnits(task.publisher, task.series, task.textbookName) || []).map(u => u.title === unit.title ? { ...u, generatedTypes, generated: true } : u))
+        (courseSystemStore.getUnits(task.publisher, task.series, task.textbookName, task.gradeLevel) || []).map(u => u.title === unit.title ? { ...u, generatedTypes, generated: true } : u), task.gradeLevel)
       units.value = units.value.map(u => (u.title === unit.title ? { ...u, generatedTypes, generated: generatedTypes.length > 0 } : u))
     }
 
