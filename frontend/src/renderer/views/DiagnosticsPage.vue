@@ -49,7 +49,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { clearDiagnosticLogs, getDiagnosticLogs, subscribeDiagnosticLogs, addDiagnosticLog, type DiagnosticLevel, type DiagnosticLogEntry } from '../../shared/services/diagnosticLogService'\nimport { apiGet } from '../../shared/services/apiClient'
+import { clearDiagnosticLogs, getDiagnosticLogs, subscribeDiagnosticLogs, addDiagnosticLog, type DiagnosticLevel, type DiagnosticLogEntry } from '../../shared/services/diagnosticLogService'
+import { apiGet } from '../../shared/services/apiClient'
 interface BackendHealth {
   status: string
   version: string
