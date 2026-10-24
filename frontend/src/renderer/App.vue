@@ -9,6 +9,9 @@ import { useSettingsStore } from './stores/settings';
 import * as MainLayoutModule from './layouts/MainLayout.vue';
 // Element Plus 中文语言包
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
+import { installGlobalDiagnosticHandlers } from '../shared/services/diagnosticLogService';
+
+installGlobalDiagnosticHandlers();
 
 const MainLayout = (MainLayoutModule as unknown as { default: Component }).default;
 
