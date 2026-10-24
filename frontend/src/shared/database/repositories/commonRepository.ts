@@ -78,6 +78,16 @@ export class CommonRepository {
   }
 
   /**
+   * 删除指定的 TTS 缓存（按 text + model 定位）
+   * 说明：音频 Blob 损坏或无法解码时，先删除缓存再重新合成。
+   */
+  async deleteTtsCache(text: string, model: string): Promise<void> {
+    const existing = await this.getTtsCache(text, model);
+    if (!existing?.id) return;
+    await db.ttsCacheItems.delete(existing.id);
+  }
+
+  /**
    * 清理过期的 TTS 缓存（超过30天）
    */
   async cleanupOldTtsCache(): Promise<number> {

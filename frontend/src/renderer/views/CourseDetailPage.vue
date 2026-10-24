@@ -140,7 +140,7 @@
                 size="small"
                 @click="handleStartPractice(row as Lesson)"
               >
-                开始练习
+                进入课堂
               </el-button>
               <el-button
                 size="small"
@@ -165,20 +165,35 @@
     <el-empty v-else description="课程不存在">
       <el-button type="primary" @click="router.push('/courses')">返回课程列表</el-button>
     </el-empty>
+
+    <!-- 课堂入口弹窗：进入学习前的模式选择 -->
+    <ClassroomEntryDialog
+      v-model="showEntryDialog"
+      :lesson="selectedLesson"
+      :course-title="courseStore.currentCourse?.title"
+      @enter="handleClassroomEnter"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Edit, Delete, Download, Plus, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
 import type { Lesson } from '../../shared/types/course'
+import ClassroomEntryDialog from '../components/classroom/ClassroomEntryDialog.vue'
+import type { ClassroomMode, ClassroomOptions } from '../../shared/types/classroom'
 
 const route = useRoute()
 const router = useRouter()
 const courseStore = useCourseStore()
+
+/** 是否显示课堂入口弹窗 */
+const showEntryDialog = ref(false)
+/** 当前选中的课时 */
+const selectedLesson = ref<Lesson | null>(null)
 
 // 课程ID
 const courseId = computed(() => route.params.courseId as string)
@@ -264,17 +279,43 @@ function formatDate(timestamp: number) {
   })
 }
 
-// 开始练习
+/**
+ * 打开课堂入口弹窗
+ * @param lesson 目标课时
+ */
 function handleStartPractice(lesson: Lesson) {
+  selectedLesson.value = lesson
+  showEntryDialog.value = true
+}
+
+/**
+ * 处理课堂入口选择结果
+ * @param mode 课堂模式
+ * @param options 课堂偏好
+ */
+function handleClassroomEnter(mode: ClassroomMode, options: ClassroomOptions) {
+  const lesson = selectedLesson.value
+  if (!lesson) return
+
+  // 原有练习页：保持旧入口可用，避免用户习惯中断
+  if (mode === 'classic') {
+    router.push({
+      name: 'LessonPractice',
+      params: { lessonId: lesson.id },
+      query: { courseId: courseId.value, lessonId: lesson.id },
+    })
+    return
+  }
+
   router.push({
-    name: 'LessonPractice',
-    params: {
-      lessonId: lesson.id
-    },
+    name: 'Classroom',
+    params: { lessonId: lesson.id },
     query: {
       courseId: courseId.value,
-      lessonId: lesson.id
-    }
+      mode,
+      hover: options.hoverEnabled ? '1' : '0',
+      zh: options.showChinese ? '1' : '0',
+    },
   })
 }
 

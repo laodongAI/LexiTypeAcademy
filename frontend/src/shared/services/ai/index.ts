@@ -9,6 +9,8 @@ export { AIService, getAIService, resetAIService } from './aiService';
 export type {
   AIProvider,
   AIConfig,
+  AIBackendConfig,
+  AIChatUsage,
   AIOptions,
   AIMessage,
   AIResponse,
@@ -41,21 +43,17 @@ export type {
 // 错误类
 export { AIError, AIErrorCode } from './aiTypes';
 
-// 配置管理
+// 配置管理（批次D：仅保留前端侧自定义提示词配置）
 export {
   loadAIConfig,
   saveAIConfig,
-  validateAIConfig,
-  getDefaultConfig,
   resetAIConfig,
-  getProviderName,
-  getModelName,
-  getSupportedModels
+  consumeAIConfigMigrationNotice
 } from './aiConfig';
 
-// 提供商
+// 提供商（批次D：统一走后端代理）
 export { BaseAIProvider } from './providers/baseProvider';
-export { QwenProvider } from './providers/qwenProvider';
+export { BackendAIProvider } from './providers/backendProvider';
 
 // 提示词模板（可选导出，供高级用户使用）
 export { buildCourseGenerationPrompt } from './prompts/courseGeneration';

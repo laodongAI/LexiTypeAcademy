@@ -22,3 +22,9 @@ python-multipart>=0.0.9
 sherpa-onnx>=1.13.0
 # 音频采样处理（读写 WAV、float32 转换）
 numpy>=2.0.0
+# OpenVoice v2 音色克隆推理（ONNX Runtime）与参考音频读写（soundfile）
+onnxruntime>=1.19.0
+soundfile>=0.12.1
+
+# AI 上游调用（批次D：异步请求与 SSE 流式读取）
+httpx>=0.27.0

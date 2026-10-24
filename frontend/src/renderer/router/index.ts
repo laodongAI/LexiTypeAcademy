@@ -87,6 +87,15 @@ const routes: RouteRecordRaw[] = [
       title: '课时练习',
     },
   },
+  // 沉浸式课堂（精读 / 燃尽 / 词根）
+  {
+    path: '/lessons/:lessonId/classroom',
+    name: 'Classroom',
+    component: () => import('../views/ClassroomPage.vue'),
+    meta: {
+      title: '课堂',
+    },
+  },
   // 练习中心（优化版 - 支持自适应推荐）
   {
     path: '/practice',

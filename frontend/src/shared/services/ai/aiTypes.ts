@@ -10,16 +10,42 @@ export type AIProvider = 'qwen' | 'openai' | 'volcengine' | 'deepseek' | 'custom
 
 /** AI 配置 */
 export interface AIConfig {
-  /** 提供商名称 */
+  /** 提供商名称（仅用于展示，实际请求由后端决定上游） */
   provider: AIProvider;
-  /** API 密钥 */
+  /** 历史字段：密钥已迁移至后端 .env，前端不再持久化 */
   apiKey: string;
-  /** API 端点 */
+  /** 历史字段：上游端点由后端 AI_BASE_URL 决定，前端不再持久化 */
   endpoint: string;
-  /** 模型名称 */
+  /** 历史字段：模型由后端 AI_MODEL 决定，前端不再持久化 */
   model: string;
   /** 自定义提示词 */
   customPrompts?: Record<string, string>;
+}
+
+/** 后端 AI 只读配置状态（GET /api/ai/config） */
+export interface AIBackendConfig {
+  /** 是否已具备最小可用配置（密钥、地址、模型均非空） */
+  configured: boolean;
+  /** 提供商标识，如 qwen */
+  provider: string;
+  /** 模型名称，如 qwen-plus */
+  model: string;
+  /** 上游 base 地址（不含 /chat/completions） */
+  baseUrl: string;
+  /** 后端允许的单次超时上限（秒） */
+  timeoutSeconds: number;
+  /** 后端允许的最大输出 token 数 */
+  maxTokens: number;
+}
+
+/** AI token 用量（与后端响应字段保持一致） */
+export interface AIChatUsage {
+  /** 提示词 token 数 */
+  promptTokens: number;
+  /** 完成 token 数 */
+  completionTokens: number;
+  /** 总 token 数 */
+  totalTokens: number;
 }
 
 /** AI 请求选项 */
@@ -47,14 +73,7 @@ export interface AIResponse {
   /** 生成的内容 */
   content: string;
   /** Token 使用情况 */
-  usage?: {
-    /** 提示词 token 数 */
-    promptTokens: number;
-    /** 完成 token 数 */
-    completionTokens: number;
-    /** 总 token 数 */
-    totalTokens: number;
-  };
+  usage?: AIChatUsage;
 }
 
 // ========== 课程生成相关 ==========

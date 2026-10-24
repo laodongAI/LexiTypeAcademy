@@ -137,12 +137,15 @@
             <el-radio-button value="list">
               <el-icon><List /></el-icon>
             </el-radio-button>
+            <el-radio-button value="textbook">
+              <el-icon><Collection /></el-icon>
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
 
       <!-- 空状态 -->
-      <el-empty v-if="displayCourses.length === 0" description="没有找到课程">
+      <el-empty v-if="filteredCourses.length === 0" description="没有找到课程">
         <el-button type="primary" @click="createNewCourse">
           新建课程
         </el-button>
@@ -220,6 +223,96 @@
         </el-card>
       </div>
 
+      <!-- 教材分级视图：教材系列 → 年级册 → 单元课程 -->
+      <div v-else-if="viewMode === 'textbook'" class="textbook-view">
+        <section
+          v-for="seriesGroup in textbookGroups.series"
+          :key="seriesGroup.key"
+          class="series-block"
+        >
+          <header class="series-head">
+            <div class="series-title">
+              <h3>{{ seriesGroup.label }}</h3>
+              <span>{{ seriesGroup.courseCount }} 个单元课程 · {{ seriesGroup.volumes.length }} 个年级册</span>
+            </div>
+            <el-tag size="small" type="success">教材</el-tag>
+          </header>
+
+          <div class="volume-grid">
+            <el-card
+              v-for="volume in seriesGroup.volumes"
+              :key="volume.key"
+              shadow="hover"
+              class="volume-card"
+            >
+              <template #header>
+                <div class="volume-head">
+                  <div>
+                    <strong>{{ volume.label }}</strong>
+                    <p v-if="volume.textbookName && volume.textbookName !== volume.label" class="volume-sub">
+                      {{ volume.textbookName }}
+                    </p>
+                  </div>
+                  <span class="volume-count">{{ volume.units.length }} 单元</span>
+                </div>
+              </template>
+
+              <div class="unit-list">
+                <button
+                  v-for="unit in volume.units"
+                  :key="unit.key"
+                  type="button"
+                  class="unit-row"
+                  @click="goToCourse(unit.course)"
+                >
+                  <span class="unit-no">
+                    {{ unit.unitNumber ? `Unit ${unit.unitNumber}` : '单元' }}
+                  </span>
+                  <span class="unit-info">
+                    <strong>{{ unit.title }}</strong>
+                    <small>
+                      {{ unit.lessonCount }} 课时
+                      <template v-if="unit.course.inLearningList"> · 学习中</template>
+                    </small>
+                  </span>
+                  <el-icon class="unit-arrow"><ArrowRight /></el-icon>
+                </button>
+              </div>
+            </el-card>
+          </div>
+        </section>
+
+        <!-- 非教材课程：保持可点击列表，避免分级视图把它们藏起来 -->
+        <section v-if="textbookGroups.others.length" class="series-block">
+          <header class="series-head">
+            <div class="series-title">
+              <h3>其他课程</h3>
+              <span>{{ textbookGroups.others.length }} 个课程</span>
+            </div>
+          </header>
+
+          <div class="other-list">
+            <button
+              v-for="course in textbookGroups.others"
+              :key="course.id"
+              type="button"
+              class="unit-row"
+              @click="goToCourse(course)"
+            >
+              <span class="unit-no">课程</span>
+              <span class="unit-info">
+                <strong>{{ course.title }}</strong>
+                <small>
+                  {{ course.lessons?.length || 0 }} 课时
+                  <template v-if="course.inLearningList"> · 学习中</template>
+                </small>
+              </span>
+              <el-icon class="unit-arrow"><ArrowRight /></el-icon>
+            </button>
+          </div>
+        </section>
+      </div>
+
       <!-- 列表视图 -->
       <el-table
         v-else
@@ -288,9 +381,9 @@
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
+      <!-- 分页：教材分级视图一次性展示全部分组，不分页 -->
       <el-pagination
-        v-if="filteredTotal > pageSize"
+        v-if="viewMode !== 'textbook' && filteredTotal > pageSize"
         :current-page="currentPage"
         :page-size="pageSize"
         @update:current-page="handleUpdateCurrentPage"
@@ -363,11 +456,14 @@ import {
   Select,
   RefreshRight,
   Close,
+  Collection,
+  ArrowRight,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
 import { useLearningStore } from '../stores/learningStore'
 import type { Course } from '../../shared/types/course'
+import { buildTextbookGroups } from '../../shared/utils/courseTaxonomy'
 
 type CourseSource = string | { type: string }
 
@@ -394,8 +490,8 @@ const filters = ref({
   inLearningList: '',
 })
 
-// 视图模式
-const viewMode = ref<'grid' | 'list'>('grid')
+// 视图模式：卡片 / 列表 / 教材分级
+const viewMode = ref<'grid' | 'list' | 'textbook'>('grid')
 
 // 选中的课程
 const selectedCourses = ref<string[]>([])
@@ -410,14 +506,14 @@ const total = ref(0)
 // 课程列表 - 从 store 获取
 const courses = computed<CourseListItem[]>(() => courseStore.courses as unknown as CourseListItem[])
 
-// 显示的课程 - 应用筛选和搜索
-const displayCourses = computed(() => {
+// 过滤后的课程（不含分页）：卡片、列表、教材视图共用同一套筛选规则
+const filteredCourses = computed<CourseListItem[]>(() => {
   let filtered = courses.value
 
   // 应用搜索
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(c => 
+    filtered = filtered.filter(c =>
       c.title.toLowerCase().includes(query) ||
       (c.description && c.description.toLowerCase().includes(query))
     )
@@ -446,48 +542,21 @@ const displayCourses = computed(() => {
     // TODO: 实现学习列表筛选
   }
 
-  // 分页
+  return filtered
+})
+
+// 显示的课程 - 在过滤结果上应用分页
+const displayCourses = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return filtered.slice(start, end)
+  return filteredCourses.value.slice(start, end)
 })
 
 // 计算筛选后的总数
-const filteredTotal = computed(() => {
-  let count = courses.value.length
+const filteredTotal = computed(() => filteredCourses.value.length)
 
-  // 应用筛选后的总数
-  if (searchQuery.value || filters.value.source || filters.value.type || filters.value.difficulty) {
-    let filtered = courses.value
-
-    if (searchQuery.value) {
-      const query = searchQuery.value.toLowerCase()
-      filtered = filtered.filter(c => 
-        c.title.toLowerCase().includes(query) ||
-        (c.description && c.description.toLowerCase().includes(query))
-      )
-    }
-
-    if (filters.value.source) {
-      filtered = filtered.filter(c => {
-        const source = typeof c.source === 'string' ? c.source : (c.source as any)?.type
-        return source === filters.value.source
-      })
-    }
-
-    if (filters.value.type) {
-      filtered = filtered.filter(c => c.type === filters.value.type)
-    }
-
-    if (filters.value.difficulty) {
-      filtered = filtered.filter(c => c.difficulty === filters.value.difficulty)
-    }
-
-    count = filtered.length
-  }
-
-  return count
-})
+// 教材三级分组：教材系列 → 年级册 → 单元课程
+const textbookGroups = computed(() => buildTextbookGroups(filteredCourses.value))
 
 // 导入对话框
 const showImportDialog = ref(false)
@@ -996,5 +1065,148 @@ onMounted(() => {
   margin-top: 24px;
   display: flex;
   justify-content: center;
+}
+
+/* 教材分级视图 */
+.textbook-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+/* 教材系列分组 */
+.series-block {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border-color-light);
+  background-color: var(--bg-color-page);
+}
+
+.series-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.series-title h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.series-title span {
+  font-size: 13px;
+  color: var(--text-color-secondary);
+}
+
+/* 年级册卡片网格 */
+.volume-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.volume-card {
+  border-radius: 14px;
+}
+
+.volume-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.volume-head strong {
+  font-size: 15px;
+  color: var(--text-color);
+}
+
+.volume-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.volume-count {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--primary-color);
+  background-color: var(--el-color-primary-light-9);
+}
+
+/* 单元列表 */
+.unit-list,
+.other-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background-color: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.unit-row:hover {
+  border-color: var(--el-color-primary-light-7);
+  background-color: var(--el-color-primary-light-9);
+}
+
+.unit-no {
+  flex: none;
+  min-width: 54px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: #b45309;
+  background-color: #fef3c7;
+}
+
+.unit-info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unit-info strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unit-info small {
+  font-size: 11.5px;
+  color: var(--text-color-secondary);
+}
+
+.unit-arrow {
+  flex: none;
+  color: var(--text-color-secondary);
 }
 </style>

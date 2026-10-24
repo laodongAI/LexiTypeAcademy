@@ -4,7 +4,7 @@
  */
 
 import { BaseAIProvider } from './providers/baseProvider';
-import { QwenProvider } from './providers/qwenProvider';
+import { BackendAIProvider } from './providers/backendProvider';
 import { loadAIConfig, saveAIConfig } from './aiConfig';
 import { 
   buildCourseGenerationPrompt, 
@@ -39,6 +39,44 @@ import type {
 import { AIError, AIErrorCode } from './aiTypes';
 
 /**
+ * 单次调用可安全承载的单词数量上限
+ * 说明：超过该数量时，模型输出会因 maxTokens 限制被截断，导致 JSON 无法解析，
+ *       因此必须拆分为“课程大纲 + 分批单词”的多次调用。
+ */
+const COURSE_SINGLE_CALL_MAX_WORDS = 40;
+
+/**
+ * 分批生成时每批请求的单词数量
+ * 说明：20 个单词（含释义、音标、例句）约占 1500 输出 token，配合 4000 上限较安全。
+ */
+const COURSE_WORDS_PER_BATCH = 20;
+
+/**
+ * 课程生成所需的 JSON 结构说明（供提示词复用，避免多处各写一份）
+ */
+const COURSE_JSON_SCHEMA_HINT = `{
+  "courseName": "Course name",
+  "description": "Brief course description",
+  "lessons": [
+    {
+      "lessonName": "Lesson 1 name",
+      "description": "Lesson description",
+      "words": [
+        {
+          "word": "example",
+          "meaning": "a thing characteristic of its kind",
+          "translation": "例子",
+          "phonetic": "/ɪɡˈzæmpl/",
+          "example": "This is an example sentence.",
+          "exampleTranslation": "这是一个例句。",
+          "partOfSpeech": "noun"
+        }
+      ]
+    }
+  ]
+}`;
+
+/**
  * AI 服务类
  */
 export class AIService {
@@ -52,24 +90,13 @@ export class AIService {
 
   /**
    * 创建 AI 提供商实例
+   *
+   * 说明：
+   *   批次D起固定使用后端代理提供商，上游供应商由 backend/.env 决定，
+   *   前端不再根据 provider 字段选择不同直连实现。
    */
   private createProvider(): BaseAIProvider {
-    const providers: Record<string, any> = {
-      qwen: QwenProvider
-      // 后续添加其他提供商
-      // openai: OpenAIProvider,
-      // volcengine: VolcengineProvider,
-    };
-
-    const ProviderClass = providers[this.config.provider];
-    if (!ProviderClass) {
-      throw new AIError(
-        `不支持的提供商: ${this.config.provider}`,
-        AIErrorCode.INVALID_CONFIG
-      );
-    }
-
-    return new ProviderClass(this.config);
+    return new BackendAIProvider(this.config);
   }
 
   /**
@@ -90,6 +117,10 @@ export class AIService {
 
   /**
    * 检查是否已配置
+   *
+   * 说明：
+   *   由后端代理提供商根据 /api/ai/config 的缓存状态判断；
+   *   首次调用时状态未知，会乐观放行并在后台刷新。
    */
   isConfigured(): boolean {
     return this.provider.isConfigured();
@@ -101,7 +132,10 @@ export class AIService {
   async testConnection(): Promise<boolean> {
     try {
       if (!this.isConfigured()) {
-        throw new AIError('请先配置 API Key', AIErrorCode.API_KEY_MISSING);
+        throw new AIError(
+          'AI 密钥未配置。请在 backend/.env 中设置 AI_API_KEY 后重启后端服务。',
+          AIErrorCode.API_KEY_MISSING
+        );
       }
       return await this.provider.testConnection();
     } catch (error) {
@@ -120,7 +154,7 @@ export class AIService {
   ): Promise<string> {
     if (!this.isConfigured()) {
       throw new AIError(
-        '请先配置 AI API Key。进入设置页面或在浏览器控制台配置。',
+        'AI 密钥未配置。请在 backend/.env 中设置 AI_API_KEY 后重启后端服务。',
         AIErrorCode.API_KEY_MISSING
       );
     }
@@ -183,6 +217,10 @@ export class AIService {
 
   /**
    * 生成课程
+   *
+   * 说明：
+   *   小规模课程走单次调用（有进度回调时使用流式）；规模较大时拆分为
+   *   “课程大纲 + 分批单词”，避免单次输出被 maxTokens 截断导致 JSON 解析失败。
    */
   async generateCourse(
     request: CourseGenerationRequest,
@@ -190,17 +228,26 @@ export class AIService {
   ): Promise<CourseGenerationResponse> {
     const prompt = buildCourseGenerationPrompt(request);
     const systemPrompt = 'You are an expert English teacher who creates engaging typing practice courses. Always respond with valid JSON only.';
+    const totalWords = request.lessonCount * request.wordsPerLesson;
 
     try {
+      // 大规模课程：分批生成，彻底避开输出截断
+      if (totalWords > COURSE_SINGLE_CALL_MAX_WORDS) {
+        return await this.generateCourseInBatches(
+          request,
+          onProgress,
+        );
+      }
+
       let content = '';
 
       if (onProgress) {
-        // 流式生成
+        // 流式生成：逐段累加，确保最终 content 是完整模型输出
         await this.stream(
           prompt,
           (chunk) => {
-            content = chunk;
-            onProgress(chunk);
+            content += chunk;
+            onProgress(content);
           },
           systemPrompt,
           { temperature: 0.7, maxTokens: 4000 }
@@ -223,6 +270,183 @@ export class AIService {
         this.provider.name
       );
     }
+  }
+
+  /**
+   * 大批量课程生成（主题驱动）
+   *
+   * 说明：
+   *   把主题/难度/补充说明拼成“源素材”，复用统一的分批生成流程。
+   */
+  private async generateCourseInBatches(
+    request: CourseGenerationRequest,
+    onProgress?: (content: string) => void
+  ): Promise<CourseGenerationResponse> {
+    // 组装源素材文本：主题、难度与补充要求都是模型需要的上下文
+    const sourceLines: string[] = [
+      `Topic: ${request.topic}`,
+      `Difficulty level: ${request.level}`,
+    ];
+    if (request.style) sourceLines.push(`Teaching style: ${request.style}`);
+    if (request.notes) sourceLines.push(`Additional notes: ${request.notes}`);
+
+    return await this.generateCourseFromSource(
+      sourceLines.join('\n'),
+      request.lessonCount,
+      request.wordsPerLesson,
+      request.topic,
+      onProgress
+    );
+  }
+
+  /**
+   * 基于任意源文本分批生成课程
+   *
+   * 流程：
+   *   1) 先请求“课程大纲”，只返回课程名、简介与每课标题/说明；
+   *   2) 再按课、按批请求单词，每批不超过 COURSE_WORDS_PER_BATCH 个；
+   *   3) 合并为完整的 CourseGenerationResponse。
+   *
+   * @param sourceText 源素材（主题描述、音频转写或翻译后的英文）
+   * @param lessonCount 课程数量
+   * @param wordsPerLesson 每课单词数
+   * @param fallbackCourseName 大纲未返回课程名时使用的兜底名称
+   * @param onProgress 进度回调：每次合并后回传当前已生成内容的 JSON 字符串
+   */
+  private async generateCourseFromSource(
+    sourceText: string,
+    lessonCount: number,
+    wordsPerLesson: number,
+    fallbackCourseName: string,
+    onProgress?: (content: string) => void
+  ): Promise<CourseGenerationResponse> {
+    const systemPrompt = 'You are an expert English teacher. Always respond with valid JSON only.';
+
+    // 源素材过长时截断：批次请求会重复携带，避免请求体膨胀
+    const trimmedSource = sourceText.length > 6000 ? `${sourceText.slice(0, 6000)}\n...(truncated)` : sourceText;
+
+    // 1) 课程大纲：只要求课程名、简介与每课标题，输出量小且稳定
+    const outlinePrompt = `
+You are designing an English typing practice course.
+
+**Source material:**
+${trimmedSource}
+
+**Plan requirements:**
+- Create exactly ${lessonCount} lessons
+- Lesson names must be short, specific and ordered by difficulty
+
+Return JSON only with this schema (no words in this step):
+{
+  "courseName": "Course name",
+  "description": "Brief course description",
+  "lessons": [
+    { "lessonName": "Lesson 1 name", "description": "Lesson description" }
+  ]
+}
+`.trim();
+
+    const outlineRaw = await this.call(outlinePrompt, systemPrompt, {
+      temperature: 0.5,
+      maxTokens: 1500
+    });
+    const outline = this.parseJSONResponse(outlineRaw) as {
+      courseName?: string;
+      description?: string;
+      lessons?: Array<{ lessonName?: string; description?: string }>;
+    };
+
+    // 大纲异常时兜底：按序号生成课程标题，保证后续仍可继续
+    const outlineLessons = Array.isArray(outline.lessons) && outline.lessons.length
+      ? outline.lessons.slice(0, lessonCount)
+      : Array.from({ length: lessonCount }, (_, index) => ({
+          lessonName: `Lesson ${index + 1}`,
+          description: '',
+        }));
+
+    const courseName = String(outline.courseName || fallbackCourseName || 'AI 生成课程').trim();
+    const lessons: CourseGenerationResponse['lessons'] = [];
+
+    // 2) 逐课、逐批生成单词：每批输出量可控，不会触发截断
+    for (let lessonIndex = 0; lessonIndex < outlineLessons.length; lessonIndex += 1) {
+      const lessonMeta = outlineLessons[lessonIndex];
+      const lessonName = String(lessonMeta.lessonName || `Lesson ${lessonIndex + 1}`).trim();
+      const lessonDescription = String(lessonMeta.description || '').trim();
+      const words: WordEntry[] = [];
+      let remaining = wordsPerLesson;
+
+      while (remaining > 0) {
+        // 本批实际请求数量：不超过批次上限
+        const batchCount = Math.min(remaining, COURSE_WORDS_PER_BATCH);
+
+        const wordsPrompt = `
+You are writing ONE lesson of an English typing practice course.
+
+**Source material:**
+${trimmedSource}
+
+**Course:** ${courseName}
+**Lesson:** ${lessonName} — ${lessonDescription}
+
+**Task:** Provide exactly ${batchCount} English words for this lesson.
+Words must be relevant to the source material and ordered from easier to harder.
+Skip words that are already generated for this lesson.
+
+Return JSON only:
+{
+  "words": [
+    {
+      "word": "example",
+      "meaning": "a thing characteristic of its kind",
+      "translation": "例子",
+      "phonetic": "/ɪɡˈzæmpl/",
+      "example": "This is an example sentence.",
+      "exampleTranslation": "这是一个例句。",
+      "partOfSpeech": "noun"
+    }
+  ]
+}
+`.trim();
+
+        const wordsRaw = await this.call(wordsPrompt, systemPrompt, {
+          temperature: 0.6,
+          maxTokens: 4000
+        });
+        const parsed = this.parseJSONResponse(wordsRaw) as { words?: WordEntry[] };
+        const batchWords = Array.isArray(parsed.words) ? parsed.words : [];
+
+        // 过滤空词与重复词，避免同一课出现重复条目
+        for (const word of batchWords) {
+          const normalized = String(word?.word || '').trim();
+          if (!normalized) continue
+          const duplicated = words.some(
+            (existing) => String(existing.word || '').trim().toLowerCase() === normalized.toLowerCase()
+          )
+          if (!duplicated) words.push(word)
+        }
+
+        remaining -= batchCount;
+
+        // 模型返回数量不足时提前退出，避免死循环
+        if (batchWords.length === 0) break;
+      }
+
+      lessons.push({
+        lessonName,
+        description: lessonDescription,
+        words: words.slice(0, wordsPerLesson),
+      });
+
+      // 回传当前进度：调用方仅用于展示/日志，不参与解析
+      if (onProgress) onProgress(JSON.stringify({ courseName, description: outline.description || '', lessons }));
+    }
+
+    // 3) 合并结果
+    return {
+      courseName,
+      description: String(outline.description || 'AI 生成课程').trim(),
+      lessons,
+    };
   }
 
   /**
@@ -288,7 +512,7 @@ export class AIService {
     try {
       const content = await this.call(prompt, systemPrompt, {
         temperature: 0.2,
-        maxTokens: 2000
+        maxTokens: 4000
       });
 
       const parsed = this.parseJSONResponse(content);
@@ -325,13 +549,32 @@ export class AIService {
 
   /**
    * 从音频转录生成课程
+   *
+   * 说明：
+   *   - 小规模课程直接单次生成，提示词内置完整 JSON 结构，避免模型自造字段；
+   *   - 大规模课程走分批生成，避免输出被截断。
    */
   async generateCourseFromAudio(
     transcription: string,
     lessonCount: number = 5,
     wordsPerLesson: number = 10
   ): Promise<CourseGenerationResponse> {
-    const prompt = `
+    const systemPrompt = 'You are an expert English teacher. Always respond with valid JSON only.';
+    const totalWords = lessonCount * wordsPerLesson;
+
+    try {
+      // 大规模课程：分批生成
+      if (totalWords > COURSE_SINGLE_CALL_MAX_WORDS) {
+        return await this.generateCourseFromSource(
+          transcription,
+          lessonCount,
+          wordsPerLesson,
+          'AI 生成课程'
+        );
+      }
+
+      // 小规模课程：单次生成，显式给出 JSON 结构
+      const prompt = `
 Based on the following audio transcription, create an English typing practice course.
 
 **Transcription:**
@@ -339,16 +582,14 @@ ${transcription}
 
 **Requirements:**
 - Extract key vocabulary from the transcription
-- Create ${lessonCount} lessons with ${wordsPerLesson} words each
+- Create exactly ${lessonCount} lessons with exactly ${wordsPerLesson} words each
 - Provide complete word information (meaning, phonetic, example, translation)
 - Organize words by theme or difficulty
 
-Return the course in the same JSON format as the course generation API.
+Return JSON only with this schema:
+${COURSE_JSON_SCHEMA_HINT}
 `.trim();
 
-    const systemPrompt = 'You are an expert English teacher. Always respond with valid JSON only.';
-
-    try {
       const content = await this.call(prompt, systemPrompt, {
         temperature: 0.7,
         maxTokens: 4000
@@ -482,7 +723,7 @@ Return in the standard course JSON format.
 
     const content = await this.call(prompt, systemPrompt, {
       temperature: 0.4,
-      maxTokens: 3500
+      maxTokens: 5000
     });
 
     const parsed = this.parseJSONResponse(content);

@@ -12,6 +12,11 @@
 
 import type { CourseDraft } from '../utils/aiCourseDraft'
 import { getTTSApiService } from '../../shared/services/ttsApiService'
+import { useSettingsStore } from '../stores/settings'
+import { createLogger } from '../../shared/utils/logger'
+
+/** 日志器 */
+const logger = createLogger('tts-precache')
 
 export interface ITtsPrecacheOptions {
   /** 最大预缓存单元数（去重后） */
@@ -24,10 +29,14 @@ export interface ITtsPrecacheOptions {
   rate?: number
   /** 音调 */
   pitch?: number
-  /** 音色（可选） */
+  /** 音色（可选）；为空时读取设置页当前音色 */
   voice?: string
+  /** 引擎（可选）；为空时读取设置页当前引擎 */
+  engine?: string
   /** 音频格式（可选） */
   format?: 'mp3' | 'wav' | 'ogg'
+  /** 是否把例句句子也纳入预缓存（默认 false，先保证词条本身） */
+  includeExamples?: boolean
 }
 
 /**
@@ -36,25 +45,63 @@ export interface ITtsPrecacheOptions {
  * @param options 预缓存选项
  */
 export async function precacheTTSForCourseDraft(draft: CourseDraft, options: ITtsPrecacheOptions = {}): Promise<void> {
+  const settingsStore = useSettingsStore()
+  // 引擎与音色：显式参数优先，否则读取设置页当前选择
+  const engine = options.engine || settingsStore.ttsEngine || 'melo'
+  const voice = options.voice || settingsStore.ttsVoiceId || `${engine}:0`
+  const rate = options.rate ?? settingsStore.ttsSpeed ?? 1
+
+  // 克隆音色会额外占用大量内存，必须串行预生成
+  const isClone = engine === 'openvoice' || voice.startsWith('clone:')
   const limit = options.limit ?? 30
-  const concurrency = Math.max(1, Math.min(options.concurrency ?? 3, 8))
+  const concurrency = isClone
+    ? 1
+    : Math.max(1, Math.min(options.concurrency ?? 3, 8))
 
   const uniqueTexts: string[] = []
   const seen = new Set<string>()
 
+  /** 收集文本：去重并受 limit 限制 */
+  function collect(text: string): void {
+    if (uniqueTexts.length >= limit) return
+    const content = String(text || '').trim()
+    if (!content || seen.has(content)) return
+    seen.add(content)
+    uniqueTexts.push(content)
+  }
+
+  // 第一轮：词条/句子本身（句子型课程的 english 就是句子）
   for (const lesson of draft.lessons || []) {
     for (const item of lesson.items || []) {
-      const text = String(item.english || '').trim()
-      if (!text) continue
-      if (seen.has(text)) continue
-      seen.add(text)
-      uniqueTexts.push(text)
+      collect(item.english)
       if (uniqueTexts.length >= limit) break
     }
     if (uniqueTexts.length >= limit) break
   }
 
+  // 第二轮：可选例句。放在词条之后，避免例句挤占核心词条的缓存名额
+  if (options.includeExamples && uniqueTexts.length < limit) {
+    for (const lesson of draft.lessons || []) {
+      for (const item of lesson.items || []) {
+        for (const example of item.examples ?? []) {
+          collect(example)
+          if (uniqueTexts.length >= limit) break
+        }
+        if (uniqueTexts.length >= limit) break
+      }
+      if (uniqueTexts.length >= limit) break
+    }
+  }
+
   if (uniqueTexts.length === 0) return
+
+  logger.info('开始预缓存 TTS', {
+    count: uniqueTexts.length,
+    engine,
+    voice,
+    rate,
+    includeExamples: Boolean(options.includeExamples),
+  })
 
   const tts = getTTSApiService()
 
@@ -69,8 +116,9 @@ export async function precacheTTSForCourseDraft(draft: CourseDraft, options: ITt
         await tts.generate({
           text: current,
           language: options.language ?? 'en',
-          voice: options.voice,
-          rate: options.rate,
+          engine,
+          voice,
+          rate,
           pitch: options.pitch,
           format: options.format,
         })

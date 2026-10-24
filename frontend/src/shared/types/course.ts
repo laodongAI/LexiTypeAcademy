@@ -73,6 +73,26 @@ export interface LessonItem {
   partOfSpeech?: string;
   /** 例句（可选） */
   examples?: string[];
+  /** 例句中文翻译（可选，与 examples 等长） */
+  exampleTranslations?: string[];
+  /** 词根或词缀（可选，如 spect / re-） */
+  root?: string;
+  /** 词根含义（可选，如“看”） */
+  rootMeaning?: string;
+  /** 词根组标识（可选；显式指定时优先于 root 自动归组） */
+  rootGroupId?: string;
+  /** 词根角色（可选）：root=词根词，derived=派生词 */
+  rootRole?: 'root' | 'derived';
+  /** 拆解讲解（可选，如 in(向内)+spect(看)→检查） */
+  explanation?: string;
+  /** 讲解音频路径（可选；缺省时按需 TTS 合成） */
+  explanationAudioPath?: string;
+  /** 对话角色名（可选，仅 dialog 类型使用） */
+  speaker?: string;
+  /** 字幕起始时间（毫秒，可选，仅导入内容使用） */
+  startMs?: number;
+  /** 字幕结束时间（毫秒，可选，仅导入内容使用） */
+  endMs?: number;
 }
 
 /**

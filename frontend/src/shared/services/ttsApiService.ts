@@ -8,10 +8,20 @@ import { hashStringToBase36 } from '../utils/hash'
 import { commonRepository } from '../database/repositories/commonRepository'
 import { databaseReady } from '../database'
 
+/**
+ * TTS 后端基础地址（唯一来源）
+ * 说明：优先 TTS 专用变量，其次通用后端变量，最后回落到本地默认端口。
+ *      其它 TTS 相关服务必须复用该常量，避免多处硬编码导致地址分叉。
+ */
+export const TTS_BASE_URL: string =
+  (import.meta.env.VITE_TTS_API_URL as string | undefined) ||
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  'http://127.0.0.1:8010'
+
 // API 配置
 const TTS_API_CONFIG = {
-  // 本地单机后端默认地址；可在 .env 中通过 VITE_TTS_API_URL 覆盖
-  baseURL: import.meta.env.VITE_TTS_API_URL || 'http://127.0.0.1:8010',
+  // 复用统一的基础地址
+  baseURL: TTS_BASE_URL,
   timeout: 30000,
   maxRetry: 3,
 }
@@ -22,8 +32,10 @@ export interface TTSRequest {
   text: string
   /** 语言 */
   language: 'en' | 'zh' | 'en-US' | 'zh-CN'
-  /** 音色（可选） */
+  /** 音色（可选）：engineId:speakerId 或 clone:profileId */
   voice?: string
+  /** 引擎标识（可选）：为空时由后端按 voice 前缀或默认配置推导 */
+  engine?: string
   /** 语速：0.5-2.0，默认 1.0 */
   rate?: number
   /** 音调：0.5-2.0，默认 1.0 */
@@ -71,6 +83,14 @@ export interface TTSHealthResponse {
   maxChars?: number
   /** 加载错误信息 */
   error?: string | null
+  /** 引擎总数（后端返回） */
+  engineCount?: number
+  /** 可用引擎数量（后端返回） */
+  availableEngineCount?: number
+  /** 克隆档案数量（后端返回） */
+  cloneProfileCount?: number
+  /** 当前引擎说话人数 */
+  numSpeakers?: number
 }
 
 // 缓存接口
@@ -87,36 +107,43 @@ class TTSApiService {
   
   /**
    * 生成语音
+   * @param request 合成请求
+   * @param options.force 为 true 时跳过内存与 IndexedDB 缓存，强制重新合成
    */
-  async generate(request: TTSRequest): Promise<TTSResponse> {
+  async generate(
+    request: TTSRequest,
+    options: { force?: boolean } = {},
+  ): Promise<TTSResponse> {
     const cacheKey = this.getCacheKey(request)
     const modelKey = this.getModelKey(request)
 
-    // 先查内存缓存
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return {
-        success: true,
-        audio: cached.audio,
-        url: cached.url,
-        duration: cached.duration,
+    // 先查内存缓存（强制刷新时跳过）
+    if (!options.force) {
+      const cached = this.getFromCache(cacheKey)
+      if (cached) {
+        return {
+          success: true,
+          audio: cached.audio,
+          url: cached.url,
+          duration: cached.duration,
+        }
       }
-    }
 
-    // 再查 IndexedDB 持久化缓存
-    const persistedBlob = await this.getFromPersistentCache(request.text, modelKey)
-    if (persistedBlob) {
-      const blobUrl = URL.createObjectURL(persistedBlob)
-      this.saveToCache(cacheKey, {
-        audio: '',
-        url: blobUrl,
-        duration: 0,
-        timestamp: Date.now(),
-      })
-      return {
-        success: true,
-        url: blobUrl,
-        duration: 0,
+      // 再查 IndexedDB 持久化缓存（内部会校验文件头，损坏时自动删除）
+      const persistedBlob = await this.getFromPersistentCache(request.text, modelKey)
+      if (persistedBlob) {
+        const blobUrl = URL.createObjectURL(persistedBlob)
+        this.saveToCache(cacheKey, {
+          audio: '',
+          url: blobUrl,
+          duration: 0,
+          timestamp: Date.now(),
+        })
+        return {
+          success: true,
+          url: blobUrl,
+          duration: 0,
+        }
       }
     }
 
@@ -155,7 +182,8 @@ class TTSApiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(request),
-        signal: AbortSignal.timeout(TTS_API_CONFIG.timeout),
+        // 克隆音色需要先合成基底再做音色迁移，耗时明显更长
+        signal: AbortSignal.timeout(this.resolveTimeout(request)),
       })
       
       if (!response.ok) {
@@ -219,9 +247,14 @@ class TTSApiService {
   
   /**
    * 获取音频 URL
+   * @param request 合成请求
+   * @param options.force 为 true 时跳过缓存强制重新合成（用于播放失败后的兜底重试）
    */
-  async getAudioUrl(request: TTSRequest): Promise<string | null> {
-    const response = await this.generate(request)
+  async getAudioUrl(
+    request: TTSRequest,
+    options: { force?: boolean } = {},
+  ): Promise<string | null> {
+    const response = await this.generate(request, options)
     
     if (!response.success) {
       return null
@@ -301,10 +334,23 @@ class TTSApiService {
 
   /**
    * 生成“模型配置”标识（用于 IndexedDB 缓存维度区分）
+   * 说明：引擎与音色都属于音频内容维度，必须进入缓存键
    */
   private getModelKey(request: TTSRequest): string {
-    const { language, voice = '', rate = 1, pitch = 1, format = '' } = request
-    return `tts|${language}|${voice}|${rate}|${pitch}|${format}`
+    const { language, engine = '', voice = '', rate = 1, pitch = 1, format = '' } = request
+    return `tts|${engine}|${language}|${voice}|${rate}|${pitch}|${format}`
+  }
+
+  /**
+   * 按请求类型解析超时毫秒数
+   * @param request 合成请求
+   * @returns 超时毫秒数
+   */
+  private resolveTimeout(request: TTSRequest): number {
+    // 克隆音色（openvoice / clone: 前缀）走音色迁移，放宽到 3 分钟
+    const isClone =
+      request.engine === 'openvoice' || (request.voice || '').startsWith('clone:')
+    return isClone ? 180000 : TTS_API_CONFIG.timeout
   }
 
   /**
@@ -315,7 +361,33 @@ class TTSApiService {
     try {
       const cached = await commonRepository.getTtsCache(text, model)
       if (!cached) return null
-      return cached.audioBlob
+
+      const blob = cached.audioBlob
+
+      // 空数据或非 Blob：缓存已损坏，删除后交给重新合成
+      if (!(blob instanceof Blob) || blob.size < 64) {
+        await commonRepository.deleteTtsCache(text, model)
+        console.warn('[tts] 语音缓存无效（空数据），已删除并重新合成', { textLen: text.length })
+        return null
+      }
+
+      // 校验音频文件头：避免把损坏/非音频数据交给 <audio> 导致 “no supported source”
+      const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer())
+      const b0 = head[0] ?? 0
+      const b1 = head[1] ?? 0
+      const b2 = head[2] ?? 0
+      const b3 = head[3] ?? 0
+      const isWav = b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46 // "RIFF"
+      const isOgg = b0 === 0x4f && b1 === 0x67 && b2 === 0x67 && b3 === 0x53 // "OggS"
+      const isMp3 = b0 === 0x49 && b1 === 0x44 && b2 === 0x33 // "ID3"
+      const isAac = b0 === 0xff && (b1 & 0xf6) === 0xf0 // ADTS 帧头
+      if (!isWav && !isOgg && !isMp3 && !isAac) {
+        await commonRepository.deleteTtsCache(text, model)
+        console.warn('[tts] 语音缓存文件头异常，已删除并重新合成', { size: blob.size })
+        return null
+      }
+
+      return blob
     } catch {
       return null
     }
@@ -348,8 +420,8 @@ class TTSApiService {
    * 生成缓存键
    */
   private getCacheKey(request: TTSRequest): string {
-    const { text, language, voice = '', rate = 1, pitch = 1, format = '' } = request
-    return `tts_${language}_${voice}_${rate}_${pitch}_${format}_${hashStringToBase36(text)}`
+    const { text, language, engine = '', voice = '', rate = 1, pitch = 1, format = '' } = request
+    return `tts_${engine}_${language}_${voice}_${rate}_${pitch}_${format}_${hashStringToBase36(text)}`
   }
   
   /**
@@ -436,10 +508,24 @@ export function getTTSApiService(): TTSApiService {
 }
 
 // 便捷函数
+/**
+ * 生成一段语音并返回可播放地址
+ * @param text 文本
+ * @param language 语言（默认英文）
+ * @param options 可选音色参数：引擎/音色/语速；不传则由后端使用默认音色
+ * @returns 音频地址；失败返回 null
+ */
 export async function generateSpeech(
   text: string,
-  language: 'en' | 'zh' = 'en'
+  language: 'en' | 'zh' = 'en',
+  options: { engine?: string; voice?: string; rate?: number } = {},
 ): Promise<string | null> {
   const service = getTTSApiService()
-  return service.getAudioUrl({ text, language })
+  return service.getAudioUrl({
+    text,
+    language,
+    engine: options.engine,
+    voice: options.voice,
+    rate: options.rate,
+  })
 }

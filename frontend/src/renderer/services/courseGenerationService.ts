@@ -70,7 +70,9 @@ export async function generateCourseDraftFromChineseText(
   if (params.precacheTTS) {
     void precacheTTSForCourseDraft(draft, {
       limit: params.precacheLimit ?? 30,
-      language: 'en'
+      language: 'en',
+      // 同时预缓存例句句子，保证“单词 + 句子”都能用所选音色直接播放
+      includeExamples: true
     }).catch(() => {
       // 静默：预缓存不应影响主流程
     })

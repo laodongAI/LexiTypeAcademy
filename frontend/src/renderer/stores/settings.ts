@@ -27,6 +27,13 @@ export type ASRProviderType = 'http' | 'browser' | 'sherpa'
 
 // 设置接口
 export interface Settings {
+  // 设置结构版本：用于旧数据迁移（2 = 引入引擎/音色两级模型）
+  settingsVersion?: number
+
+  // 学习身份
+  /** 学习昵称：小老师点评时的称呼，为空表示未设置 */
+  nickname: string
+
   // 外观设置
   theme: ThemeType
   language: LanguageType
@@ -34,7 +41,12 @@ export interface Settings {
   // TTS 设置
   ttsProvider: TTSProviderType
   ttsHttpEndpoint: string
+  /** 旧字段：仅保留一个版本用于兼容历史数据，新代码只读 ttsVoiceId */
   ttsVoice: string
+  /** 当前 TTS 引擎标识，如 melo / aishell3 / kokoro / matcha / openvoice */
+  ttsEngine: string
+  /** 当前音色标识，形如 melo:0 / aishell3:SSB0005 / clone:vc_xxx */
+  ttsVoiceId: string
   ttsSpeed: number
   ttsVolume: number
   
@@ -54,14 +66,21 @@ export interface Settings {
   reviewReminder: boolean
 }
 
+// 当前设置结构版本：递增时需在 migrateSettings 中补齐迁移逻辑
+const SETTINGS_VERSION = 2
+
 // 默认设置
 const defaultSettings: Settings = {
+  settingsVersion: SETTINGS_VERSION,
+  nickname: '',
   theme: 'blue',
   language: 'zh-CN',
   
   ttsProvider: 'http',
   ttsHttpEndpoint: 'http://localhost:3000',
   ttsVoice: 'default',
+  ttsEngine: 'melo',
+  ttsVoiceId: 'melo:0',
   ttsSpeed: 1.0,
   ttsVolume: 1.0,
   
@@ -78,6 +97,49 @@ const defaultSettings: Settings = {
   reviewReminder: true,
 }
 
+/**
+ * 迁移历史设置到当前结构版本
+ * @param stored 从 localStorage 读出的原始设置对象
+ * @returns 补齐默认值与新字段后的设置
+ */
+function migrateSettings(stored: Partial<Settings>): Settings {
+  // 合并默认值，保证缺失字段可用
+  const merged: Settings = { ...defaultSettings, ...stored }
+  const version = Number(stored.settingsVersion || 1)
+
+  // v1 -> v2：旧的 default/female/male 无法映射真实说话人，统一回退主引擎默认音色
+  if (version < 2) {
+    merged.ttsEngine = 'melo'
+    merged.ttsVoiceId = 'melo:0'
+    // 旧字段保留原值，避免其他模块读取时报错
+    merged.ttsVoice = stored.ttsVoice || 'default'
+    merged.settingsVersion = SETTINGS_VERSION
+  }
+
+  // 兜底：新字段缺失或为空时回退默认引擎
+  if (!merged.ttsEngine) merged.ttsEngine = 'melo'
+  if (!merged.ttsVoiceId) merged.ttsVoiceId = `${merged.ttsEngine}:0`
+
+  // 音色必须与引擎匹配：openvoice 仅支持真实克隆音色（clone:xxx）。
+  // 历史设置残留的 openvoice:0 会让后端找不到克隆档案，合成返回失败但 HTTP 仍是 200，
+  // 前端表现为“有字幕、没声音”，因此这里统一回退到 melo 默认音色。
+  if (merged.ttsEngine === 'openvoice' && !merged.ttsVoiceId.startsWith('clone:')) {
+    merged.ttsEngine = 'melo'
+    merged.ttsVoiceId = 'melo:0'
+  } else if (
+    merged.ttsEngine !== 'openvoice'
+    && !merged.ttsVoiceId.startsWith(`${merged.ttsEngine}:`)
+  ) {
+    // 其他引擎的音色也必须带正确引擎前缀，例如 melo:0 / aishell3:1
+    merged.ttsVoiceId = `${merged.ttsEngine}:0`
+  }
+
+  // 昵称必须是字符串，历史数据可能缺失或为 null
+  if (typeof merged.nickname !== 'string') merged.nickname = ''
+
+  return merged
+}
+
 // localStorage key
 const STORAGE_KEY = 'lexitype-settings'
 
@@ -88,8 +150,9 @@ function loadSettings(): Settings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      const parsed = JSON.parse(stored)
-      return { ...defaultSettings, ...parsed }
+      const parsed = JSON.parse(stored) as Partial<Settings>
+      // 统一走迁移，保证旧版本数据可用
+      return migrateSettings(parsed)
     }
   } catch (error) {
     console.error('加载设置失败:', error)
@@ -134,12 +197,17 @@ export const useSettingsStore = defineStore('settings', () => {
   const initialSettings = loadSettings()
   
   // 响应式状态
+  // 学习昵称：小老师点评称呼
+  const nickname = ref(initialSettings.nickname)
   const theme = ref<ThemeType>(initialSettings.theme)
   const language = ref<LanguageType>(initialSettings.language)
   
   const ttsProvider = ref<TTSProviderType>(initialSettings.ttsProvider)
   const ttsHttpEndpoint = ref(initialSettings.ttsHttpEndpoint)
   const ttsVoice = ref(initialSettings.ttsVoice)
+  // 新增：引擎与音色两级模型，实际播放链路只使用这两个字段
+  const ttsEngine = ref(initialSettings.ttsEngine)
+  const ttsVoiceId = ref(initialSettings.ttsVoiceId)
   const ttsSpeed = ref(initialSettings.ttsSpeed)
   const ttsVolume = ref(initialSettings.ttsVolume)
   
@@ -158,11 +226,15 @@ export const useSettingsStore = defineStore('settings', () => {
   // 获取所有设置
   function getSettings(): Settings {
     return {
+      settingsVersion: SETTINGS_VERSION,
+      nickname: nickname.value,
       theme: theme.value,
       language: language.value,
       ttsProvider: ttsProvider.value,
       ttsHttpEndpoint: ttsHttpEndpoint.value,
       ttsVoice: ttsVoice.value,
+      ttsEngine: ttsEngine.value,
+      ttsVoiceId: ttsVoiceId.value,
       ttsSpeed: ttsSpeed.value,
       ttsVolume: ttsVolume.value,
       asrProvider: asrProvider.value,
@@ -179,11 +251,14 @@ export const useSettingsStore = defineStore('settings', () => {
   
   // 更新设置
   function updateSettings(updates: Partial<Settings>): void {
+    if (updates.nickname !== undefined) nickname.value = updates.nickname
     if (updates.theme !== undefined) theme.value = updates.theme
     if (updates.language !== undefined) language.value = updates.language
     if (updates.ttsProvider !== undefined) ttsProvider.value = updates.ttsProvider
     if (updates.ttsHttpEndpoint !== undefined) ttsHttpEndpoint.value = updates.ttsHttpEndpoint
     if (updates.ttsVoice !== undefined) ttsVoice.value = updates.ttsVoice
+    if (updates.ttsEngine !== undefined) ttsEngine.value = updates.ttsEngine
+    if (updates.ttsVoiceId !== undefined) ttsVoiceId.value = updates.ttsVoiceId
     if (updates.ttsSpeed !== undefined) ttsSpeed.value = updates.ttsSpeed
     if (updates.ttsVolume !== undefined) ttsVolume.value = updates.ttsVolume
     if (updates.asrProvider !== undefined) asrProvider.value = updates.asrProvider
@@ -215,8 +290,9 @@ export const useSettingsStore = defineStore('settings', () => {
   
   // 监听所有设置变化并保存
   watch([
+    nickname,
     language,
-    ttsProvider, ttsHttpEndpoint, ttsVoice, ttsSpeed, ttsVolume,
+    ttsProvider, ttsHttpEndpoint, ttsVoice, ttsEngine, ttsVoiceId, ttsSpeed, ttsVolume,
     asrProvider, asrHttpEndpoint, asrLanguage,
     typingShowHint, typingShowPinyin, typingSoundEnabled,
     dailyGoal, autoPlayAudio, reviewReminder,
@@ -226,11 +302,15 @@ export const useSettingsStore = defineStore('settings', () => {
   
   return {
     // 状态
+    nickname,
     theme,
     language,
     ttsProvider,
     ttsHttpEndpoint,
     ttsVoice,
+    // 引擎与音色：播放链路与设置页共用
+    ttsEngine,
+    ttsVoiceId,
     ttsSpeed,
     ttsVolume,
     asrProvider,

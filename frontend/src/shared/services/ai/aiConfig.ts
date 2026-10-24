@@ -1,188 +1,124 @@
 /**
- * AI 配置管理
- * 负责 AI 配置的存储、加载和验证
+ * AI 配置管理（批次D：密钥后端化）
+ *
+ * 职责：
+ * - 保留历史存储键 lexitype_ai_config（核心标识冻结，不可修改）
+ * - 仅持久化 customPrompts 等前端侧配置，不再保存 apiKey / endpoint / model
+ * - 首次加载时清理历史明文密钥，并写入一次性迁移提示标记供设置页展示
+ *
+ * 说明：
+ * - 真正的上游地址与模型由后端 backend/.env 决定
+ * - 前端不再需要 validateAIConfig / getDefaultConfig / getSupportedModels 等方法
  */
 
-import type { AIConfig, AIProvider } from './aiTypes';
+import type { AIConfig, AIProvider } from './aiTypes'
 
-const STORAGE_KEY = 'lexitype_ai_config';
+/** 本地存储键：核心标识冻结，修改会导致用户配置丢失 */
+const STORAGE_KEY = 'lexitype_ai_config'
 
-/** 默认配置 */
+/** 迁移提示标记键：使用 sessionStorage，仅在当前会话提示一次 */
+const MIGRATION_NOTICE_KEY = 'lexitype_ai_migrated_notice'
+
+/** 默认配置：密钥与端点留空，实际能力由后端提供 */
 const DEFAULT_CONFIG: AIConfig = {
   provider: 'qwen',
   apiKey: '',
-  // 使用 OpenAI 兼容端点，便于统一解析
-  endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-  model: 'qwen-plus',
+  endpoint: '',
+  model: '',
   customPrompts: {}
-};
-
-/**
- * 加载 AI 配置
- */
-export function loadAIConfig(): AIConfig {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      const conf: AIConfig = { ...DEFAULT_CONFIG, ...parsed };
-      // 迁移：将旧的 DashScope 文本生成端点自动切到 OpenAI 兼容端点
-      if (
-        conf.provider === 'qwen' &&
-        typeof conf.endpoint === 'string' &&
-        conf.endpoint.includes('/api/v1/services/aigc/text-generation/generation')
-      ) {
-        conf.endpoint = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-      }
-      return conf;
-    } catch (error) {
-      console.error('Failed to parse AI config:', error);
-    }
-  }
-  return { ...DEFAULT_CONFIG };
 }
 
 /**
- * 保存 AI 配置
+ * 加载 AI 前端配置。
+ * @returns 合并默认值后的配置对象
+ *
+ * 说明：
+ *   历史 localStorage 中可能残留明文密钥，这里会删除并回写净化后的配置。
+ */
+export function loadAIConfig(): AIConfig {
+  // 读取原始存储值
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (!saved) {
+    return { ...DEFAULT_CONFIG }
+  }
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<AIConfig>
+
+    // 检测历史敏感字段：只要存在非空密钥或旧端点即视为需要迁移
+    const hasLegacySecret = Boolean(
+      (parsed.apiKey && parsed.apiKey.trim()) ||
+        (parsed.endpoint && parsed.endpoint.trim()) ||
+        (parsed.model && parsed.model.trim())
+    )
+
+    // 只保留前端仍需要的字段
+    const config: AIConfig = {
+      provider: (parsed.provider as AIProvider) ?? DEFAULT_CONFIG.provider,
+      apiKey: '',
+      endpoint: '',
+      model: '',
+      customPrompts: parsed.customPrompts ?? {}
+    }
+
+    if (hasLegacySecret) {
+      // 清除历史密钥：立即回写，避免继续驻留浏览器存储
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+      // 标记本次会话需要提示用户去后端配置
+      sessionStorage.setItem(MIGRATION_NOTICE_KEY, '1')
+      console.info('[ai/config] 已清理历史前端密钥，密钥统一由 backend/.env 管理')
+    }
+
+    return config
+  } catch (error) {
+    // 解析失败：返回默认配置，不阻塞页面
+    console.error('[ai/config] 解析本地 AI 配置失败，已回退默认值', error)
+    return { ...DEFAULT_CONFIG }
+  }
+}
+
+/**
+ * 保存 AI 前端配置。
+ * @param config 待保存配置
+ *
+ * 说明：
+ *   只持久化 provider 与 customPrompts，避免密钥再次落盘。
  */
 export function saveAIConfig(config: AIConfig): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  } catch (error) {
-    console.error('Failed to save AI config:', error);
-    throw new Error('保存配置失败');
-  }
-}
-
-/**
- * 验证 AI 配置
- */
-export function validateAIConfig(config: AIConfig): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!config.provider) {
-    errors.push('提供商不能为空');
-  }
-
-  if (!config.apiKey || config.apiKey.trim() === '') {
-    errors.push('API Key 不能为空');
-  }
-
-  if (!config.endpoint || config.endpoint.trim() === '') {
-    errors.push('API 端点不能为空');
-  }
-
-  if (!config.model || config.model.trim() === '') {
-    errors.push('模型名称不能为空');
-  }
-
-  // 验证 URL 格式
-  if (config.endpoint) {
-    try {
-      new URL(config.endpoint);
-    } catch {
-      errors.push('API 端点格式不正确');
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-/**
- * 获取提供商的默认配置
- */
-export function getDefaultConfig(provider: AIProvider): Partial<AIConfig> {
-  const configs: Record<AIProvider, Partial<AIConfig>> = {
-    qwen: {
-      // OpenAI 兼容
-      endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-      model: 'qwen-plus'
-    },
-    openai: {
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      model: 'gpt-3.5-turbo'
-    },
-    volcengine: {
-      endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
-      model: 'doubao-seed-1-6-251015'
-    },
-    deepseek: {
-      endpoint: 'https://api.deepseek.com/v1/chat/completions',
-      model: 'deepseek-chat'
-    },
-    custom: {
+    const safeConfig: AIConfig = {
+      provider: config.provider,
+      apiKey: '',
       endpoint: '',
-      model: ''
+      model: '',
+      customPrompts: config.customPrompts ?? {}
     }
-  };
-
-  return configs[provider] || {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig))
+  } catch (error) {
+    console.error('[ai/config] 保存 AI 配置失败', error)
+    throw new Error('保存配置失败')
+  }
 }
 
 /**
- * 重置为默认配置
+ * 重置 AI 前端配置。
+ *
+ * 说明：
+ *   仅清除前端侧配置；后端 .env 中的密钥不受影响。
  */
 export function resetAIConfig(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY)
+  console.info('[ai/config] 已重置前端 AI 配置')
 }
 
 /**
- * 获取提供商显示名称
+ * 消费一次性迁移提示。
+ * @returns 若本会话发生过密钥迁移则返回 true，并清除标记
  */
-export function getProviderName(provider: AIProvider): string {
-  const names: Record<AIProvider, string> = {
-    qwen: '通义千问',
-    openai: 'OpenAI',
-    volcengine: '火山引擎（豆包）',
-    deepseek: 'DeepSeek',
-    custom: '自定义'
-  };
-  return names[provider] || provider;
-}
-
-/**
- * 获取模型显示名称
- */
-export function getModelName(model: string): string {
-  const names: Record<string, string> = {
-    'qwen-plus': 'Qwen Plus',
-    'qwen-turbo': 'Qwen Turbo',
-    'qwen-max': 'Qwen Max',
-    'gpt-3.5-turbo': 'GPT-3.5 Turbo',
-    'gpt-4': 'GPT-4',
-    'gpt-4-turbo': 'GPT-4 Turbo',
-    'doubao-seed-1-6-251015': '豆包种子',
-    'deepseek-chat': 'DeepSeek Chat'
-  };
-  return names[model] || model;
-}
-
-/**
- * 获取支持的模型列表
- */
-export function getSupportedModels(provider: AIProvider): Array<{ value: string; label: string }> {
-  const models: Record<AIProvider, Array<{ value: string; label: string }>> = {
-    qwen: [
-      { value: 'qwen-plus', label: 'Qwen Plus（推荐）' },
-      { value: 'qwen-turbo', label: 'Qwen Turbo（快速）' },
-      { value: 'qwen-max', label: 'Qwen Max（高级）' }
-    ],
-    openai: [
-      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-      { value: 'gpt-4', label: 'GPT-4' },
-      { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' }
-    ],
-    volcengine: [
-      { value: 'doubao-seed-1-6-251015', label: '豆包种子' }
-    ],
-    deepseek: [
-      { value: 'deepseek-chat', label: 'DeepSeek Chat' }
-    ],
-    custom: []
-  };
-
-  return models[provider] || [];
+export function consumeAIConfigMigrationNotice(): boolean {
+  const flagged = sessionStorage.getItem(MIGRATION_NOTICE_KEY) === '1'
+  if (flagged) {
+    sessionStorage.removeItem(MIGRATION_NOTICE_KEY)
+  }
+  return flagged
 }

@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api.routers import (
+    ai,
     asr,
     courses,
     health,
@@ -100,6 +101,9 @@ def create_app() -> FastAPI:
     app.include_router(study_plans.plan_router, prefix="/api")
     app.include_router(study_plans.task_router, prefix="/api")
     app.include_router(study_plans.checkin_router, prefix="/api")
+
+    # 注册 AI 代理路由（状态查询、非流式对话、流式对话、连通性测试）
+    app.include_router(ai.router, prefix="/api")
 
     # 静态挂载 TTS 音频缓存目录：前端 <audio> 可直接播放生成结果
     app.mount(

@@ -228,12 +228,15 @@ import type { WordEntry } from '../../../shared/services/ai'
 import { generateSpeech } from '../../../shared/services/ttsApiService'
 import { ContentShape, type Lesson, type LessonItem } from '../../../shared/types/course'
 import { useCourseStore } from '../../stores/courseStore'
+import { useSettingsStore } from '../../stores/settings'
 import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
 
 const router = useRouter()
 
 const courseStore = useCourseStore()
+/** 设置仓库：生成音频时必须沿用用户在设置页选择的音色/语速 */
+const settingsStore = useSettingsStore()
 const step = ref(0)
 const loading = ref(false)
 const error = ref('')
@@ -463,7 +466,21 @@ async function generateCourseFromTextbook() {
     for (const unitTitle of selectedUnits) {
       generationProgress.currentUnit = unitTitle
       const lessons: Lesson[] = []
-      const baseTags = ['AI', 'Textbook', publisherForm.publisher, textbookForm.series, unitTitle].filter(Boolean)
+      // 教材分级标签：保留历史顺序（AI / Textbook / 出版社 / 系列 / 单元），
+      // 追加显式分级标签，便于课程仓库按「教材 → 年级册 → 单元」稳定归组。
+      const selectedTextbook = textbookOptions.value.find(tb => tb.name === textbookForm.textbookName)
+      const gradeTag = textbookForm.grade.trim() || selectedTextbook?.grade || ''
+      const semesterTag = selectedTextbook?.semester || ''
+      const baseTags = [
+        'AI',
+        'Textbook',
+        publisherForm.publisher,
+        textbookForm.series,
+        unitTitle,
+        `Textbook:${textbookForm.textbookName}`,
+        gradeTag ? `Grade:${gradeTag}` : '',
+        semesterTag ? `Semester:${semesterTag}` : '',
+      ].filter(Boolean)
 
       let wordsForPhonics: WordEntry[] = []
 
@@ -683,7 +700,12 @@ async function withAudioForItems(items: LessonItem[], kind: 'word' | 'sentence' 
       continue
     }
 
-    const audioPath = await generateSpeech(text, 'en')
+    // 显式沿用设置页当前音色，保证“生成课程时听到的声音”和学习时一致
+    const audioPath = await generateSpeech(text, 'en', {
+      engine: settingsStore.ttsEngine,
+      voice: settingsStore.ttsVoiceId,
+      rate: settingsStore.ttsSpeed,
+    })
     result.push({
       ...item,
       audioPath: audioPath || undefined,

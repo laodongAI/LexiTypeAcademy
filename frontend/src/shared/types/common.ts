@@ -52,8 +52,8 @@ export interface LearningRecord {
   courseId?: string;
   /** 课时ID */
   lessonId?: string;
-  /** 活动类型 */
-  activityType: 'practice' | 'review' | 'game' | 'typing';
+  /** 活动类型（lesson-feedback 为课堂完成点评记录） */
+  activityType: 'practice' | 'review' | 'game' | 'typing' | 'lesson-feedback';
   /** 分数 */
   score: number;
   /** 准确率 */

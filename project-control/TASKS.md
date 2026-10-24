@@ -91,12 +91,93 @@
 - 测试数据已全部清理：`GET /api/study-plans` → `{"items":[],"total":0}`，测试练习记录已删除
 - 前端 `npm run build` → `✓ built in 36.62s`；后端 `compileall` → exit=0
 
-## 三·补三、阶段4 · 批次D 需求与设计（DONE，待评审后实现）
+## 三·补三、阶段4 · 批次D AI 后端代理（DONE）
 
 - 设计文档：`docs/design/ai-backend-proxy-v1.md`
 - 关键决策：密钥只进 `backend/.env`；后端提供 OpenAI 兼容透传 `/api/ai/chat`（含 SSE）；前端 `AIService` 接口不变，只替换 provider 为 `BackendAIProvider`；设置页改为只读状态 + 测试连接
 - 实施切片：D1 后端代理与单测 → D2 前端切换 → D3 设置页 → D4 清理与全链路验收
-- 待用户确认：默认沿用 DashScope OpenAI 兼容端点；是否具备真实 API Key（无 Key 时用 Mock 上游完成开发验收）
+- 落地结果：
+  1. D1：`backend/app/core/config.py` 新增 6 项 AI 配置与 `ai_chat_url/ai_configured` 派生属性；`requirements.txt` 新增 `httpx`；新增 `backend/app/api/routers/ai.py` 四个接口；`main.py` 注册；`.env.example` 更新；新增 `backend/tests/test_ai_router.py` 与 `requirements-dev.txt`
+  2. D2：新增 `shared/services/ai/providers/backendProvider.ts`；`AIService` 固定使用后端代理；`aiConfig` 仅持久化 `customPrompts` 并清理历史明文密钥（键名 `lexitype_ai_config` 未改）
+  3. D3：`SettingsPage.vue` AI 区域改为只读状态卡片（提供商/模型/上游地址/超时/最大输出）+ 刷新状态 + 测试连接 + `.env` 配置指引，无任何密钥输入项
+  4. D4：删除 `qwenProvider.ts`，移除 `baseProvider` 的 Electron 代理与直连分支；全局无 `Bearer` 密钥与直连端点残留；修复 `generateCourse` 流式内容未累加的缺陷
+- 验证证据（2026-10-24）：
+  - `backend/.venv/Scripts/python.exe -m pytest tests -q`：9 passed（MockTransport 覆盖未配置/成功/401/429/超时/流式成功/流式中断/非法入参/连通性测试）
+  - `backend/.venv/Scripts/python.exe -m compileall -q app`：通过
+  - `frontend: npm run build`（`vue-tsc --noEmit && vite build`）：通过
+  - 运行态：`GET /api/ai/config` 返回 `configured=false`（未填密钥）；`POST /api/ai/chat` 返回 503 `AI_CONFIG_MISSING` 统一错误体
+- 未完成：真实密钥联调（本机 `backend/.env` 的 `AI_API_KEY` 为空）；补齐密钥后需按设计 6.2 手工验收流式课程生成
+- 缺陷修复（2026-10-24，空正文）：
+  - 现象：前端提示「AI 响应内容为空」，后端日志上游 200、usage 正常
+  - 根因：`zhipu/glm-5.3-flash` 为思考模型；请求未指定 `maxTokens` 时后端默认 2000，思考过程耗尽全部输出预算（`finish_reason=length`），正文为空
+  - 修复：`/api/ai/chat` 检测“正文为空 + length”时自动将输出上限翻倍重试一次；仍为空则返回 502 `AI_INVALID_RESPONSE` 可读提示，不再返回 200 空字符串；流式接口同样改为 error 事件收尾
+  - 日志：调用结束新增 `content_chars` / `reasoning_chars` / `finish_reason`（只记长度，不记内容），日志文件 `backend/logs/app.log`
+  - 证据：`pytest tests -q` 30 passed（新增空正文重试/持续为空/流式为空 3 例）；真实上游复测 200 + 正文 821 字符；强制 `maxTokens=200` 复测返回 502 与“请提高最大输出 token”提示
+
+## 三·补四、阶段4 · 批次F 英语学习体系（设计 DONE；F2/F3/F4 首批课堂 UI 已实现，待联调）
+
+- 设计文档：`docs/design/english-learning-vision-v1.md`
+- 覆盖需求：词根扩展记词、句子/词的燃尽法、悬停领读（鼠标划过即读、词卡）、标准等级与系列教材资源库、YouTube/B站资料借鉴与导入、AI 模拟对话场景生成
+- 关键决策：
+  1. 只扩展 `courses → lessons → items(JSON)` 单一内容模型：新增 `courses.resource_meta`（JSON，可空）与 `LessonItem` 可选字段（词根/讲解/角色/时间戳），不新建资源表、词根表、燃尽表、对话表
+  2. 枚举唯一来源为后端 `app/core/taxonomy.py`，经 `GET /api/courses/taxonomy` 下发，前端不复制枚举值；分类树由 `GET /api/courses/facets` 聚合，不存树
+  3. 燃尽法复用 `practice_attempt_events.hint_level_at_submit/extra` 与 `unit_mastery_items`，不新增练习模式
+  4. 悬停领读复用 `/api/tts/generate` + 前端 Blob 缓存；句子切分与词卡匹配在前端实时计算，不落库
+  5. 资源导入首版只解析用户本地 SRT/VTT/TXT，不做视频抓取；AI 场景生成硬依赖批次D
+- 页面与入口：资源库升级现有“课程仓库”（不新增顶层菜单）；精读新增 `/reader/:lessonId`（从课时/资源库进入）；词根/燃尽/AI 对话均在课时学习页内
+- 实施切片：F0 方法调研 → F1 资源元数据与分类 → F2 词根扩展 → F3 燃尽法 → F4 悬停精读 → F5 字幕导入 → F6 AI 对话场景（依赖批次D）→ F7 全链路验收
+- 已实现（首批课堂 UI，待联调）：
+  - 入口：课程详情课时列表“进入课堂” → `ClassroomEntryDialog`（4 模式卡片 + 悬停朗读/中文提示开关 + 保留原有练习页入口）
+  - 页面：新增路由 `/lessons/:lessonId/classroom`（`ClassroomPage.vue`），顶部模式切换 + 左侧舞台 + 右侧课堂助手
+  - 舞台：`ReaderStage.vue`（悬停精读/词卡/加入生词本）、`BurnDownStage.vue`（句子/词燃尽，进度存 `lexitype_burn_*`，事件写 `practice_attempt_events`）、`WordRootStage.vue`（词根分组/整组听读/遮中文）
+  - 公共能力：`useSpeechPlayer`（模块级单音频通道 + 连播令牌）、`sentenceSplit/textCompare/wordRoot`、`shared/utils/logger`
+  - 验证证据：`npm run build`（`vue-tsc --noEmit && vite build`）通过；演示课程 `demo-classroom-001`（3 课时：词根/短文/对话）已通过 `POST /api/courses` 写入并回读校验中文与扩展字段
+- 待用户确认：句燃尽遮蔽顺序（句末向前 vs 功能词优先）、词燃尽阶段定义、课程与教材的粒度、导入是否自动 AI 补全中文
+
+## 三·补五、阶段4 · 批次G 设置页分页与模型配置（已实现并验证 2026-10-24）
+
+- 设计文档：`docs/design/settings-tabs-and-model-config-v1.md`
+- 需求：设置页按类别分页；语音模型增加真实音色选择；支持上传参考音频克隆音色；大模型增加 DeepSeek、千问、智谱等常用服务商配置
+- 关键决策（已确认，2026-10-24）：
+  1. 设置页改为“左侧分类导航 + 右侧内容区”，6 个分页：通用 / 语音模型 / 大模型 / 学习 / 练习 / 数据与关于；`/settings?tab=` 深链
+  2. 语音采用“引擎 + 音色”两级模型：`melo:0`、`aishell3:SSB0005`、`kokoro:<id>`；同一时刻只驻留一个主引擎，克隆模式允许 melo + OpenVoice 同时驻留；缓存键纳入引擎/音色/参考音频哈希
+  2.1 克隆音色：基于本机 OpenVoice v2 资产，上传 1–30 秒参考音频（≤10MB），后端归一化 22.05kHz 单声道、提取音色嵌入，`ttsVoiceId=clone:<profileId>`；历史实测 RTF≈1.11，需提示较慢并优先预缓存
+  2.2 克隆安全：仅本机保存、强制授权勾选、UUID 目录防路径穿越、删除档案同时清理参考音频/嵌入/缓存、档案上限 5 个/50MB
+  3. 大模型服务商目录唯一维护在后端 `app/core/ai_providers.py`；配置支持多档案单生效，密钥只写不读，落盘 `backend/data/ai-settings.json`（Q1 已确认，后续可升级 DPAPI）
+  4. 本地偏好即改即存；大模型配置显式“保存并应用”，支持草稿测试、未保存离开拦截
+  5. 前端不保存密钥、不复制服务商/引擎枚举；旧 `lexitype-settings` 存储键与旧字段做兼容迁移
+- 实施切片：G0 已确认（2026-10-24）→ G1 分页壳 → G2 多引擎 TTS → G3a 普通音色与播放链路 → G3b 克隆音色 → G4 AI 配置存储与接口 → G5 大模型页 → G6 全链路验收
+- 已确认决策：Q1 密钥落盘 `backend/data/ai-settings.json`；Q2 音色“精选 8 + 全部 174”；Q3 实验引擎默认隐藏、OpenVoice 正常展示；Q4 首版不自动拉模型；Q5 数据导入导出仅占位；Q6 音色先中性编号后试听定名；Q7 克隆最多 5 个/50MB；Q8 克隆用于试听/预缓存，课堂未命中回退普通音色；Q9 首版仅文件上传
+- 状态：设计 `DONE`、决策 `DONE`；实现 `DONE`（G1–G6 全部完成），证据见下
+
+### 批次G 实测证据（2026-10-24）
+
+- 前端构建：`npm run build` 通过（`vue-tsc --noEmit` 无错误，`vite build` 产物生成成功）
+- 后端测试：`backend/.venv/Scripts/python.exe -m pytest -q` → `27 passed`
+- 引擎目录：`GET /api/tts/engines` 返回 `melo / aishell3 / kokoro / matcha / openvoice`，5 个引擎 `available=true`；音色数 1 / 174 / 103 / 1 / 0（克隆按档案）
+- 多引擎合成：`kokoro:45` 返回 `sampleRate=24000, duration=0.42`；`aishell3:SSB0005` 返回 `sampleRate=8000, duration=1.55`
+- 克隆链路：上传 3.48s 参考音频创建 `vc_xxx` → `engine=openvoice, voice=clone:vc_xxx` 合成成功（`duration=1.93`）→ 删除档案成功；参考音频、嵌入与缓存随档案清理
+- 大模型接口：`GET /api/ai/providers`、`GET /api/ai/settings` 均 200；Ollama/自定义免密钥判定已修正（不再被误判为未配置）
+- 前端页面：设置页 6 分页、`/settings?tab=` 深链、旧入口别名（`ai`→`models`、`tts`→`speech`、`migration`→`about`）、大模型未保存离开拦截均已落地
+- 说明：`aishell3` 模型实际采样率为 8kHz（模型固有），界面未展示该数值，避免误导
+
+## 三·补六、阶段4 · 批次H 课堂引导与学习点评 v1（已实现并验证 2026-10-24）
+
+- 设计文档：`docs/design/classroom-guidance-and-feedback-v1.md`（APPROVED，v1 仅 P0）
+- 范围：昵称引导、课堂键盘导航（←/→/空格/Esc）、完成点评（1–5 星 + 三句话 + 语音朗读）、点评记录落库
+- 关键实现：
+  1. 昵称：`settings.nickname` 全链路（默认值/迁移/持久化），设置页通用 Tab 可改；课堂首次进入且昵称为空时弹引导，跳过后本机不再重复（`lexitype_nickname_prompt_skipped`）
+  2. 键盘：`ClassroomPage.vue` 全局监听并分发到舞台；输入框/组合键/长按/输入法组合态不拦截；精读 ←/→ 切句并朗读+滚动定位，燃尽 ←/→ 切题（向后未完成记为跳过），空格播放，Esc 退出输入
+  3. 点评：`shared/utils/lessonFeedback.ts` 纯函数计算星级与三段文案；`LessonFeedbackDialog.vue` 展示星级/数据/点评并支持“听小老师说”
+  4. 记录：复用 `learning_records.metadata`，`activityType=lesson-feedback`；燃尽自动触发，精读/词根顶栏“完成本课”手动触发
+  5. 指标：燃尽新增 `firstTryUnits`、`skippedUnits` 与按单元键去重；完成数由已完成键集合推导，避免重复计数
+
+### 批次H 实测证据（2026-10-24）
+
+- 前端构建：`npm run build` 通过（`vue-tsc --noEmit` 无错误，`vite build` 成功，产物含 `ClassroomPage` 55.15 kB）
+- 后端接口：临时独立 SQLite 建表后用 TestClient 实测 `POST /api/learning-records`（activityType=`lesson-feedback`, metadata.stars=4）→ 201；`GET /api/learning-records?courseId=course-test` → 200 且返回该记录；验证后已删除临时库，未写入开发数据
+- 交互待实机复验：`NOT_RUN`（需在 5183 打开演示课程验证：昵称引导、左右键切句滚动、燃尽切题、点评卡朗读与落库）
+- 后续版本（用户愿景）：开机语音引导、完成自动播报、AI 个性化点评、学习报告趋势页
 
 ## 四、未完成功能清单（按学习闭环优先级）
 
@@ -107,8 +188,9 @@
 | ~~P0~~ | ~~真实存量数据迁移~~ 已完成 | 27 条掌握度 + 142 条复习日志已入库，17/17 校验通过 | 见“真实迁移证据” |
 | ~~P1~~ | ~~统计页真实数据~~ 已完成（批次C 切片1） | 练习记录补齐 `totalItems/correctItems/wpm`，统计页去除随机数与模拟完成度 | 见“批次C 切片1 实测证据” |
 | ~~P1~~ | ~~学习计划页~~ 已完成（批次C 切片2） | 多计划、自定义每日任务、打卡快照、页面内提醒、历史回顾均已落地 | 见“批次C 切片2 实测证据” |
-| P1 | AI 对话/课程生成 | 需求与设计已完成（批次D，`docs/design/ai-backend-proxy-v1.md`），待评审后实现 | 前端直连模型服务；后端无 AI 代理 |
-| P1 | 资源工坊（YouTube 字幕导入） | 仅有旧的 mock 导入逻辑，无后端 | `AILabPage.vue`（未挂载） |
+| ~~P1~~ | ~~AI 对话/课程生成~~ 已完成（批次D） | 密钥下沉 `backend/.env`，前端统一走 `/api/ai/*` 代理；设置页只读状态 | 见“批次D 验证证据” |
+| ~~P1~~ | ~~设置页分页与模型配置（批次G，含 OpenVoice 克隆音色）~~ 已完成 | 6 分页与深链、多引擎/音色选择、克隆上传/试听/删除、大模型服务商配置与草稿测试全部落地 | 见“批次G 实测证据” |
+| P1 | 资源库与字幕导入 | 设计已产出（批次F F1/F5），当前仅有旧的 mock 导入逻辑 | `docs/design/english-learning-vision-v1.md`、`AILabPage.vue` |
 | P2 | 游戏成绩持久化 | 结束不上报 | `GameCenterPage.vue` |
 | P2 | 设置页数据导出/导入/清空 | 仅提示成功，未真正执行 | `AISettingsPanel` |
 | P2 | 拼音练习 | 3 处 TODO | `PinyinPage.vue` |
@@ -117,10 +199,11 @@
 ## 五、后续执行计划
 
 1. **批次C（P1）**：统计页真实聚合（切片1）与学习计划完整版（切片2）均已完成。
-2. **批次D（P1）**：设计已产出，待评审；评审通过后按 D1 后端代理 → D2 前端切换 → D3 设置页 → D4 清理验收 实施。
+2. **批次D（P1）**：已完成（D1 后端代理 → D2 前端切换 → D3 设置页 → D4 清理验收）；待填入真实密钥后执行手工联调。
 3. **批次E（P2）**：游戏成绩、设置数据管理、拼音、翻译/词汇页收尾。
-4. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。
-5. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB）尚未导出，该端口被其它项目占用，待端口释放后执行。
+4. **批次F（P1）**：英语学习体系设计已产出（`docs/design/english-learning-vision-v1.md`），待评审；通过后按 F0 调研 → F1 资源元数据与分类 → F4 悬停精读 → F3 燃尽法 → F2 词根扩展 → F5 字幕导入 → F6 AI 对话场景（硬依赖批次D）→ F7 验收 实施。
+5. 遗留清理：`frontend/src/shared/database/dataMigration.ts` 仍为旧 IndexedDB 导入工具，未挂载到 UI；设置页数据管理（批次E）接入后端 `/api/migration/import` 后一并下线。
+6. 可选补迁：`http://localhost:5173` 源（旧 Vue 版 IndexedDB，约 11KB）尚未导出，该端口被其它项目占用，待端口释放后执行。
 
 ## 六、验证命令
 
@@ -132,3 +215,29 @@ cd backend; .\.venv\Scripts\python.exe -m compileall -q .\app
 # 前端
 cd frontend; npm run build
 ```
+
+## 七、AI 调用失败修复（2026-10-24）
+
+- 状态：已完成并验证（批次D 补丁）。
+- 根因：`glm-5.3-flash` 为思考模型，`max_tokens` 被 `reasoning_content` 吃光（实测 13099 字符 reasoning、正文 0），`finish_reason=length`；课程/教材单次输出需求又远超 4000 预算，导致空响应或 JSON 截断。
+- 修复：
+  - 后端 `app/core/ai_providers.py` 新增 `thinking_disable_params()` 单点维护，`/api/ai/chat` 与 `/api/ai/chat/stream` 自动关闭思考（zhipu `thinking.type=disabled`，qwen3 `enable_thinking=false`）。
+  - 前端 `aiService.ts`：课程生成超过 40 词自动拆为“大纲 + 每批 20 词”；补齐音频/翻译路径缺失的 JSON 结构；翻译上限 4000、教材词汇 5000；批次内按单词去重。
+- 证据：同请求由 140s 无返回变为 38.9s / 14869 字符；真实 UI 中文生成英文课程 6 次调用全 `status=ok`（07:35:21→07:36:22）；教材单元 6.5s 可解析、词汇 10.4s、翻译 2.2s；`pytest` 31 passed；`npm run build` 通过。
+
+## 八、课程学习缺陷修复（2026-10-24）
+
+- 状态：已修复，构建通过，待用户实机复测。
+- 缺陷1（词燃尽卡死）：`BurnDownStage.vue` 的“开始燃尽”按钮原仅 `mode === 'sentence' && stage === 0` 渲染，单词模式下 stage=0 输入框与提交按钮为 disabled，导致整课无法开始。修复：起点按钮对两种模式都渲染，文案随模式变化；单词模式完成/跳过/切题后直接进入 stage=1，不再每词多点一次。
+- 缺陷2（语音不播放）：控制台报 `Failed to load because no supported source was found.`。修复：`ttsApiService` 持久化缓存增加音频文件头校验（RIFF/OggS/ID3/ADTS），损坏条目自动删除并重新合成；新增 `force` 参数跳过缓存；`useSpeechPlayer` 播放失败自动重试一次（强制重新合成），仍失败则 `fetch` 校验 `audio/*` 后用 Blob 兜底播放，最终失败日志带 `src` 便于定位。
+- 验证：`npm run build` 通过；已复现四个学习环节中课堂加载、精读渲染、课时练习判分正常，词燃尽与语音为上述两处真实缺陷。
+
+## 九、课程仓库分级 + 课堂老师语音引导（2026-10-24）
+
+- 状态：已实现并验证；设计见 `docs/design/course-library-and-teacher-guidance-v1.md`。
+- 需求1（生成语音）：实测当前设置（melo / melo:0 / rate=0.5）下，单词 `hello` 与 64~68 字符句子均返回有效 WAV（RIFF 头、0.75s / 6.84s / 7.38s），`/api/tts/audio/*.wav` 返回 `audio/wav`；中文老师台词 TTS 亦正常（2.59s）。补充修复：教材“生成音频”与课程预缓存均显式沿用设置页当前引擎/音色/语速，预缓存支持把例句句子一并缓存。
+- 需求2（课程仓库分级）：新增纯函数 `shared/utils/courseTaxonomy.ts`，按 `tags`（含新增 `Textbook:/Grade:/Semester:` 标签）优先、标题/描述回退解析，输出「教材系列 → 年级册 → 单元课程」；课程仓库新增第三个视图 `textbook`，保留卡片/列表与批量操作，非教材课程归入“其他课程”。
+- 需求3（老师语音引导）：`useTeacherGuide` + `TeacherBubble` 接入课堂，事件驱动台词状态机：开场、切换模式、报题并自动播放示范、答对鼓励、答错纠正、20/45 秒超时逐级提示、精读查词/生词本提示、完成总结；台词中文 TTS，字幕常驻底部，支持重播与静音，重复台词 8 秒去重、非关键台词 1.2 秒最小间隔。
+- 子舞台事件：`BurnDownStage` 新增 `answer`（正确/错误/期望/阶段）与 `idle`；`ReaderStage` 新增 `activity`（lookup/add-word）。
+- 验证证据（2026-10-24）：`npm run build` 通过；浏览器实测教材视图出现「鲁教版 · 鲁教版小学英语（三年级起点，五四制）→ 三年级 · 上册 → 10 个单元」三级结构；课堂实测底部老师气泡台词为“小玉米，我们开始吧。我们来做词燃尽……第 1 个单词，先听一遍示范，再点开始。”，`POST /api/tts/generate` 返回 200；答错与 20/45 秒超时均触发对应纠错/升级提示，控制台无 error。
+- 附带修复（控制台 35 条 `net::ERR_ABORTED`）：根因为 `unplugin-vue-components` / `unplugin-auto-import` 在开发与构建期间反复重写 `components.d.ts`、`auto-imports.d.ts`，Vite 将其视为源码变更并触发整页刷新，浏览器正在加载的模块被中断。已在 `frontend/vite.config.ts` 的 `server.watch.ignored` 中忽略这两个类型声明文件；验证：修改其时间戳不再触发 page reload，首页与课堂页新鲜加载均为 0 条 error。

@@ -60,6 +60,19 @@ export default defineConfig({
   server: {
     port: DEV_SERVER_PORT,
     strictPort: true,
+    /**
+     * 忽略自动生成的类型声明文件。
+     * components.d.ts / auto-imports.d.ts 由插件在开发与构建时重写，
+     * 若不忽略，开发服务器会把每次重写当作源码变更并触发整页刷新，
+     * 浏览器正在加载的模块会被中断并显示大量 net::ERR_ABORTED。
+     * 这两个文件只影响编辑器类型提示，不参与运行时，忽略后不影响功能。
+     */
+    watch: {
+      ignored: [
+        '**/src/renderer/components.d.ts',
+        '**/src/renderer/auto-imports.d.ts',
+      ],
+    },
     // 开发期直接把 /api 代理到后端，前端代码无需关心端口
     proxy: {
       '/api': {

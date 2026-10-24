@@ -102,12 +102,50 @@ class Settings(BaseSettings):
     # 语音临时文件目录（相对 backend/），上传音频转换后落盘于此
     voice_tmp_dir: str = Field(default="data/tmp/voice", alias="VOICE_TMP_DIR")
 
+    # ---------- AI 能力（批次D：后端代理） ----------
+    # 供应商标识：仅用于状态展示与日志，不参与路由选择
+    ai_provider: str = Field(default="qwen", alias="AI_PROVIDER")
+    # 上游 base 地址：必须是 OpenAI 兼容模式，不含 /chat/completions
+    ai_base_url: str = Field(
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        alias="AI_BASE_URL",
+    )
+    # API 密钥：仅存于 backend/.env，接口从未回显，日志禁止记录
+    ai_api_key: str = Field(default="", alias="AI_API_KEY")
+    # 默认模型名称
+    ai_model: str = Field(default="qwen-plus", alias="AI_MODEL")
+    # 单次调用超时上限（秒）：非流式与流式读取共用
+    ai_timeout_seconds: int = Field(default=120, alias="AI_TIMEOUT_SECONDS")
+    # 服务端允许的最大输出 token 数：前端传入更大值时会被截断
+    ai_max_tokens: int = Field(default=8000, alias="AI_MAX_TOKENS")
+
     @field_validator("log_level")
     @classmethod
     def normalize_log_level(cls, value: str) -> str:
         """规范化日志级别：统一大写，避免小写配置导致日志级别不生效。"""
         # 去除空白并转大写后返回
         return value.strip().upper()
+
+    @property
+    def ai_chat_url(self) -> str:
+        """返回上游 OpenAI 兼容 chat completions 完整地址。
+
+        说明：
+            配置中只保存 base 地址（如 .../compatible-mode/v1），
+            这里统一拼接 /chat/completions，避免各调用点各自拼接造成漂移。
+        """
+        # 去掉尾部斜杠后再拼接，兼容用户填写末尾带斜杠的情况
+        return self.ai_base_url.rstrip("/") + "/chat/completions"
+
+    @property
+    def ai_configured(self) -> bool:
+        """判断 AI 能力是否已具备最小可用配置。
+
+        返回：
+            True 表示密钥、base 地址、模型三者均非空，可发起上游调用。
+        """
+        # 三项缺一不可；密钥只做非空判断，绝不回显内容
+        return bool(self.ai_api_key.strip() and self.ai_base_url.strip() and self.ai_model.strip())
 
     @property
     def cors_origins(self) -> List[str]:
