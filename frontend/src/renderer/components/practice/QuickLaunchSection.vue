@@ -40,7 +40,7 @@
           </div>
           <div class="card-content">
             <h4>待复习错题</h4>
-            <p>{{ errorCount }} 个需要复习</p>
+            <p>{{ props.errorCount }} 个需要复习</p>
             <span class="card-meta">优先修复薄弱项</span>
           </div>
           <el-icon class="card-arrow"><ArrowRight /></el-icon>
@@ -142,6 +142,7 @@ const props = defineProps<{
   courses: Course[]
   practiceModes: PracticeMode[]
   reviewQueue: ReviewItem[]
+  errorCount: number
 }>()
 
 const emit = defineEmits<{
@@ -152,11 +153,6 @@ const emit = defineEmits<{
 }>()
 
 // 计算属性
-const errorCount = computed(() => {
-  // 这里应该从 store 获取
-  return 5
-})
-
 const estimatedTime = computed(() => {
   return Math.ceil(props.reviewQueue.length * 1.5)
 })
