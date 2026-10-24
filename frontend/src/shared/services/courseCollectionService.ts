@@ -18,6 +18,10 @@ interface CollectionListResponse {
 
 /** Persisted course collection API; collections are independent of legacy tags. */
 export const courseCollectionService = {
+  async migrateLegacyTags(): Promise<{ createdCollections: number; assignedCourses: number; preservedLegacyTags: boolean }> {
+    return apiPost('/api/course-collections/migrate-legacy-tags', {})
+  },
+
   async list(): Promise<CourseCollection[]> {
     const response = await apiGet<CollectionListResponse>('/api/course-collections')
     return response.items
