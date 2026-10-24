@@ -300,3 +300,11 @@ cd frontend; npm run build
 - 最新进度修正：完整单元数现在按该单元所选内容类型全部完成计算，不再把“单元标题”误当成内容类型任务键。
 - CI 仅证明自动化检查通过；浏览器切换页面持续运行、刷新/异常后恢复、真实模型耗时与 Windows E2E 仍为 NOT_RUN。
 - 详细报告：`docs/tasks/TEXTBOOK_GENERATION_AUDIT_2026-10-24.md`。
+
+
+## 十四、前端控制台错误修复（2026-10-24）
+
+- 已修改 `frontend/src/renderer/components/ai/AudioImportPanel.vue`：单选按钮的值绑定从弃用的 `:label` 改为 `:value`。
+- 已修改 `frontend/src/renderer/components/ai/AISettingsPanel.vue`：6 个 `el-radio` 的 `label` 属性改为 `value`，保留原有选项值与文案。
+- 验证：静态内容检查确认上述文件已无旧式 `<el-radio label=...`；前端构建、浏览器复测和 CI 状态为 `NOT_RUN`。
+- `VM149:2` 的 `reportAllChanges/startTime` 异常在仓库源码中未检索到对应实现，当前不能归因于业务页面；来源可能是浏览器注入脚本，需运行时确认。未屏蔽全局异常，也未声称该异常已修复。
