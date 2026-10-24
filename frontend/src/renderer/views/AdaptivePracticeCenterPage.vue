@@ -306,19 +306,28 @@ function startPracticeWithRecommendation(action: string) {
   }
 }
 
-// 启动课程练习
-function launchCoursePractice(courseId: string) {
-  const course = courses.value.find(c => c.id === courseId)
-  if (course) {
-    const lessonId = course.lessons[0]?.id
-    if (!lessonId) return
-    router.push({
+// 启动课程练习：从课程详情中选择第一个包含题目的课时
+async function launchCoursePractice(courseId: string) {
+  try {
+    await courseStore.loadCourseById(courseId)
+    const course = courseStore.currentCourse
+    if (!course) {
+      ElMessage.error('课程加载失败，请刷新后重试')
+      return
+    }
+    const lesson = course.lessons.find(item => (item.items?.length ?? 0) > 0)
+    if (!lesson) {
+      ElMessage.warning('该课程暂时没有可练习的题目，请先补充课时内容')
+      return
+    }
+    await router.push({
       name: 'LessonPractice',
-      params: { lessonId },
-      query: {
-        courseId,
-      },
+      params: { lessonId: lesson.id },
+      query: { courseId },
     })
+  } catch (error) {
+    console.error('启动课程练习失败:', error)
+    ElMessage.error('启动课程练习失败，请检查课程数据后重试')
   }
 }
 
@@ -345,33 +354,22 @@ async function startQuickPractice(type: string, _level: string) {
       return
     }
 
-    const candidate = courseStore.courses.find(course => (course.lessons?.length ?? 0) > 0)
-    if (!candidate) {
-      ElMessage.warning('当前课程还没有课时，请先在课程仓库补充课时内容。')
-      await router.push({ name: 'CourseRepository' })
+    for (const candidate of courseStore.courses.filter(course => (course.lessons?.length ?? 0) > 0)) {
+      await courseStore.loadCourseById(candidate.id)
+      const loadedCourse = courseStore.currentCourse
+      const lesson = loadedCourse?.lessons?.find(item => (item.items?.length ?? 0) > 0)
+      if (!loadedCourse || !lesson) continue
+
+      await router.push({
+        name: 'LessonPractice',
+        params: { lessonId: lesson.id },
+        query: { courseId: loadedCourse.id, mode: target.mode, source: 'practice-center' },
+      })
       return
     }
 
-    await courseStore.loadCourseById(candidate.id)
-    const loadedCourse = courseStore.currentCourse
-    const lesson = loadedCourse?.lessons?.find(item => (item.items?.length ?? 0) > 0)
-      ?? loadedCourse?.lessons?.[0]
-    if (!loadedCourse || !lesson) {
-      ElMessage.warning('没有找到可用课时，请先检查课程内容。')
-      await router.push({ name: 'CourseRepository' })
-      return
-    }
-    if (!lesson.items?.length) {
-      ElMessage.warning('该课时没有练习题目，请先生成或补充课时内容。')
-      await router.push({ name: 'CourseRepository' })
-      return
-    }
-
-    await router.push({
-      name: 'LessonPractice',
-      params: { lessonId: lesson.id },
-      query: { courseId: loadedCourse.id, mode: target.mode, source: 'practice-center' },
-    })
+    ElMessage.warning('当前没有包含练习题目的课时，请先到课程仓库补充课程内容。')
+    await router.push({ name: 'CourseRepository' })
   } catch (error) {
     console.error('启动快速练习失败:', error)
     ElMessage.error('启动练习失败，请检查课程数据或后端服务后重试')
