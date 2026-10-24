@@ -147,7 +147,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'launch-course': [courseId: string]
   'start-practice': [type: string, level: string]
-  'start-review': []
+  'start-error-review': []
+  'start-review-queue': []
 }>()
 
 // 计算属性
@@ -168,11 +169,11 @@ function handleLaunchCourse() {
 }
 
 function handleReviewErrors() {
-  emit('start-review')
+  emit('start-error-review')
 }
 
 function handleReviewQueue() {
-  emit('start-review')
+  emit('start-review-queue')
 }
 
 function handleQuickPractice(mode: PracticeMode) {
