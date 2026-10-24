@@ -392,7 +392,7 @@ ${trimmedSource}
 **Course:** ${courseName}
 **Lesson:** ${lessonName} — ${lessonDescription}
 
-**Task:** Provide exactly ${batchCount} ${contentLabel} for this lesson. Each item must be a natural ${focus === 'phrase' ? 'multi-word expression or collocation' : 'single vocabulary word'}.
+**Task:** Provide exactly ${batchCount} ${contentLabel} for this lesson. Each item must be a natural ${focus === 'phrase' ? 'multi-word expression or collocation; put the complete phrase in the word field' : 'single vocabulary word'}.
 Items must be relevant to the source material and ordered from easier to harder.
 Skip words that are already generated for this lesson.
 
@@ -589,6 +589,7 @@ ${transcription}
 
 **Requirements:**
 - Extract ${focus === 'phrase' ? 'natural phrases and collocations (not isolated words)' : 'key single vocabulary words'} from the source text
+- For phrase focus, put the complete multi-word phrase in the schema word field, such as check in; never return a single word
 - Create exactly ${lessonCount} lessons with exactly ${wordsPerLesson} ${focus === 'phrase' ? 'phrases' : 'words'} each
 - Provide complete word information (meaning, phonetic, example, translation)
 - Organize words by theme or difficulty
