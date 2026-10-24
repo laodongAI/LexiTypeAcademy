@@ -492,6 +492,31 @@ class StudyPlanCheckin(Base):
     created_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
 
+class CourseCollection(Base):
+    """课程集合节点：支持父子层级、排序和独立持久化。"""
+
+    __tablename__ = "course_collections"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    parent_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class CourseCollectionMembership(Base):
+    """课程与集合的关系表；不改写课程 JSON/旧标签，便于平滑迁移。"""
+
+    __tablename__ = "course_collection_memberships"
+    __table_args__ = (UniqueConstraint("course_id", name="uq_course_collection_memberships_course"),)
+
+    course_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    collection_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_at: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 # 前端 Dexie 集合名 → ORM 模型 的映射表
 # 说明：迁移导入按此映射逐表处理，新增表时必须同步维护
 # 注意：学习计划三张表是后端独有能力，无 Dexie 来源，故不登记在此映射中
