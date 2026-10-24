@@ -685,6 +685,15 @@ async function generateCourseFromTextbook() {
       checkpoint = { key, publisher: publisherForm.publisher.trim(), series: textbookForm.series.trim(), textbookName: textbookForm.textbookName.trim(), grade: gradeKey, ...config, completedTasks: [], lessonsByUnit: {}, updatedAt: Date.now() }
     }
     const activeCheckpoint = checkpoint as TextbookGenerationCheckpoint
+    // Migrate older unit-level checkpoints into content-type completion keys for accurate progress and safe resume.
+    for (const unitTitle of selectedUnits) {
+      if (activeCheckpoint.completedTasks.includes(unitTitle)) {
+        for (const type of selectedTypes) {
+          const taskKey = generationTaskKey(unitTitle, type)
+          if (!activeCheckpoint.completedTasks.includes(taskKey)) activeCheckpoint.completedTasks.push(taskKey)
+        }
+      }
+    }
     generationProgress.totalUnits = selectedUnits.length
     generationProgress.doneUnits = 0
     generationProgress.totalTasks = selectedUnits.length * selectedTypes.length
