@@ -298,7 +298,7 @@ interface TextbookGenerationCheckpoint {
   updatedAt: number
   error?: string
 }
-const CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const CHECKPOINT_KEY = 'textbook_course_system_builder_checkpoint_v1'
 const runningGenerationTasks = new Set<string>()
 const recoverableCheckpoint = ref<TextbookGenerationCheckpoint | null>(null)
 function readCheckpoint(): TextbookGenerationCheckpoint | null {
