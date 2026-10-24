@@ -633,7 +633,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
             )
 
             const words = [...result.core_words, ...result.extra_words]
-            const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'words')
+            const lessonId = createStableId('tb_lesson', publisher.value, series.value, gradeLevel.value, selectedTextbookName.value, unit.unit_num, 'words')
 
             const items: LessonItem[] = words
               .map((w, idx) => ({
@@ -664,7 +664,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
               'sentences'
             )
 
-            const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'sentences')
+            const lessonId = createStableId('tb_lesson', publisher.value, series.value, gradeLevel.value, selectedTextbookName.value, unit.unit_num, 'sentences')
             const items: LessonItem[] = result.sentences
               .map((s, idx) => ({
                 id: createStableId('tb_sentence', lessonId, idx, String(s.en || '').trim()),
@@ -698,7 +698,7 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
                 ? p.minimal_pairs.map((mp) => `min-pair: ${mp.word1}/${mp.word2}${mp.explanation ? ` (${mp.explanation})` : ''}`)
                 : []
 
-              const lessonId = createStableId('tb_lesson', selectedTextbookName.value, unit.unit_num, 'phonics', p.target_sound)
+              const lessonId = createStableId('tb_lesson', publisher.value, series.value, gradeLevel.value, selectedTextbookName.value, unit.unit_num, 'phonics', p.target_sound)
               const items: LessonItem[] = p.examples
                 .map((ex, idx) => ({
                   id: createStableId('tb_phonics_word', lessonId, idx, String(ex.word || '').trim()),
@@ -780,8 +780,23 @@ async function startGenerate(resumeTask: TextbookGenerationCheckpoint | null = n
   }
 }
 
-function goNext() {
-  if (activeStep.value < 3) activeStep.value++
+async function goNext() {
+  if (activeStep.value === 0) {
+    if (!selectedTextbookName.value) { ElMessage.warning('请先选择教材'); return }
+    activeStep.value = 1
+    await parseUnits(false)
+    return
+  }
+  if (activeStep.value === 1) {
+    if (units.value.length === 0) { ElMessage.warning('请先解析教材单元'); return }
+    if (selectedUnitsCount.value === 0) { ElMessage.warning('请至少选择一个单元'); return }
+    activeStep.value = 2
+    return
+  }
+  if (activeStep.value === 2) {
+    if (!hasGenerated.value) { ElMessage.warning('请先完成一次内容生成'); return }
+    activeStep.value = 3
+  }
 }
 
 function goPrev() {
