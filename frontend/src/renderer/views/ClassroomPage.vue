@@ -23,7 +23,7 @@ import {
   Reading,
   SwitchButton,
 } from '@element-plus/icons-vue'
-import type { Course, Lesson } from '../../shared/types/course'
+import { ContentShape, type Course, type Lesson } from '../../shared/types/course'
 import { courseRepository } from '../../shared/database/repositories/courseRepository'
 import { commonRepository } from '../../shared/database/repositories/commonRepository'
 import { createLogger } from '../../shared/utils/logger'
@@ -62,6 +62,27 @@ const loadError = ref('')
 
 /** 当前课堂模式 */
 const mode = ref<ClassroomMode>('reader')
+
+/** 根据课时内容形态推荐学习模式，避免词汇清单默认进入短文精读。 */
+function recommendedModeForLesson(target: Lesson): ClassroomMode {
+  if (target.contentShape === ContentShape.Word || target.contentShape === ContentShape.Phrase) return 'burn-word'
+  if (target.contentShape === ContentShape.Sentence) return 'burn-sentence'
+  return 'reader'
+}
+
+const learningMethodHint = computed(() => {
+  if (!lesson.value) return ''
+  if ((lesson.value.contentShape === ContentShape.Word || lesson.value.contentShape === ContentShape.Phrase) && mode.value === 'reader') {
+    return '这是一节词汇课。精读模式可以查看内容，但更推荐“词燃尽”进行主动回忆与拼写检索。'
+  }
+  if (lesson.value.contentShape === ContentShape.Passage && mode.value === 'burn-word') {
+    return '这是一篇短文。建议先整体阅读理解，再按需切换词汇练习，不要把整篇文章拆成孤立单词。'
+  }
+  if (lesson.value.contentShape === ContentShape.Dialog && mode.value === 'reader') {
+    return '这是一段对话。建议先整体理解语境，再进行逐句听读与角色扮演；当前课堂暂未提供独立的角色扮演模式。'
+  }
+  return ''
+})
 /** 悬停朗读开关 */
 const hoverEnabled = ref(route.query.hover !== '0')
 /** 中文提示开关 */
@@ -809,6 +830,11 @@ async function loadCourse(): Promise<void> {
     }
 
     lesson.value = target
+    // 用户未显式指定课堂模式时，根据内容形态选择更合适的默认方法。
+    // URL 中的 mode 表示用户明确选择，必须优先尊重。
+    if (!route.query.mode) {
+      mode.value = recommendedModeForLesson(target)
+    }
 
     // 进入课堂时立即持久化当前课时，确保刷新/重启后首页可以恢复学习位置。
     // 进度写入失败不阻断课堂，但会留下可诊断日志。
@@ -849,7 +875,7 @@ async function loadCourse(): Promise<void> {
 
 /** 初始化：校验 mode 参数并加载数据 */
 onMounted(async () => {
-  const queryMode = String(route.query.mode || 'reader')
+  const queryMode = route.query.mode ? String(route.query.mode) : ''
   const allowed: ClassroomMode[] = ['reader', 'burn-sentence', 'burn-word', 'root']
   mode.value = allowed.includes(queryMode as ClassroomMode) ? (queryMode as ClassroomMode) : 'reader'
 
@@ -953,6 +979,8 @@ onBeforeUnmount(() => {
         <el-button size="small" :icon="SwitchButton" @click="goBack">退出课堂</el-button>
       </div>
     </header>
+
+    <el-alert v-if="learningMethodHint" class="learning-method-hint" type="info" show-icon :closable="false" :title="learningMethodHint" />
 
     <!-- 加载态 -->
     <div v-if="loading" class="classroom-state">
@@ -1140,6 +1168,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* 页面外壳：沉浸式渐变背景 */
+.learning-method-hint { margin: 0 20px 12px; }
+
 .classroom-page {
   min-height: 100vh;
   padding: 18px clamp(14px, 3vw, 34px) 40px;
