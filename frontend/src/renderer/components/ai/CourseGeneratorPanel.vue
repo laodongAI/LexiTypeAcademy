@@ -70,6 +70,14 @@
     <el-divider />
 
     <div v-if="pendingCourse" class="preview-section">
+      <el-alert
+        type="info"
+        show-icon
+        :closable="false"
+        title="本方式当前生成的是词汇课程"
+        description="建议采用听音辨词、词形与词义回忆、搭配和例句理解、主动检索及间隔复习。单词清单不应直接按短文精读流程教学；如需保留原始音频语境，请使用语音导入方式。"
+        class="learning-method-hint"
+      />
       <h4>📋 课程预览</h4>
       <el-card class="preview-card">
         <template #header>
@@ -262,6 +270,10 @@ function goToPractice() {
 
 .action-btn {
   font-weight: 500;
+}
+
+.learning-method-hint {
+  margin-bottom: 16px;
 }
 
 .preview-section {
