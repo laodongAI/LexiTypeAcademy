@@ -17,6 +17,15 @@
       @start-practice="startPracticeWithRecommendation"
     />
     
+    <el-alert
+      v-if="statsError"
+      class="stats-error"
+      type="error"
+      show-icon
+      :closable="false"
+      :title="statsError"
+    />
+
     <!-- 统计面板 -->
     <StatisticsPanel
       :stats="todayStats"
@@ -199,6 +208,7 @@ const todayStats = ref({
   totalMinutes: 0,
   streakDays: 0,
 })
+const statsError = ref('')
 
 // 掌握度分布
 const masteryDistribution = computed(() => {
@@ -248,8 +258,10 @@ async function loadTodayStats() {
   try {
     const stats = await practiceStore.getTodayStats()
     todayStats.value = stats
+    statsError.value = ''
   } catch (error) {
     console.error('加载统计数据失败:', error)
+    statsError.value = '练习统计加载失败，请检查后端服务后点击刷新或重新进入页面。'
   }
 }
 
