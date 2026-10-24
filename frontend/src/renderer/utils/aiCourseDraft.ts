@@ -6,7 +6,7 @@ export type CourseDraft = Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'lesso
 
 export function courseDraftFromGenerationResponse(
   result: CourseGenerationResponse,
-  context: { title?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; tags?: string[] } = {}
+  context: { title?: string; difficulty?: 'beginner' | 'intermediate' | 'advanced'; tags?: string[]; contentShape?: ContentShape } = {}
 ): CourseDraft {
   const difficulty = context.difficulty || 'intermediate'
   const courseTitle = context.title || result.courseName || 'AI 生成课程'
@@ -37,7 +37,7 @@ export function courseDraftFromGenerationResponse(
       id: lessonId,
       title: lesson.lessonName || `Lesson ${lessonIndex + 1}`,
       description: lesson.description || '',
-      contentShape: ContentShape.Word,
+      contentShape: context.contentShape ?? ContentShape.Word,
       items,
       createdAt: Date.now(),
       updatedAt: Date.now(),
