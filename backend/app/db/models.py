@@ -137,7 +137,7 @@ class LearningList(Base):
     course_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     # 加入时间（毫秒时间戳）
     added_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    # 累计学习时长（毫秒，可选）
+    # 累计学习时长（分钟，与前端 LearningListItem 契约一致，可选）
     total_study_time: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
