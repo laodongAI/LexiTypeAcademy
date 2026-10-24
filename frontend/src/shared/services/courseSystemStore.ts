@@ -94,28 +94,36 @@ class CourseSystemStore {
     }
   }
 
-  getUnits(publisher: string, series: string, textbookName: string): TextbookUnitMeta[] | null {
-    const key = `${publisher}|${series}|${textbookName}`;
-    return this.data.units[key] || null;
+  private unitsKey(publisher: string, series: string, textbookName: string, grade?: string): string {
+    return grade ? `${publisher}|${series}|${grade}|${textbookName}` : `${publisher}|${series}|${textbookName}`;
   }
 
-  saveUnits(publisher: string, series: string, textbookName: string, units: TextbookUnitMeta[]) {
-    const key = `${publisher}|${series}|${textbookName}`;
+  getUnits(publisher: string, series: string, textbookName: string, grade?: string): TextbookUnitMeta[] | null {
+    const key = this.unitsKey(publisher, series, textbookName, grade);
+    // Read old cache keys for backward compatibility; the next write moves them to the grade-scoped key.
+    return this.data.units[key] || this.data.units[this.unitsKey(publisher, series, textbookName)] || null;
+  }
+
+  saveUnits(publisher: string, series: string, textbookName: string, units: TextbookUnitMeta[], grade?: string) {
+    const key = this.unitsKey(publisher, series, textbookName, grade);
     this.data.units[key] = units;
     this.save();
   }
 
-  clearUnits(publisher: string, series: string, textbookName: string) {
-    const key = `${publisher}|${series}|${textbookName}`;
-    if (this.data.units[key]) {
+  clearUnits(publisher: string, series: string, textbookName: string, grade?: string) {
+    const key = this.unitsKey(publisher, series, textbookName, grade);
+    const legacyKey = this.unitsKey(publisher, series, textbookName);
+    if (this.data.units[key] || this.data.units[legacyKey]) {
       delete this.data.units[key];
+      delete this.data.units[legacyKey];
       this.save();
     }
   }
 
-  markUnitTypeAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, contentType: string) {
-    const key = `${publisher}|${series}|${textbookName}`;
-    const units = this.data.units[key];
+  markUnitTypeAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, contentType: string, grade?: string) {
+    const key = this.unitsKey(publisher, series, textbookName, grade);
+    const legacyKey = this.unitsKey(publisher, series, textbookName);
+    const units = this.data.units[key] || this.data.units[legacyKey];
     if (!units) return;
     const unit = units.find(item => item.title === unitTitle);
     if (!unit) return;
@@ -126,9 +134,9 @@ class CourseSystemStore {
     this.save();
   }
 
-  markUnitAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string) {
-    const key = `${publisher}|${series}|${textbookName}`;
-    const units = this.data.units[key];
+  markUnitAsGenerated(publisher: string, series: string, textbookName: string, unitTitle: string, grade?: string) {
+    const key = this.unitsKey(publisher, series, textbookName, grade);
+    const units = this.data.units[key] || this.data.units[this.unitsKey(publisher, series, textbookName)];
     if (units) {
       const unit = units.find(u => u.title === unitTitle);
       if (unit) {
