@@ -17,6 +17,7 @@ export type LearningEventType =
   | 'study_plan_task_completed'
   | 'conversation_completed'
   | 'conversation_abandoned'
+  | 'conversation_feedback_saved'
 
 export interface LearningEvent {
   eventId: string
