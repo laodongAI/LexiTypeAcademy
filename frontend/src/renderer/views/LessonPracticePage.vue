@@ -202,7 +202,13 @@ provide(practiceAttemptContextKey, { courseId, lessonId })
 
 // 状态
 const practiceStarted = ref(false)
-const currentMode = ref<PracticeMode | ''>('')
+const validPracticeModes: PracticeMode[] = ['dictation', 'follow', 'translation', 'imitation']
+const requestedMode = route.query.mode
+const currentMode = ref<PracticeMode | ''>(
+  typeof requestedMode === 'string' && validPracticeModes.includes(requestedMode as PracticeMode)
+    ? requestedMode as PracticeMode
+    : ''
+)
 const currentIndex = ref(0)
 const lessonItems = ref<LessonItem[]>([])
 const lessonTitle = ref('')
@@ -289,6 +295,9 @@ onMounted(async () => {
     lessonId: lessonId.value,
     metadata: { entry: 'lesson-practice' },
   }).catch(error => console.warn('记录课时开始事件失败:', error))
+
+  // 练习中心可通过 mode 深链启动指定模式；普通进入仍保留手动选择流程
+  if (currentMode.value) startPractice()
 })
 
 // 获取模式标签
