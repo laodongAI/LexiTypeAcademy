@@ -10,7 +10,7 @@
     <el-row :gutter="20" class="overview-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="总学习时长" :value="stats.totalMinutes" suffix="分钟" :precision="0">
+          <el-statistic title="累计练习时长" :value="stats.totalMinutes" suffix="分钟" :precision="0">
             <template #prefix>
               <el-icon color="#409EFF"><Clock /></el-icon>
             </template>
@@ -169,7 +169,7 @@ async function loadStats() {
     
     if (allRecords.length > 0) {
       stats.value.totalPractice = allRecords.length
-      // 总学习时长：耗时字段单位毫秒，换算为分钟后四舍五入（Element Plus 的小数位是截断显示，分钟更直观）
+      // 累计练习时长：只汇总练习记录的耗时字段（毫秒），不包含复习/课堂/计划时长（Element Plus 的小数位是截断显示，分钟更直观）
       stats.value.totalMinutes = Math.round(
         allRecords.reduce((sum, r) => sum + r.duration, 0) / 60000
       )
