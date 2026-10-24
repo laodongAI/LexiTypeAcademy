@@ -6,11 +6,22 @@
 
 <template>
   <div class="statistics-page">
+    <el-alert
+      v-if="loadError"
+      class="load-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="loadError"
+    />
+    <div v-if="loadError" class="retry-row">
+      <el-button size="small" @click="loadStats">重新加载统计</el-button>
+    </div>
     <!-- 数据概览 -->
     <el-row :gutter="20" class="overview-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="累计练习时长" :value="stats.totalMinutes" suffix="分钟" :precision="0">
+          <el-statistic title="累计练习时长" :value="stats.totalMinutes ?? '—'" suffix="分钟" :precision="0">
             <template #prefix>
               <el-icon color="#409EFF"><Clock /></el-icon>
             </template>
@@ -19,7 +30,7 @@
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="总练习次数" :value="stats.totalPractice">
+          <el-statistic title="总练习次数" :value="stats.totalPractice ?? '—'">
             <template #prefix>
               <el-icon color="#67C23A"><Document /></el-icon>
             </template>
@@ -28,7 +39,7 @@
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="平均WPM" :value="stats.avgWpm" :precision="0">
+          <el-statistic title="平均WPM" :value="stats.avgWpm ?? '—'" :precision="0">
             <template #prefix>
               <el-icon color="#E6A23C"><Timer /></el-icon>
             </template>
@@ -37,7 +48,7 @@
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="平均准确率" :value="stats.avgAccuracy" suffix="%" :precision="1">
+          <el-statistic title="平均准确率" :value="stats.avgAccuracy ?? '—'" suffix="%" :precision="1">
             <template #prefix>
               <el-icon color="#F56C6C"><CircleCheck /></el-icon>
             </template>
@@ -149,12 +160,18 @@ let modeChart: ECharts | null = null
 let timeChart: ECharts | null = null
 
 // 统计数据
-const stats = ref({
-  totalMinutes: 0,
-  totalPractice: 0,
-  avgWpm: 0,
-  avgAccuracy: 0,
+const stats = ref<{
+  totalMinutes: number | null
+  totalPractice: number | null
+  avgWpm: number | null
+  avgAccuracy: number | null
+}>({
+  totalMinutes: null,
+  totalPractice: null,
+  avgWpm: null,
+  avgAccuracy: null,
 })
+const loadError = ref('')
 
 // 图表参数
 const trendPeriod = ref('7')
@@ -163,6 +180,7 @@ const dateRange = ref<[Date, Date]>()
 
 // 加载统计数据
 async function loadStats() {
+  loadError.value = ''
   try {
     // 获取所有练习记录（后端按完成时间倒序返回）
     const allRecords = await courseRepository.getAllPracticeRecords()
@@ -197,6 +215,7 @@ async function loadStats() {
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
+    loadError.value = '统计数据暂时无法读取，请检查本地后端服务后重试。'
   }
 }
 
@@ -556,6 +575,8 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+.load-alert { margin-bottom: 12px; }
+.retry-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .statistics-page {
   padding: 20px;
   max-width: 1400px;
