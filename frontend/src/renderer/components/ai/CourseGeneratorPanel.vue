@@ -25,6 +25,11 @@
         />
       </el-form-item>
 
+      <el-form-item label="课程集合（用于仓库分组）" required>
+        <el-input v-model="form.collectionName" placeholder="例如：旅行英语 / 职场英语 / A2 主题词汇" clearable />
+        <div class="field-hint">多个课程可以归入同一个集合，避免在仓库中平铺。</div>
+      </el-form-item>
+
       <el-form-item label="中文内容" required>
         <el-input
           v-model="form.chineseText"
@@ -160,6 +165,7 @@ const pendingCourse = ref<CourseDraft | null>(null)
 
 const form = reactive({
   courseName: '',
+  collectionName: 'AI 生成课程',
   chineseText: '',
   lessonCount: 5,
   wordsPerLesson: 10,
@@ -187,7 +193,7 @@ async function generateCourse() {
       lessonCount: form.lessonCount,
       wordsPerLesson: form.wordsPerLesson,
       difficulty: 'intermediate',
-      tags: ['AI', 'Chinese']
+      tags: ['AI', 'Chinese', `Collection:${form.collectionName.trim() || 'AI 生成课程'}`]
     })
 
     addDiagnosticLog('info', 'course-generation', '中文课程草稿生成成功', { lessons: pendingCourse.value.lessons.length })
@@ -232,6 +238,7 @@ function clearPending() {
 function resetAll() {
   clearPending()
   form.courseName = ''
+  form.collectionName = 'AI 生成课程'
   form.chineseText = ''
   form.lessonCount = 5
   form.wordsPerLesson = 10
@@ -262,6 +269,8 @@ function goToPractice() {
     margin-bottom: 8px;
   }
 }
+
+.field-hint { margin-top: 6px; color: var(--text-color-secondary); font-size: 12px; line-height: 1.5; }
 
 .form-actions {
   display: flex;
