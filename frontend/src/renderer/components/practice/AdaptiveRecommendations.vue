@@ -108,6 +108,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'start-practice': [action: string]
+  dismiss: []
 }>()
 
 // 获取行动按钮标签
@@ -128,7 +129,7 @@ function handleAction(action: string) {
 
 // 关闭推荐
 function dismissRecommendations() {
-  // 可以存储用户偏好，暂时隐藏推荐
+  emit('dismiss')
 }
 </script>
 
