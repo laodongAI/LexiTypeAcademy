@@ -16,12 +16,22 @@ JSON格式示例：
 }
 
 export function buildTextbookListPrompt(publisher: string, series: string, grade?: string): string {
-  const gradePrompt = grade ? `（适用学段：${grade}）` : '';
-  return `请列出${publisher}${series}教材${gradePrompt}的完整目录结构，按年级和学期输出教材名称，JSON格式：
+  const gradePrompt = grade ? `仅列出年级/学段为“${grade}”的教材。` : '请覆盖该系列实际存在的全部年级/学段，按从低到高排列。';
+  return `你是中国 K12 英语教材目录整理专家。请为“${publisher}”的“${series}”系列整理教材目录。
+
+任务要求：
+1. ${gradePrompt}
+2. 只列出该出版社、该系列真实对应的教材，不要混入其他出版社或近似系列；不确定的版本不要伪造。
+3. 每条教材都必须填写 grade、semester、name 三个非空字符串，禁止省略 grade。grade 应是可用于下拉筛选的稳定标签，例如“一年级”“二年级”“三年级”“七年级（初一）”“八年级（初二）”“九年级（初三）”“高一”“高二”“高三”；若该系列使用不同学段体系，则使用教材目录中的明确年级/学段名称。
+4. semester 使用“上册”“下册”或教材实际使用的“全一册”“必修上册”“选择性必修一”等名称；不得自行推断不存在的册次。
+5. 同一教材不得重复；按年级顺序、同一年级按教材册次顺序输出。
+6. 只返回 JSON，不要 Markdown、解释文字或额外字段。若无法可靠确认目录，返回 {"textbooks": []}。
+
+严格 JSON 结构：
 {
   "textbooks": [
-    {"grade": "G1", "semester": "上册", "name": "英语一年级上册"},
-    {"grade": "G1", "semester": "下册", "name": "英语一年级下册"}
+    {"grade": "三年级", "semester": "上册", "name": "英语（三年级起点）三年级上册"},
+    {"grade": "三年级", "semester": "下册", "name": "英语（三年级起点）三年级下册"}
   ]
 }`.trim();
 }
