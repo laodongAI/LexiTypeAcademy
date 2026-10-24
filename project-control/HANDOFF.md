@@ -109,3 +109,10 @@
 
 
 - 共享效率优化：`apiClient.ts` 合并并发重复 GET 请求但不保留响应缓存；手动新增单元进入 grade-scoped catalog cache；课程保存合并必须匹配教材身份，避免同名课程跨出版社/系列误合并。
+
+
+### 教材生成当前交接状态（2026-10-24）
+
+- Frontend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139632)；Backend quality：[PASS](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40074139620)，对应代码提交 `eba4bde6f8af63bd14c32800360c56f3ce55e532`。
+- 已修正完整单元计数逻辑；随后更新了审计报告，记录 CI 结果。
+- 继续工作前仍需浏览器/Windows 验证：页面切换时生成是否继续、异常/刷新后的断点恢复、增补内容是否正确合并、TTS 和真实模型耗时。当前断点机制是前端 localStorage 检查点，并非后端任务队列。
