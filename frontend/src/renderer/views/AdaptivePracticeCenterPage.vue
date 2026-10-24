@@ -171,12 +171,12 @@ const recommendations = computed<Recommendation[]>(() => {
   }
   
   // 2. 基于掌握度的复习推荐
-  const masteryGaps = errorStore.getMasteryGaps()
+  const masteryGaps = errorStore.getFrequentErrors()
   if (masteryGaps.length > 0) {
     result.push({
       type: 'review',
-      title: `📍 优先复习 ${masteryGaps.length} 个错题`,
-      description: `这些内容的掌握度较低，需要加强复习`,
+      title: `📍 优先复习 ${masteryGaps.length} 个高频错题`,
+      description: `这些题目在历史练习中重复出错，建议优先复习`,
       priority: 'high',
       action: 'review-errors',
       icon: 'List',
@@ -382,7 +382,7 @@ function selectQuickPractice(type: string) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadTodayStats(), courseStore.loadCourses(), practiceStore.loadReviewQueue()])
+  await Promise.all([loadTodayStats(), courseStore.loadCourses(), practiceStore.loadReviewQueue(), errorStore.loadErrorData().catch(error => console.error('加载错题统计失败:', error))])
 })
 </script>
 
