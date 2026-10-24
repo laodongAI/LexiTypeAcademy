@@ -144,7 +144,7 @@
 
         <div v-if="generationProgress.active" class="generation-progress">
           <div class="progress-header">
-            <span>正在生成：{{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
+            <span>已完成生成任务：{{ generationProgress.doneUnits }}/{{ generationProgress.totalUnits }}</span>
             <span v-if="generationProgress.currentUnit" class="progress-detail">
               {{ generationProgress.currentUnit }}<span v-if="generationProgress.currentType"> · {{ generationProgress.currentType }}</span>
             </span>
@@ -229,7 +229,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getAIService } from '../../../shared/services/ai'
@@ -286,7 +286,8 @@ const seriesOptions = ref<string[]>([])
 const activePublisher = ref('')
 const gradeOptions = ref<string[]>([])
 const textbookOptions = ref<Array<{ grade: string; semester: string; name: string }>>([])
-const unitOptions = ref<Array<{ unit_num: number; title: string; topics: string[] }>>([])
+type UnitOption = { unit_num: number; title: string; topics: string[]; generatedTypes?: string[] }
+const unitOptions = ref<UnitOption[]>([])
 
 const textbookForm = reactive({
   series: '',
@@ -407,16 +408,28 @@ async function parseUnits() {
       return
     }
 
-    const units = await ai.parseTextbookUnits(
-      publisherForm.publisher.trim(),
-      textbookForm.series.trim(),
-      textbookForm.textbookName.trim()
-    )
-    unitOptions.value = units.units || []
+    const publisher = publisherForm.publisher.trim()
+    const selectedSeries = textbookForm.series.trim()
+    const textbookName = textbookForm.textbookName.trim()
+    let parsedUnits = courseSystemStore.getUnits(publisher, selectedSeries, textbookName)
+    if (!parsedUnits?.length) {
+      const result = await ai.parseTextbookUnits(publisher, selectedSeries, textbookName)
+      parsedUnits = (result.units || []).map((unit: any) => ({
+        unit_num: Number(unit.unit_num) || 0,
+        title: String(unit.title || '').trim(),
+        topics: Array.isArray(unit.topics) ? unit.topics.map((topic: unknown) => String(topic)) : [],
+      })).filter((unit: { title: string }) => !!unit.title)
+      courseSystemStore.saveUnits(publisher, selectedSeries, textbookName, parsedUnits)
+    }
+    await courseStore.loadCourses()
+    unitOptions.value = parsedUnits.map(unit => ({
+      ...unit,
+      generatedTypes: getExistingTypes(getExistingCourseForUnit(unit.title)),
+    }))
     if (!unitOptions.value.length) {
       throw new Error('未解析到教材单元')
     }
-    unitForm.unitTitles = [unitOptions.value[0].title]
+    unitForm.unitTitles = unitOptions.value.map(unit => unit.title)
     step.value = 2
   } catch (e) {
     error.value = e instanceof Error ? e.message : '解析单元失败'
@@ -482,6 +495,26 @@ async function fetchTextbooksInternal(ai = getAIService(), forceRefresh = false)
     textbookForm.textbookName = textbookOptions.value[0].name
   }
   return allTextbooks
+}
+
+function getExistingCourseForUnit(unitTitle: string) {
+  const textbookTag = 'Textbook:' + textbookForm.textbookName.trim()
+  return courseStore.courses.find(course =>
+    course.title === textbookForm.textbookName.trim() + ' - ' + unitTitle ||
+    (course.tags?.includes(textbookTag) && course.tags.includes(unitTitle))
+  ) ?? null
+}
+
+function getExistingTypes(course: { lessons?: Lesson[] } | null | undefined): string[] {
+  if (!course) return []
+  const types: Array<[string, RegExp]> = [
+    ['words', /单词|词汇/i],
+    ['sentences', /句子|课文|对话/i],
+    ['passage', /短文|阅读/i],
+    ['grammar', /语法/i],
+    ['phonics', /phonics|发音|音标/i],
+  ]
+  return types.filter(([, pattern]) => course.lessons?.some(lesson => pattern.test(lesson.title))).map(([type]) => type)
 }
 
 async function generateCourseFromTextbook() {
