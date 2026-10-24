@@ -171,7 +171,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Headset, Microphone, DocumentCopy, Film, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
-import type { LessonItem, PracticeMode } from '../../shared/types/course'
+import { PracticeMode, type LessonItem } from '../../shared/types/course'
 import { useTeachingFeedback, teachingFeedbackKey } from '../composables/useTeachingFeedback'
 import { practiceAttemptContextKey } from '../composables/practiceAttemptContext'
 import { learningEventService } from '../../shared/services/learningEventService'
@@ -202,7 +202,7 @@ provide(practiceAttemptContextKey, { courseId, lessonId })
 
 // 状态
 const practiceStarted = ref(false)
-const validPracticeModes: PracticeMode[] = ['dictation', 'follow', 'translation', 'imitation']
+const validPracticeModes: PracticeMode[] = [PracticeMode.Dictation, PracticeMode.FollowRead, PracticeMode.Translation, PracticeMode.Imitation]
 const requestedMode = route.query.mode
 const currentMode = ref<PracticeMode | ''>(
   typeof requestedMode === 'string' && validPracticeModes.includes(requestedMode as PracticeMode)
