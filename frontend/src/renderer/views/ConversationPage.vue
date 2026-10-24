@@ -84,7 +84,7 @@
           </div>
 
           <div
-            v-if="currentSession.scenarioId === 'english-interview' && currentSession.messages.some(message => message.role === 'assistant')"
+            v-if="currentSession.scenarioId === 'english-interview' && currentSession.messages.some(message => message.role === 'user') && currentSession.messages.some(message => message.role === 'assistant')"
             class="feedback-action"
           >
             <div>
@@ -253,7 +253,7 @@ function handleFinishCommand(command: string | number | object) {
 
 async function saveInterviewFeedback() {
   const session = currentSession.value
-  if (!session || session.scenarioId !== 'english-interview') return
+  if (!session || session.scenarioId !== 'english-interview' || !session.messages.some(message => message.role === 'user')) return
   const latestFeedback = [...session.messages].reverse().find(message => message.role === 'assistant')
   if (!latestFeedback) return
 
