@@ -338,6 +338,7 @@ interface TextbookGenerationCheckpoint {
   completedTasks: string[]
   lessonsByUnit: Record<string, Lesson[]>
   updatedAt: number
+  status?: 'running' | 'paused' | 'completed'
 }
 
 const GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
