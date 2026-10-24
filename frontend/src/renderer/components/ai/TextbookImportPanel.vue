@@ -68,7 +68,7 @@
             <el-select v-model="textbookForm.grade" placeholder="全部年级" clearable filterable class="full-width" @change="onGradeChange">
               <el-option v-for="grade in gradeOptions" :key="grade" :label="grade" :value="grade" />
             </el-select>
-            <el-button :loading="loading" :disabled="!textbookForm.series.trim()" @click="fetchTextbooks(true)">刷新年级/教材</el-button>
+            <el-button :loading="loading" :disabled="!textbookForm.series.trim()" @click="() => fetchTextbooks(true)">刷新年级/教材</el-button>
           </div>
           <div class="form-hint">年级选项根据该系列教材目录自动提取；清空年级可查看完整目录。</div>
         </el-form-item>
@@ -92,7 +92,7 @@
 
         <div class="step-actions">
           <el-button @click="step = 0">← 上一步</el-button>
-          <el-button :loading="loading" :disabled="!textbookForm.series.trim()" @click="fetchTextbooks">刷新教材列表</el-button>
+          <el-button :loading="loading" :disabled="!textbookForm.series.trim()" @click="() => fetchTextbooks()">刷新教材列表</el-button>
           <el-button type="primary" :loading="loading" @click="parseUnits">
             解析单元结构 →
           </el-button>
