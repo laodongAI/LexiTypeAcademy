@@ -30,7 +30,7 @@
         <el-button :loading="backendLogsLoading" @click="loadBackendLogs">刷新后端日志</el-button>
       </div>
       <el-alert v-if="backendLogsMessage" :title="backendLogsMessage" :type="backendLogsAvailable ? 'info' : 'warning'" show-icon :closable="false" />
-      <pre v-if="backendLogs.length" class="backend-log-lines">{{ backendLogs.join('\\n') }}</pre>
+      <pre v-if="backendLogs.length" class="backend-log-lines">{{ backendLogs.join(String.fromCharCode(10)) }}</pre>
       <el-empty v-else description="暂无可显示的后端日志" :image-size="60" />
     </el-card>
     <el-card shadow="never">
