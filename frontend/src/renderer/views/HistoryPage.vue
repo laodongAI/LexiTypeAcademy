@@ -242,16 +242,17 @@ async function loadHistory() {
   const warnings = results.flatMap((result, index) => result.status === 'rejected' ? [labels[index]] : [])
   if (warnings.length) loadWarning.value = `${warnings.join('、')}读取失败；页面仅显示成功读取的数据，未读取的数据不会显示为零。`
 
-  const value = <T,>(index: number): T | null =>
-    results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<T>).value : null
+  function fulfilled<T>(result: PromiseSettledResult<T>): T | null {
+    return result.status === 'fulfilled' ? result.value : null
+  }
 
-  const practiceRecords = value<PracticeRecord[]>(0)
-  const reviewLogs = value<ReviewLog[]>(1)
-  const mastery = value<Array<{ word: string }>>(2)
-  const typingRecords = value<TypingRecord[]>(3)
-  const learningRecords = value<LearningRecord[]>(4)
-  const learningCourses = value<Array<Course & { completionPercentage?: number }>>(5)
-  const courses = value<Course[]>(6)
+  const practiceRecords = fulfilled(results[0])
+  const reviewLogs = fulfilled(results[1])
+  const mastery = fulfilled(results[2])
+  const typingRecords = fulfilled(results[3])
+  const learningRecords = fulfilled(results[4])
+  const learningCourses = fulfilled(results[5])
+  const courses = fulfilled(results[6])
 
   const courseMap = new Map((courses ?? []).map(course => [course.id, course]))
   const courseIds = [...new Set([
