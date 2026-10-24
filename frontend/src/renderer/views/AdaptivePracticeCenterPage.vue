@@ -14,7 +14,7 @@
     <AdaptiveRecommendations 
       v-if="showRecommendations"
       :recommendations="recommendations"
-      @start-practice="startPracticeWithRecommendation"
+      @start-practice="startPracticeWithRecommendation"\n      @dismiss="showRecommendations = false"
     />
     
     <el-alert
@@ -141,6 +141,7 @@ const activeCourses = computed(() =>
   }))
 )
 const reviewQueue = computed(() => practiceStore.reviewQueue)
+const errorCount = computed(() => errorStore.getErrorItems().length)
 const reviewQueueItems = computed(() => practiceStore.reviewQueueItems)
 
 // 智能推荐
