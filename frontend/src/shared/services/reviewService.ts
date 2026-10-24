@@ -61,7 +61,14 @@ export class ReviewService {
       responseTime,
       level: updatedMastery.level
     };
-    await reviewRepository.addReviewLog(log);
+    await reviewRepository.addReviewLog(log)
+    void learningEventService.record({
+      eventType: 'review_submitted',
+      occurredAt: log.reviewDate,
+      activityId: `${source}:${word}`,
+      result: { accuracy: correct ? 1 : 0, correctCount: correct ? 1 : 0, totalCount: 1 },
+      metadata: { source, word, quality: normalizedQuality, responseTimeMs: responseTime },
+    }).catch(error => console.warn('记录复习生命周期事件失败，不影响已保存的复习结果:', error))
   }
   
   /**
@@ -109,6 +116,17 @@ export class ReviewService {
     
     await reviewRepository.batchSaveWordMastery(masteryUpdates);
     await reviewRepository.batchAddReviewLogs(logs);
+    // 批量复习写一条汇总事件，避免每个单词再触发一次日志查询和写入。
+    void learningEventService.record({
+      eventType: 'review_submitted',
+      occurredAt: Date.now(),
+      result: {
+        correctCount: reviews.filter(item => item.correct).length,
+        totalCount: reviews.length,
+        accuracy: reviews.length ? reviews.filter(item => item.correct).length / reviews.length : 0,
+      },
+      metadata: { batch: true, count: reviews.length },
+    }).catch(error => console.warn('记录批量复习生命周期事件失败，不影响已保存的复习结果:', error))
   }
   
   /**
