@@ -29,6 +29,7 @@ import { commonRepository } from '../../shared/database/repositories/commonRepos
 import { createLogger } from '../../shared/utils/logger'
 import { useSettingsStore } from '../stores/settings'
 import { buildLessonFeedback } from '../../shared/utils/lessonFeedback'
+import { learningEventService } from '../../shared/services/learningEventService'
 import type { FeedbackMode, LessonFeedbackResult, LessonMetrics } from '../../shared/utils/lessonFeedback'
 import ReaderStage from '../components/classroom/ReaderStage.vue'
 import BurnDownStage from '../components/classroom/BurnDownStage.vue'
@@ -74,6 +75,51 @@ const burnProgress = ref({ current: 1, total: 1, stage: 0, maxStage: 0 })
 const retryKey = ref(0)
 /** 本课开始时间：用于点评里的用时统计 */
 const lessonStartedAt = ref(Date.now())
+/** 当前课堂访问的生命周期事件上下文 */
+let activeVisitKey = ''
+let activeVisitStartedAt = 0
+let activeVisitFinished = false
+
+function startActiveVisit(targetCourseId: string, targetLessonId: string): void {
+  activeVisitKey = `${targetCourseId}:${targetLessonId}:${Date.now()}`
+  activeVisitStartedAt = Date.now()
+  activeVisitFinished = false
+  void learningEventService.record({
+    eventId: `lesson-started-${activeVisitKey}`,
+    eventType: 'lesson_started',
+    occurredAt: activeVisitStartedAt,
+    courseId: targetCourseId,
+    lessonId: targetLessonId,
+  }).catch(error => logger.warn('记录课时开始事件失败', { error }))
+}
+
+function abandonActiveVisit(reason: string): void {
+  if (!activeVisitKey || activeVisitFinished) return
+  activeVisitFinished = true
+  void learningEventService.record({
+    eventId: `lesson-abandoned-${activeVisitKey}`,
+    eventType: 'lesson_abandoned',
+    occurredAt: Date.now(),
+    courseId: courseId.value || undefined,
+    lessonId: lesson.value?.id,
+    durationMs: Math.max(0, Date.now() - activeVisitStartedAt),
+    metadata: { reason },
+  }).catch(error => logger.warn('记录课时退出事件失败', { error }))
+}
+
+function completeActiveVisit(durationMs: number, modeName: string): void {
+  if (!activeVisitKey || activeVisitFinished || !lesson.value) return
+  activeVisitFinished = true
+  void learningEventService.record({
+    eventId: `lesson-completed-${activeVisitKey}`,
+    eventType: 'lesson_completed',
+    occurredAt: Date.now(),
+    courseId: courseId.value || undefined,
+    lessonId: lesson.value.id,
+    durationMs: Math.max(0, durationMs),
+    metadata: { mode: modeName },
+  }).catch(error => logger.warn('记录课时完成事件失败', { error }))
+}
 
 /** 设置仓库：读取学习昵称 */
 const settingsStore = useSettingsStore()
@@ -514,6 +560,7 @@ async function onBurnComplete(payload: {
     dedupeWindowMs: 5000,
   })
   await syncCourseProgress()
+  completeActiveVisit(payload.durationMs, mode.value)
 
   // 燃尽模式固定映射为句子/词两种点评模式
   const metrics: LessonMetrics = {
@@ -575,6 +622,7 @@ async function finishLesson(): Promise<void> {
     dedupeWindowMs: 5000,
   })
   await syncCourseProgress()
+  completeActiveVisit(durationMs, mode.value)
   await presentFeedback(metrics, durationMs)
 }
 
@@ -586,6 +634,7 @@ function retryLesson(): void {
   // 递增重建键，强制销毁并重建当前舞台，清空所有中间状态
   retryKey.value += 1
   lessonStartedAt.value = Date.now()
+  if (activeVisitFinished && lesson.value) startActiveVisit(courseId.value, lesson.value.id)
   // 重置报题标记，让老师从第一题重新引导
   lastPromptedUnitKey = ''
   logger.info('重新开始课堂', { mode: mode.value })
@@ -720,6 +769,8 @@ function handleKeydown(event: KeyboardEvent): void {
  * 加载课程与课时
  */
 async function loadCourse(): Promise<void> {
+  // 同一页面切换课时也要明确结束上一次访问，不能只依赖组件卸载事件。
+  abandonActiveVisit('route-change')
   loading.value = true
   loadError.value = ''
   // 切换课时/重新进入时，先停掉上一课的老师语音并重置提示状态
@@ -766,6 +817,7 @@ async function loadCourse(): Promise<void> {
 
     // 每次进入（或切换）课时都重置计时起点，保证点评用时准确
     lessonStartedAt.value = Date.now()
+    startActiveVisit(courseId.value, target.id)
     logger.info('进入课堂', {
       courseId: courseId.value,
       lessonId: lessonId.value,
@@ -811,6 +863,7 @@ watch(
 
 /** 卸载时写回课堂偏好并移除全局监听 */
 onBeforeUnmount(() => {
+  abandonActiveVisit('component-unmount')
   window.removeEventListener('keydown', handleKeydown)
   // 离开课堂立即停止老师语音，避免后台残留音轨
   stopTeacher()
