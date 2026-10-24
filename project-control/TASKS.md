@@ -250,3 +250,13 @@ cd frontend; npm run build
 - 根因3（静音开关被持久化为开启）：`lexitype_teacher_voice_muted` 存在 localStorage 且值为 `1`，`useTeacherGuide.say()` 走静音分支只更新字幕不合成语音。修复：改为 **sessionStorage** 会话级存储（新标签页/重启后自动恢复有声）；进入课堂时若检测到静音输出 `info` 日志；`TeacherBubble` 静音态改用琥珀色并让图标表达当前状态（静音=划掉喇叭），标题文案改为“老师语音已静音，点击开启”，避免把“开启声音”误点成静音。
 - 验证证据（2026-10-24，浏览器实测）：课堂页在 `sessionStorage` 静音键为 `null` 时，老师气泡正常出现，文案为“小玉米，我们开始吧。今天我们精读《词根 spect：看见的家族》。鼠标划过句子会自动朗读，遇到生词可以打开词卡。”；控制台出现 `[speech] 开始播放 {key: teacher:3:..., attempt: 1}` 与 `[classroom-teacher] 老师播报结束 {priority: 3, completed: true}`，说明 `await audio.play()` 已成功、整段台词播完；音频命中 IndexedDB 缓存时 `performance` 中无 `/api/tts/generate` 请求（`ttsCount=0` 属缓存命中，非失败）；控制台无 error，无 CSP/NotSupportedError/NotAllowedError。前端 `npm run build` 通过（32.87s）。
 
+
+
+## 十一、练习模块审计与入口修复（2026-10-24）
+
+- 任务：修复练习中心听力/口语按钮无响应，并审查快速练习、课程练习、错题复习与统计入口。
+- 代码已提交到 main：推荐听力/口语入口可启动指定模式；课时页支持 `mode` 深链自动开始；快速练习优先查找有题目的课时；课程练习面板从占位页改为真实课程列表；错题复习支持按错题 ID 启动单题复练；快速启动区拆分错题与复习队列事件。
+- 数据修复：今日统计读取后端练习记录；推荐错误率与高频错题从持久化练习记录计算；近 30 天模式准确率与错题数量图表移除固定示例值；统计请求失败显示错误提示。
+- 审计报告：`docs/tasks/PRACTICE_MODULE_AUDIT_2026-10-24.md`。
+- 尚未完成：课程间隔复习队列未接入独立数据源；跟读/模仿真实麦克风、ASR、TTS 与完整结果持久化仍需浏览器/Windows 实测；本次没有本机运行验证。
+- 验证状态：GitHub Actions 对当前提交 `6b86cd9` 的前后端 CI 正在运行（截至记录时未完成）；不得标记 PASS，需以最终 Actions 结果更新。
