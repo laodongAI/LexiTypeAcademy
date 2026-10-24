@@ -40,7 +40,7 @@
         </div>
       </section>
 
-      <template v-if="learningMode === 'self'">
+      <div v-if="learningMode === 'self'">
         <section class="progress-strip">
           <div class="progress-copy"><strong>单元学习流程</strong><span>完成任意阶段后可继续，也可以稍后回来</span></div>
           <el-progress :percentage="progressPercent" :stroke-width="8" />
@@ -193,7 +193,7 @@
             <p class="aside-note">学习建议：先理解整体，再拆解重点，最后尝试独立输出。</p>
           </aside>
         </div>
-      </template>
+      </div>
 
       <section v-else class="teacher-workspace">
         <div class="teacher-intro">
