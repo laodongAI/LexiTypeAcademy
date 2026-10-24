@@ -283,6 +283,7 @@ const publisherForm = reactive({
 })
 
 const seriesOptions = ref<string[]>([])
+const activePublisher = ref('')
 const gradeOptions = ref<string[]>([])
 const textbookOptions = ref<Array<{ grade: string; semester: string; name: string }>>([])
 const unitOptions = ref<Array<{ unit_num: number; title: string; topics: string[] }>>([])
@@ -366,7 +367,9 @@ async function fetchSeries(forceRefresh = false) {
       courseSystemStore.saveSeries(publisher, series)
     }
     seriesOptions.value = series
-    if (!seriesOptions.value.includes(textbookForm.series)) {
+    const publisherChanged = activePublisher.value !== publisher
+    activePublisher.value = publisher
+    if (publisherChanged || !seriesOptions.value.includes(textbookForm.series)) {
       textbookForm.series = seriesOptions.value[0] || ''
       textbookForm.grade = ''
       textbookForm.textbookName = ''
