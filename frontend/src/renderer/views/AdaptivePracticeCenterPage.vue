@@ -31,7 +31,8 @@
       :review-queue="reviewQueue"
       @launch-course="launchCoursePractice"
       @start-practice="startQuickPractice"
-      @start-review="startReviewQueue"
+      @start-error-review="startErrorReview"
+      @start-review-queue="startReviewQueue"
     />
     
     <!-- 练习模式标签页 -->
