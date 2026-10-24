@@ -30,6 +30,11 @@
           />
         </el-form-item>
 
+        <el-form-item label="课程集合（用于仓库分组）" required>
+          <el-input v-model="form.collectionName" placeholder="例如：播客听力 / 商务英语听力" clearable />
+          <div class="field-hint">同一系列音频可使用相同集合名称，便于统一管理。</div>
+        </el-form-item>
+
         <el-form-item label="分割模式" required>
           <el-radio-group v-model="form.segmentMode" class="mode-options">
             <el-radio-button
@@ -202,6 +207,7 @@ const savedId = ref('')
 
 const form = reactive({
   courseName: '',
+  collectionName: '音频导入课程',
   segmentMode: 'sentence',
   lessonCount: 5,
   wordsPerLesson: 10,
@@ -275,7 +281,7 @@ async function recognizeAndGenerate() {
     pendingCourse.value = courseDraftFromGenerationResponse(generated, {
       title: form.courseName || generated.courseName,
       difficulty: 'intermediate',
-      tags: ['AI', 'Audio'],
+      tags: ['AI', 'Audio', `Collection:${form.collectionName.trim() || '音频导入课程'}`],
     })
 
     step.value = 2
@@ -321,6 +327,7 @@ function resetAll() {
   pendingCourse.value = null
   handleRemove()
   form.courseName = ''
+  form.collectionName = '音频导入课程'
   form.segmentMode = 'sentence'
   form.lessonCount = 5
   form.wordsPerLesson = 10
@@ -355,6 +362,8 @@ function goToPractice() {
     font-weight: 600;
   }
 }
+
+.field-hint { margin-top: 6px; color: var(--text-color-secondary); font-size: 12px; line-height: 1.5; }
 
 .step-form {
   max-width: 600px;
