@@ -11,7 +11,7 @@ interface ErrorItem {
   id: string
   unitId: string
   itemId: string
-  title
+  title: string
   errorType: string
   frequency: number
   severity: number
