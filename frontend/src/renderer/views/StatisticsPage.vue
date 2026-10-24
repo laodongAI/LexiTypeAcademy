@@ -21,38 +21,42 @@
     <el-row :gutter="20" class="overview-row">
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="累计练习时长" :value="stats.totalMinutes ?? '—'" suffix="分钟" :precision="0">
+          <el-statistic v-if="stats.totalMinutes !== null" title="累计练习时长" :value="stats.totalMinutes" suffix="分钟" :precision="0">
             <template #prefix>
               <el-icon color="#409EFF"><Clock /></el-icon>
             </template>
           </el-statistic>
+          <span v-else class="stat-unavailable">—</span>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="总练习次数" :value="stats.totalPractice ?? '—'">
+          <el-statistic v-if="stats.totalPractice !== null" title="总练习次数" :value="stats.totalPractice">
             <template #prefix>
               <el-icon color="#67C23A"><Document /></el-icon>
             </template>
           </el-statistic>
+          <span v-else class="stat-unavailable">—</span>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="平均WPM" :value="stats.avgWpm ?? '—'" :precision="0">
+          <el-statistic v-if="stats.avgWpm !== null" title="平均WPM" :value="stats.avgWpm" :precision="0">
             <template #prefix>
               <el-icon color="#E6A23C"><Timer /></el-icon>
             </template>
           </el-statistic>
+          <span v-else class="stat-unavailable">—</span>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="平均准确率" :value="stats.avgAccuracy ?? '—'" suffix="%" :precision="1">
+          <el-statistic v-if="stats.avgAccuracy !== null" title="平均准确率" :value="stats.avgAccuracy" suffix="%" :precision="1">
             <template #prefix>
               <el-icon color="#F56C6C"><CircleCheck /></el-icon>
             </template>
           </el-statistic>
+          <span v-else class="stat-unavailable">—</span>
         </el-card>
       </el-col>
     </el-row>
@@ -576,6 +580,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .load-alert { margin-bottom: 12px; }
+.stat-unavailable { display: flex; align-items: center; justify-content: center; min-height: 48px; color: var(--text-color-secondary); font-size: 24px; }
 .retry-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .statistics-page {
   padding: 20px;
