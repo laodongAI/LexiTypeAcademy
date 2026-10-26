@@ -370,3 +370,13 @@ cd frontend; npm run build
 | 将纯函数单元测试纳入 Frontend quality workflow | CI_PENDING | [workflow 修改](https://github.com/laodongAI/LexiTypeAcademy/commit/6417e76e3798ae4daf1b938d3ebfb00cb1e97a4e)；需等待 CI 实际执行结果 |
 | 教材生成草稿隔离、检查点保护、部分成功和恢复 | TODO | 需先设计多教材并存/冲突处理和数据保护验收，再编码 |
 | 真实教材增补与刷新/重启恢复 E2E | NOT_RUN | 需要目标浏览器/Windows 环境及真实教材数据 |
+
+
+## 六、教材生成 P0 实施（2026-10-26）
+
+| 任务 | 状态 | 验收证据 |
+| --- | --- | --- |
+| 内容类型识别纯函数与边界单元测试 | TEST_PASS（12 项单元测试整体通过） | [测试与规则提交](https://github.com/laodongAI/LexiTypeAcademy/commit/5b6fbcdbdfa9e389ec8463d77818411fa681c091)、[测试接入 CI](https://github.com/laodongAI/LexiTypeAcademy/commit/6417e76e3798ae4daf1b938d3ebfb00cb1e97a4e) |
+| 多教材检查点隔离、旧版迁移、明确替换确认与定向清理 | CI_PENDING | [存储仓库](https://github.com/laodongAI/LexiTypeAcademy/commit/4eaf6c5eca933bb4106e840e08342938ae7c5648)、[保存后定向清理](https://github.com/laodongAI/LexiTypeAcademy/commit/38f7e11da8f140c130c228be768961f8d69ba337)、[当前代码提交](https://github.com/laodongAI/LexiTypeAcademy/commit/9786de955a90a815e761cb28909796c4ad5256fe)；Front-end #268 的单测与类型检查通过，生产构建仍待完成 |
+| 生产构建和 Backend quality 对当前代码的最终结果 | PENDING | [Frontend quality #268](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)、[Backend quality #183](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275) |
+| 浏览器/Windows 多教材切换、配置替换、刷新恢复、存储配额异常 E2E | NOT_RUN | 需要目标浏览器/Windows 环境；单元测试不能替代实机验收 |
