@@ -142,3 +142,19 @@
 - 下一步：检查 GitHub Actions 的 frontend typecheck/build 与 backend quality；修复发现的类型/构建问题；验证会话恢复、空内容、跟读评分跳转、刷新检查点与窄屏布局；更新证据后再合并。
 
 - 单元整体学习续修分支 `fix/unit-learning-stage-state-2026-10-24`：跳过阶段不再计入完成率；原文提取句不再误用段落级翻译或链接整段跟读。待新分支 CI 完成后，仍需人工验证真实教材、多轮 AI 对话恢复、TTS/跟读跳转和刷新恢复。
+
+
+## 主干产品与实现专项审计交接（2026-10-26）
+
+- 当前主干审计清单：`docs/product/MAIN_BRANCH_PRODUCT_AUDIT_AND_IMPLEMENTATION_BACKLOG.md`。
+- 基线提交：`e37526ec927b00cd26bf7146ac0439137c2614c3`；本轮先核对当前代码与既有审计文档，不把历史 TASKS/HANDOFF 中的测试记录冒充为本轮新证据。
+- 本轮修复：教材生成的既有内容类型识别从宽泛正则改为明确标题标记，避免把“课文/对话”自动当成“句子”。提交 `82be5efd6741ad45e437a0d67c6d1fa27a890fc7`。
+- 审计文档提交：`f392e80b06494d3158d6fcc9b19ef568e4fee1e8`。
+- 当前状态：修复待 CI 和真实教材增补回归；未执行本地 typecheck/build、浏览器或 Windows E2E。不得将此项标为 VERIFIED。
+- 下一步：
+  1. 查询并记录修复提交的 Frontend quality 与 Backend quality workflow 结果。
+  2. 为教材类型识别建立可测试的纯函数与单元测试，覆盖“课文/对话/句子/短文/单词/语法/phonics”及补充生成不重复场景。
+  3. 设计并实现生成 checkpoint 与未保存草稿隔离，配置变化时不得静默覆盖草稿。
+  4. 以 UI/UX 验收规范核对教材进度、空/错误/部分成功状态和窄屏交互。
+  5. 再验收首页刷新/重启恢复、学习计划持久化、共享对话恢复与 TTS 真实播放。
+- AIMES：产品经理 Skill 文本已实际读取并应用；自动 Skill 路由仍未验证，registry 中的 UNKNOWN/空 evidence 必须保留，直到获得目标工具实际执行证据。
