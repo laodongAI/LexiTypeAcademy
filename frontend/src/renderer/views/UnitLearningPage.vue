@@ -3,7 +3,7 @@
 <header class="learning-header"><button type="button" @click="goBack">← 返回单元</button><div class="header-copy"><span class="eyebrow">UNIT LEARNING</span><h1>{{ course?.title || '单元整体学习' }}</h1><div>先整体理解，再学习重点句、词汇与语法，最后主动输出。</div></div><div v-if="course" class="header-meta"><span>{{ course.cefrLevel || course.difficulty }}</span><span>{{ course.lessons.length }} 个内容课时</span></div></header>
 <div v-if="loading" class="loading-state">正在加载单元材料…</div><div v-if="!loading && loadError" class="load-error"><h2>无法打开单元</h2><div>{{ loadError }}</div><button type="button" @click="goBack">返回课程</button></div>
 <div v-if="!loading && !loadError && course">
-<section class="mode-picker"><span class="section-kicker">选择学习方式</span><h2>今天，你想怎么学？</h2><div class="mode-cards"><button type="button" class="mode-card" :class="{ selected: learningMode === 'self' }" @click="learningMode = 'self'"><strong>自主学习</strong><span>自己点读、跟读、完成小测，查看真实作答反馈。</span><b>{{ learningMode === 'self' ? '正在使用' : '自己开始' }}</b></button><button type="button" class="mode-card teacher-mode" :class="{ selected: learningMode === 'teacher' }" @click="chooseTeacherMode"><strong>AI 老师带学</strong><span>老师讲解、提问、等待回答，再根据回答纠错并带你继续。</span><b>{{ teacherLoading ? '准备中…' : learningMode === 'teacher' ? '老师课堂中' : '请老师带我学' }}</b></button></div></section>
+<section class="mode-picker"><span class="section-kicker">选择学习方式</span><h2>今天，你想怎么学？</h2><div class="mode-cards"><button type="button" class="mode-card" :class="{ selected: learningMode === 'self' }" @click="learningMode = 'self'"><strong>自主学习</strong><span>自己点读、跟读、完成小测，查看真实作答反馈。</span><b>{{ learningMode === 'self' ? '正在使用' : '自己开始' }}</b></button><button ref="teacherModeTrigger" type="button" class="mode-card teacher-mode" :class="{ selected: learningMode === 'teacher' }" @click="chooseTeacherMode"><strong>AI 老师带学</strong><span>老师讲解、提问、等待回答，再根据回答纠错并带你继续。</span><b>{{ teacherLoading ? '准备中…' : learningMode === 'teacher' ? '老师课堂中' : '请老师带我学' }}</b></button></div></section>
 <div v-if="learningMode === 'self'">
 <section class="progress-strip"><strong>单元学习流程</strong><span>{{ progressPercent }}% 已完成 · {{ skippedCount }} 个阶段已跳过</span><div class="progress-track"><span :style="{ width: progressPercent + '%' }"></span></div></section>
 <nav class="stage-nav"><button v-for="(stage, index) in stages" :key="stage.id" type="button" :class="{ active: currentStage === stage.id, done: completedStages.includes(stage.id), skipped: skippedStages.includes(stage.id) }" @click="currentStage = stage.id">{{ completedStages.includes(stage.id) ? '✓' : skippedStages.includes(stage.id) ? '↷' : index + 1 }}. {{ stage.label }}</button></nav>
@@ -19,7 +19,7 @@
 </main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div><label><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><div>学习建议：先理解整体，再拆解重点，最后尝试独立输出。</div></aside></div>
 </div>
 <Teleport to="body">
-<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace teacher-classroom" role="dialog" aria-modal="true" aria-labelledby="teacher-classroom-title" tabindex="-1" @keydown.esc.stop.prevent="learningMode = 'self'">
+<section v-if="!loading && !loadError && course && learningMode === 'teacher'" ref="teacherClassroomDialog" class="teacher-workspace teacher-classroom" role="dialog" aria-modal="true" aria-labelledby="teacher-classroom-title" tabindex="-1" @keydown.esc.stop.prevent="learningMode = 'self'">
   <header class="teacher-intro">
     <div class="teacher-heading-copy">
       <span class="section-kicker">AI TUTOR · IMMERSIVE CLASSROOM</span>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ContentShape, type Course, type LessonItem } from '../../shared/types/course'
@@ -132,6 +132,8 @@ const course = ref<Course | null>(null)
 const loading = ref(true)
 const loadError = ref('')
 const learningMode = ref<LearningMode>('self')
+const teacherClassroomDialog = ref<HTMLElement | null>(null)
+const teacherModeTrigger = ref<HTMLButtonElement | null>(null)
 const currentStage = ref<StageId>('intro')
 const completedStages = ref<StageId[]>([])
 const skippedStages = ref<StageId[]>([])
@@ -246,6 +248,11 @@ function loadCheckpoint(): void {
   } catch { /* ignore a damaged checkpoint and start a clean flow */ }
 }
 watch([currentStage, completedStages, skippedStages, quizAttempts, quizCorrect, quizIndex], saveCheckpoint, { deep: true })
+watch(learningMode, async (mode, previousMode) => {
+  await nextTick()
+  if (mode === 'teacher') teacherClassroomDialog.value?.focus()
+  else if (previousMode === 'teacher') teacherModeTrigger.value?.focus()
+})
 
 async function loadCourse(): Promise<void> {
   loading.value = true
