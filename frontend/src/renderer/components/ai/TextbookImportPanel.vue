@@ -246,6 +246,7 @@ import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
 import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 import { courseSystemStore } from '../../../shared/services/courseSystemStore'
 import { inferGeneratedContentTypes } from '../../../shared/utils/textbookContentTypes'
+import { getCheckpointByKey, getLatestCheckpoint, persistCheckpoint, readCheckpointCollection } from '../../../shared/utils/textbookGenerationCheckpointStore'
 
 const router = useRouter()
 
@@ -349,7 +350,8 @@ interface TextbookGenerationCheckpoint {
   status?: 'running' | 'paused' | 'completed'
 }
 
-const GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
+const GENERATION_CHECKPOINTS_KEY = 'textbook_generation_checkpoints_v2'
+const LEGACY_GENERATION_CHECKPOINT_KEY = 'textbook_generation_checkpoint_v1'
 const pendingCatalogRequests = new Map<string, Promise<unknown>>()
 function sharedCatalogRequest<T>(key: string, request: () => Promise<T>): Promise<T> {
   const existing = pendingCatalogRequests.get(key)
@@ -385,26 +387,36 @@ function makeGenerationKey(publisher: string, series: string, textbookName: stri
   return [publisher, series, grade, textbookName].map(value => value.trim()).join('|')
 }
 
-function readGenerationCheckpoint(): TextbookGenerationCheckpoint | null {
-  try {
-    const raw = localStorage.getItem(GENERATION_CHECKPOINT_KEY)
-    return raw ? JSON.parse(raw) as TextbookGenerationCheckpoint : null
-  } catch {
-    return null
-  }
+function readGenerationCheckpoints(): Record<string, TextbookGenerationCheckpoint> {
+  return readCheckpointCollection<TextbookGenerationCheckpoint>(
+    localStorage,
+    GENERATION_CHECKPOINTS_KEY,
+    LEGACY_GENERATION_CHECKPOINT_KEY,
+  )
 }
 
-function persistGenerationCheckpoint(checkpoint: TextbookGenerationCheckpoint) {
+function readGenerationCheckpoint(key?: string): TextbookGenerationCheckpoint | null {
+  const collection = readGenerationCheckpoints()
+  return key ? getCheckpointByKey(collection, key) : getLatestCheckpoint(collection)
+}
+
+function persistGenerationCheckpoint(checkpoint: TextbookGenerationCheckpoint): boolean {
   checkpoint.updatedAt = Date.now()
   generationProgress.totalTasks = checkpoint.unitTitles.length * checkpoint.contentTypes.length
   generationProgress.doneTasks = checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
-  try {
-    localStorage.setItem(GENERATION_CHECKPOINT_KEY, JSON.stringify(checkpoint))
+  const saved = persistCheckpoint(
+    localStorage,
+    GENERATION_CHECKPOINTS_KEY,
+    LEGACY_GENERATION_CHECKPOINT_KEY,
+    checkpoint,
+  )
+  if (saved) {
     checkpointStatus.value = '断点已保存：' + new Date(checkpoint.updatedAt).toLocaleTimeString()
-  } catch (e) {
-    console.error('保存教材生成断点失败', e)
-    checkpointStatus.value = '断点保存失败，请检查本地存储空间'
+  } else {
+    console.error('保存教材生成断点失败')
+    checkpointStatus.value = '断点保存失败，请检查本地存储空间；为避免覆盖其他教材草稿，已保留旧检查点'
   }
+  return saved
 }
 
 function generationTaskKey(unitTitle: string, type: string) {
@@ -417,7 +429,7 @@ function markCheckpointTask(checkpoint: TextbookGenerationCheckpoint, unitTitle:
   if (!checkpoint.completedTasks.includes(key)) checkpoint.completedTasks.push(key)
   checkpoint.lessonsByUnit[unitTitle] = [...lessons]
   checkpoint.status = 'running'
-  persistGenerationCheckpoint(checkpoint)
+  if (!persistGenerationCheckpoint(checkpoint)) throw new Error('教材生成断点保存失败；已停止后续生成，请检查本地存储空间后重试。')
 }
 
 function createId(prefix: string, now: number, ...parts: Array<string | number>) {
@@ -685,9 +697,27 @@ async function generateCourseFromTextbook() {
     const gradeKey = selectedGradeKey()
     const key = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName, gradeKey)
     const config = { unitTitles: selectedUnits, contentTypes: selectedTypes, withAudio, coreCount, extraCount }
-    let checkpoint = readGenerationCheckpoint()
     const legacyKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    let checkpoint = readGenerationCheckpoint(key) || readGenerationCheckpoint(legacyKey)
     const checkpointMatches = !!checkpoint && (checkpoint.key === key || (checkpoint.key === legacyKey && (!checkpoint.grade || checkpoint.grade === gradeKey))) && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
+    const hasRecoverableDraft = !!checkpoint && (checkpoint.completedTasks.length > 0 || Object.keys(checkpoint.lessonsByUnit).length > 0)
+    if (!checkpointMatches && hasRecoverableDraft) {
+      try {
+        await ElMessageBox.confirm(
+          `当前教材已有生成草稿（已完成 ${checkpoint?.completedTasks.length || 0} 项内容）。继续将替换该教材的旧断点和未保存草稿；如需保留，请取消并恢复原配置后先预览/保存。是否仍要替换？`,
+          '检测到已有生成草稿',
+          {
+            confirmButtonText: '替换旧草稿并继续',
+            cancelButtonText: '保留旧草稿',
+            type: 'warning',
+            distinguishCancelAndClose: true,
+          },
+        )
+      } catch {
+        ElMessage.info('已保留原生成草稿，本次未开始生成。')
+        return
+      }
+    }
     if (!checkpointMatches) {
       checkpoint = { key, publisher: publisherForm.publisher.trim(), series: textbookForm.series.trim(), textbookName: textbookForm.textbookName.trim(), grade: gradeKey, ...config, completedTasks: [], lessonsByUnit: {}, updatedAt: Date.now() }
     }
@@ -709,7 +739,7 @@ async function generateCourseFromTextbook() {
     activeCheckpoint.key = key
     activeCheckpoint.grade = gradeKey
     ;(window as unknown as { __lexitypeTextbookGenerationKey?: string }).__lexitypeTextbookGenerationKey = key
-    persistGenerationCheckpoint(activeCheckpoint)
+    if (!persistGenerationCheckpoint(activeCheckpoint)) throw new Error('无法保存教材生成断点，已停止生成以保护已有草稿。请清理本地存储空间后重试。')
 
     await runWithConcurrency(selectedUnits, 2, async (unitTitle) => {
       generationProgress.currentUnit = unitTitle
@@ -961,7 +991,9 @@ async function generateCourseFromTextbook() {
     step.value = 3
     ElMessage.success('课程已生成，可预览后批量保存')
   } catch (e) {
-    const checkpoint = readGenerationCheckpoint()
+    const checkpointKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName, selectedGradeKey())
+    const legacyCheckpointKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    const checkpoint = readGenerationCheckpoint(checkpointKey) || readGenerationCheckpoint(legacyCheckpointKey)
     if (checkpoint) { checkpoint.status = 'paused'; persistGenerationCheckpoint(checkpoint) }
     error.value = e instanceof Error ? e.message : '生成课程失败'
     addDiagnosticLog('error', 'textbook-course-generation', '教材课程生成失败；已完成单元已保存，可断点继续', error.value)
@@ -1137,7 +1169,7 @@ onMounted(async () => {
     generationProgress.currentUnit = checkpoint.currentUnit || ''
     generationProgress.currentType = checkpoint.currentType || ''
     checkpointPollId = window.setInterval(() => {
-      const latest = readGenerationCheckpoint()
+      const latest = readGenerationCheckpoint(checkpoint.key)
       if (!latest) return
       generationProgress.totalUnits = latest.unitTitles.length
       generationProgress.doneUnits = latest.unitTitles.filter(unit => latest.contentTypes.length > 0 && latest.contentTypes.every(type => latest.completedTasks.includes(generationTaskKey(unit, type)))).length
@@ -1192,7 +1224,7 @@ onMounted(async () => {
     unitForm.withAudio = checkpoint.withAudio
     unitForm.coreCount = checkpoint.coreCount
     unitForm.extraCount = checkpoint.extraCount
-    const latestCheckpoint = readGenerationCheckpoint() || checkpoint
+    const latestCheckpoint = readGenerationCheckpoint(checkpoint.key) || checkpoint
     generationProgress.totalUnits = latestCheckpoint.unitTitles.length
     generationProgress.doneUnits = latestCheckpoint.unitTitles.filter(unit => latestCheckpoint.contentTypes.length > 0 && latestCheckpoint.contentTypes.every(type => latestCheckpoint.completedTasks.includes(generationTaskKey(unit, type)))).length
     generationProgress.totalTasks = latestCheckpoint.unitTitles.length * latestCheckpoint.contentTypes.length
