@@ -105,6 +105,7 @@ import { conversationCoreService, type ConversationSession } from '../../shared/
 import { isAnswerCorrect, textSimilarity } from '../../shared/utils/textCompare'
 import { splitSentences } from '../../shared/utils/sentenceSplit'
 import { parseTeacherLessonContent } from '../../shared/utils/teacherLessonPresentation'
+import { buildTeacherLessonContext } from '../../shared/utils/teacherLessonContext'
 import { playSpeech, stopSpeech } from '../composables/useSpeechPlayer'
 
 type StageId = 'intro' | 'reading' | 'sentences' | 'vocabulary' | 'grammar' | 'output' | 'summary'
@@ -355,21 +356,22 @@ function nextQuiz(): void {
 function unitContext(): string {
   const current = course.value
   if (!current) return ''
-  const materials = current.lessons.map(lesson => ({
-    title: lesson.title, shape: lesson.contentShape,
-    items: lesson.items.slice(0, 40).map((item: LessonItem) => ({
-      english: item.english, chinese: item.chinese, phonetic: item.phonetic,
-      partOfSpeech: item.partOfSpeech, examples: item.examples?.slice(0, 2), explanation: item.explanation,
+  return buildTeacherLessonContext({
+    courseTitle: current.title,
+    level: current.cefrLevel || current.difficulty,
+    lessons: current.lessons.map(lesson => ({
+      title: lesson.title,
+      shape: lesson.contentShape,
+      items: lesson.items.slice(0, 40).map((item: LessonItem) => ({
+        english: item.english,
+        chinese: item.chinese,
+        phonetic: item.phonetic,
+        partOfSpeech: item.partOfSpeech,
+        examples: item.examples?.slice(0, 2),
+        explanation: item.explanation,
+      })),
     })),
-  }))
-  return [
-    '【单元学习材料与教学协议】',
-    `课程：${current.title}；等级：${current.cefrLevel || current.difficulty}。`,
-    '请按以下教学顺序持续带学：单元导入 → 通读篇章/对话 → 重点句子 → 重点词汇 → 语法 → 输出检查 → 总结。',
-    '每次只讲一个小重点并提出一个主要问题，等待学员回答后再纠错/追问；不要在学员作答前直接泄露答案。用友好、耐心的中文讲解，英语示例必须来自下面材料，生成的例句要明确标注为补充例句。',
-    '如果当前阶段材料不存在，说明缺失并引导进入下一阶段；不要编造教材原句。反馈必须依据学员实际回答，不声称没有证据的掌握情况。',
-    JSON.stringify(materials),
-  ].join('\n').slice(0, 10000)
+  })
 }
 async function chooseTeacherMode(): Promise<void> {
   learningMode.value = 'teacher'
