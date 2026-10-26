@@ -259,3 +259,11 @@
 
 
 - 可访问性补充：课堂进入后将焦点移入 dialog；退出时将焦点还给 AI 老师入口按钮。逻辑已提交，真实键盘与屏幕阅读器验收仍 NOT_RUN。
+
+
+### AI 课堂上下文完整性与学习事件（2026-10-26）
+
+- 新增 `teacherLessonContext.ts`，按 10,000 字符预算逐项纳入教材材料，避免旧版 `.slice(0, 10000)` 截断 JSON；测试文件为 `teacherLessonContext.test.ts`。
+- `learningEventService.ts` 增加 `conversation_turn_completed`；对话内核在老师回复成功持久化后记录幂等轮次事件，元数据不包含学员答案正文，事件写入失败不影响对话。
+- 自动化验证以当前 main 的 Frontend quality 为准；真实窗口验收仍 NOT_RUN。
+- 后续需要将 AI 反馈转为结构化、可审计的评价结果，再决定是否更新掌握度；不得直接相信模型自报的“已掌握”。
