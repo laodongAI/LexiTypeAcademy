@@ -267,3 +267,6 @@
 - `learningEventService.ts` 增加 `conversation_turn_completed`；对话内核在老师回复成功持久化后记录幂等轮次事件，元数据不包含学员答案正文，事件写入失败不影响对话。
 - 自动化验证以当前 main 的 Frontend quality 为准；真实窗口验收仍 NOT_RUN。
 - 后续需要将 AI 反馈转为结构化、可审计的评价结果，再决定是否更新掌握度；不得直接相信模型自报的“已掌握”。
+
+
+- 键盘可访问性进一步完善：课堂 dialog 处理 Escape 退出，并将 Tab / Shift+Tab 焦点限制在课堂内；退出时恢复入口焦点。逻辑已提交，真实键盘验收仍 NOT_RUN。
