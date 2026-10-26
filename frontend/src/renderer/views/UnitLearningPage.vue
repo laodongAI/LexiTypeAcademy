@@ -19,7 +19,7 @@
 </main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div><label><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><div>学习建议：先理解整体，再拆解重点，最后尝试独立输出。</div></aside></div>
 </div>
 <Teleport to="body">
-<section v-if="!loading && !loadError && course && learningMode === 'teacher'" ref="teacherClassroomDialog" class="teacher-workspace teacher-classroom" role="dialog" aria-modal="true" aria-labelledby="teacher-classroom-title" tabindex="-1" @keydown.esc.stop.prevent="learningMode = 'self'">
+<section v-if="!loading && !loadError && course && learningMode === 'teacher'" ref="teacherClassroomDialog" class="teacher-workspace teacher-classroom" role="dialog" aria-modal="true" aria-labelledby="teacher-classroom-title" tabindex="-1" @keydown="handleTeacherDialogKeydown">
   <header class="teacher-intro">
     <div class="teacher-heading-copy">
       <span class="section-kicker">AI TUTOR · IMMERSIVE CLASSROOM</span>
@@ -373,6 +373,37 @@ function unitContext(): string {
     })),
   })
 }
+function handleTeacherDialogKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    learningMode.value = 'self'
+    return
+  }
+  if (event.key !== 'Tab') return
+
+  const dialog = teacherClassroomDialog.value
+  if (!dialog) return
+  const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+  )).filter(element => !element.hasAttribute('hidden') && element.getAttribute('aria-hidden') !== 'true')
+  if (!focusable.length) {
+    event.preventDefault()
+    dialog.focus()
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  const active = document.activeElement
+  if (event.shiftKey && (active === first || active === dialog)) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
 async function chooseTeacherMode(): Promise<void> {
   learningMode.value = 'teacher'
   if (teacherSession.value || teacherLoading.value || !course.value) return
