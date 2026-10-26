@@ -45,7 +45,7 @@ const routes: RouteRecordRaw[] = [
       name: 'LearningPlans',
       component: () => import('../views/LearningPlansPage.vue'),
       meta: {
-        title: '学习计划',
+        title: '目标与计划',
         icon: 'Calendar',
         group: 'learning',
       },
