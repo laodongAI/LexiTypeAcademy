@@ -73,6 +73,7 @@
       </div>
       
       <!-- 操作按钮 -->
+      <div class="keyboard-hint">使用 ← 返回上一项；本题完成后按 → 进入下一项</div>
       <div class="action-buttons">
         <el-button @click="toggleAudio">
           重听示范
@@ -99,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, type Component, inject } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, type Component, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { LessonItem, PracticeMode } from '../../../shared/types/course'
 import { getAudioPlayService } from '../../../shared/services/audioPlayService'
@@ -118,6 +119,7 @@ interface Props {
 
 interface Emits {
   (e: 'next'): void
+  (e: 'previous'): void
   (e: 'answer', correct: boolean): void
 }
 
@@ -181,7 +183,27 @@ function stopAudioAndRecording() {
 // 进入题目或切换题目时由老师自动领读；用户仍可主动重听。
 onMounted(() => {
   void playReferenceAudio()
+  window.addEventListener('keydown', handleFollowKeydown)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleFollowKeydown)
+})
+
+function handleFollowKeydown(event: KeyboardEvent): void {
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+  const target = event.target
+  if (target instanceof HTMLElement && (
+    target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)
+  )) return
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    emit('previous')
+  } else if (event.key === 'ArrowRight' && showResult.value) {
+    event.preventDefault()
+    emit('next')
+  }
+}
 
 async function playReferenceAudio(): Promise<void> {
   try {
@@ -447,7 +469,7 @@ function handleNext() {
     }
   }
   
-  .action-buttons {
+  .keyboard-hint {\n  margin-top: 12px;\n  color: var(--el-text-color-secondary);\n  font-size: 13px;\n  text-align: center;\n}\n\n.action-buttons {
     display: flex;
     justify-content: center;
     gap: 12px;
