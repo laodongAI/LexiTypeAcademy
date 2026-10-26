@@ -380,3 +380,17 @@ cd frontend; npm run build
 | 多教材检查点隔离、旧版迁移、明确替换确认与定向清理 | TEST_PASS（自动化/构建） | [存储仓库](https://github.com/laodongAI/LexiTypeAcademy/commit/4eaf6c5eca933bb4106e840e08342938ae7c5648)、[保存后定向清理](https://github.com/laodongAI/LexiTypeAcademy/commit/38f7e11da8f140c130c228be768961f8d69ba337)、[代码提交](https://github.com/laodongAI/LexiTypeAcademy/commit/9786de955a90a815e761cb28909796c4ad5256fe)；Frontend quality #268 与 Backend quality #183 均 PASS，前端 12 项单测、类型检查和生产构建通过 |
 | 生产构建和 Backend quality 对当前代码的最终结果 | PENDING | [Frontend quality #268](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)、[Backend quality #183](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275) |
 | 浏览器/Windows 多教材切换、配置替换、刷新恢复、存储配额异常 E2E | NOT_RUN | 需要目标浏览器/Windows 环境；单元测试不能替代实机验收 |
+
+
+## 英语学习核心体验 P0-A：播放驱动的句子同步（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 产品基线与源码审查 | DONE（STATIC_REVIEW） | `docs/design/english-learning-core-experience-restructure-v1.md`、`docs/tasks/ENGLISH_LEARNING_UX_SOURCE_AUDIT_2026-10-26.md`；已读取 product-manager 与 ui-implementation-validation Skill 正文 |
+| 连续播放时当前句高亮/定位跟随实际播放 key | IMPLEMENTED_UNVERIFIED | 分支提交 `e6d97e4c61c342cffccc4f3749ccf9136394fa37`：`ReaderStage.vue` 监听共享播放器 `playingKey`，映射句子/词条索引并在 DOM 更新后定位；连播被中断时不再把所有句子记为已读 |
+| 播放 key → 渲染索引纯函数及单元测试 | CI_PENDING | `frontend/src/shared/utils/readerSpeechSync.ts`、`readerSpeechSync.test.ts`；测试覆盖文章句子、词条、空 key 和无匹配 key。PR #10 Frontend quality run `40289084797` 当前 queued，尚未得到结果 |
+| 连续至少 10 句真实播放/高亮/滚动回归 | NOT_RUN | 当前执行环境没有目标 Windows 应用/真实浏览器交互会话，不能伪称已运行；需在本机连续播放至少 10 句，并覆盖切句、暂停/停止、手动滚动、TTS 失败与旧事件 |
+| 用户手动滚动时的自动跟随暂停/“回到当前句” | TODO | 本切片仅补播放驱动的句级高亮与自动定位；尚未实现滚动意图感知和显式返回按钮，需作为下一子切片处理，避免自动追随抢走用户控制权 |
+| 两套语音播放服务的并存边界 | TODO | `FollowMode.vue` 使用 `audioPlayService`，`ReaderStage.vue` 使用 `useSpeechPlayer`；需追查 audioPlayService 是否复用同一 HTMLAudioElement，确认是否可能双通道，暂不贸然合并服务 |
+
+**本切片验收状态：** 静态修改已提交到 PR 分支；自动化测试/类型检查/构建等待 CI；Windows/浏览器 E2E、截图、真实 TTS 时序与用户效果验证均为 `NOT_RUN`。不得将代码写入或 CI 通过单独视为产品验收完成。
