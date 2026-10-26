@@ -461,3 +461,13 @@ cd frontend; npm run build
 | 成功对话轮次写入统一学习事件 | IMPLEMENTED | `conversation_turn_completed` 记录消息 ID、输入长度与课程关联，不保存答案正文 |
 | 上下文与轮次事件自动化验证 | PENDING | 等待当前 main 的前端 CI |
 | 将教学反馈转为可追踪的评价结果/掌握度 | TODO | 不能仅凭 AI 自述更新掌握度 |
+
+
+### 学习导航与跟读体验修正（2026-10-26）
+
+| 任务 | 状态 | 验收边界 |
+| --- | --- | --- |
+| 侧边栏移除同级“学习计划”，从“我的学习”进入“目标与计划” | IMPLEMENTED | 计划独立路由保留兼容，前端 CI 待完成 |
+| 我的学习页面提供目标与计划快捷入口 | IMPLEMENTED | 真实导航验收 NOT_RUN |
+| 跟读题目进入/切换时自动领读 | IMPLEMENTED | 复用现有 TTS 服务；真实音频设备/自动播放行为 NOT_RUN |
+| 跟读方向键导航 | IMPLEMENTED | ← 上一项；→ 当前题完成后下一项；真实键盘验收 NOT_RUN |
