@@ -93,7 +93,7 @@
 - 新增 `frontend/src/shared/utils/textbookGenerationCheckpointStore.test.ts`；与内容类型规则测试合计 12 项。
 - 主用生成面板按教材身份读取/更新检查点；确认替换草稿前显示风险提示；保存课程后仅删除对应检查点。
 - 中间提交 `fb01277` 曾被 CI 的类型检查捕获：闭包中 checkpoint 可能为 null（TS18047）；已在 `9786de9` 修复并重新运行 CI。这是已记录的失败与修复，不隐藏失败历史。
-- 当前代码提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 Frontend quality #268：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)。单元测试 12/12 通过，TypeScript 类型检查通过；生产构建仍在执行，整体 workflow 暂不标 PASS。Backend quality #183：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)，截至本记录时 queued/pending。
+- 代码提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 Frontend quality #268 [运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242) 最终 PASS：单元测试 12/12、TypeScript 类型检查、生产构建均通过。Backend quality #183 [运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275) 也 PASS。其后提交仅更新产品审计/任务/交接文档，不改变本次代码；真实运行验收仍未执行。
 
 ### 仍需真实验收
 - `NOT_RUN`：在浏览器/Windows 中验证多教材切换、同教材配置变更取消/确认、旧检查点迁移、刷新恢复、保存后只清理当前检查点。
