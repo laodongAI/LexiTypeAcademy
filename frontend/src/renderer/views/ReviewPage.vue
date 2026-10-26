@@ -78,7 +78,7 @@
     </el-card>
     
     <!-- 复习区域 -->
-    <el-card v-if="currentItem" class="review-card" v-loading="loading">
+    <el-card v-if="currentItem && !isCompleted" class="review-card" v-loading="loading">
       <div class="review-content">
         <!-- 卡片正面/背面 -->
         <div 
@@ -91,7 +91,7 @@
             <span class="hint">点击查看答案</span>
           </div>
           <div class="card-back">
-            <span class="pinyin">{{ levelText(currentItem.level) }}</span>
+            <span class="mastery-level">掌握状态：{{ levelText(currentItem.level) }}</span>
             <span class="meaning">来源：{{ currentItem.source }}</span>
           </div>
         </div>
@@ -141,7 +141,7 @@
     
     <!-- 空状态 -->
     <el-empty 
-      v-else 
+      v-else-if="!isCompleted"
       description="暂无待复习内容"
     >
       <el-button type="primary" @click="loadReviewItems">
@@ -216,7 +216,7 @@ const loading = ref(false)
 // 复习进度
 const reviewProgress = computed(() => {
   if (reviewItems.value.length === 0) return 0
-  return Math.round((currentIndex.value / reviewItems.value.length) * 100)
+  return Math.round(((currentIndex.value + 1) / reviewItems.value.length) * 100)
 })
 
 // 初始化
