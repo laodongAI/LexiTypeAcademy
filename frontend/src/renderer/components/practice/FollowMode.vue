@@ -469,7 +469,14 @@ function handleNext() {
     }
   }
   
-  .keyboard-hint {\n  margin-top: 12px;\n  color: var(--el-text-color-secondary);\n  font-size: 13px;\n  text-align: center;\n}\n\n.action-buttons {
+  .keyboard-hint {
+  margin-top: 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.action-buttons {
     display: flex;
     justify-content: center;
     gap: 12px;
