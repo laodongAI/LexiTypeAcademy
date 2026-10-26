@@ -61,7 +61,7 @@
 
   <details class="teacher-history">
     <summary>课堂记录 <span>{{ teacherSession?.messages.length || 0 }} 条消息</span></summary>
-    <div class="teacher-messages" ref="messagesRef">
+    <div class="teacher-messages">
       <div v-if="!teacherSession?.messages.length && !teacherLoading" class="history-empty">还没有课堂记录。</div>
       <article v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role">
         <div class="history-message-heading">
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ContentShape, type Course, type LessonItem } from '../../shared/types/course'
