@@ -12,7 +12,7 @@
       show-icon
       :closable="false"
       title="这里记录你实际学了什么"
-      description="管理正在学习的课程、真实课程进度、最近学习时间和待复习内容。学习目标、每日排期与打卡请到「学习计划」管理。"
+      description="这里查看真实学习进度、课程历史和待复习内容；学习目标、每日安排与打卡统一在本页的「目标与计划」中管理。"
     />
     <el-alert
       v-if="learningStore.error"
@@ -83,6 +83,10 @@
         <el-button type="warning" size="large" @click="startReview">
           <el-icon><RefreshRight /></el-icon>
           开始复习
+        </el-button>
+        <el-button size="large" @click="goToPlans">
+          <el-icon><Document /></el-icon>
+          目标与计划
         </el-button>
       </el-space>
     </el-card>
@@ -238,6 +242,11 @@ function continueLearning() {
 // 跳转到课程仓库
 function goToCourseRepository() {
   router.push('/course-repository')
+}
+
+// 学习计划是学习总览中的目标管理入口，保留原独立路由以兼容旧链接。
+function goToPlans() {
+  router.push('/plans')
 }
 
 // 开始复习
