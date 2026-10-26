@@ -74,3 +74,28 @@
 - 提交：规则 `881183c`；测试 `5b6fbc`；测试脚本 `270370d`；组件接入 `07292af`；CI workflow `6417e76`。
 - 最新 Frontend quality #256：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281030870)，截至记录时 pending；Backend quality #171：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281031057)，截至记录时 pending。自动化测试结果待 CI 执行，不能提前标 PASS。
 - 浏览器/Windows、真实教材增补生成、持久化和恢复行为：`NOT_RUN`。本次没有改变视觉布局，也不据此声称 UI/真实生成验收通过。
+
+
+## 检查点隔离与草稿保护（2026-10-26）
+
+### 用户价值
+- 切换教材时，不应静默覆盖另一教材已生成但未保存的内容；修改同一教材的单元、内容类型、音频开关或数量配置时，也不能在没有明确提示的情况下替换旧断点。
+- 存储空间不足时，系统不得显示“断点已保存”或继续假装数据保护成功。
+
+### 交互决策
+- 按教材身份分开存储多个检查点；用户切换教材后只读取该教材自己的检查点。
+- 同一教材已有不同配置且存在生成草稿时，弹出明确警告，显示已完成内容项数；用户可取消并保留旧草稿，或明确确认替换。
+- 成功保存课程后，只清理本次保存对应的检查点，不删除其他教材的检查点。
+- 检查点写入失败时显示明确错误并停止后续生成；清理失败时提示用户先确认课程仓库状态，避免误重复生成。
+
+### 实现与自动化证据
+- 新增 `frontend/src/shared/utils/textbookGenerationCheckpointStore.ts`：多检查点隔离、旧单检查点迁移、按键读取、最近检查点读取、写入/删除失败显式返回。
+- 新增 `frontend/src/shared/utils/textbookGenerationCheckpointStore.test.ts`；与内容类型规则测试合计 12 项。
+- 主用生成面板按教材身份读取/更新检查点；确认替换草稿前显示风险提示；保存课程后仅删除对应检查点。
+- 中间提交 `fb01277` 曾被 CI 的类型检查捕获：闭包中 checkpoint 可能为 null（TS18047）；已在 `9786de9` 修复并重新运行 CI。这是已记录的失败与修复，不隐藏失败历史。
+- 当前代码提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 Frontend quality #268：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)。单元测试 12/12 通过，TypeScript 类型检查通过；生产构建仍在执行，整体 workflow 暂不标 PASS。Backend quality #183：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)，截至本记录时 queued/pending。
+
+### 仍需真实验收
+- `NOT_RUN`：在浏览器/Windows 中验证多教材切换、同教材配置变更取消/确认、旧检查点迁移、刷新恢复、保存后只清理当前检查点。
+- `NOT_RUN`：在模拟 localStorage 配额不足的真实页面环境验证停止行为和提示文案。
+- 12 项单元测试验证存储工具和纯函数，不等于整个 Vue 页面或真实教材生成 E2E 通过。
