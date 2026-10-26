@@ -229,3 +229,12 @@
 - **自动化证据：** 对 `570c2a09049b9f8954e40a86c6f4817d178207b1`，Frontend quality [#40290310921](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921) 单测、类型检查、生产构建均 PASS；Backend quality [#40290310907](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310907) PASS。结果对应代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`；之后只有任务/交接文档变更。必须复查 [Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921) 最终结论。
 - **真实验收：** Windows/浏览器运行、桌面与窄屏截图、长回复、历史折叠、键盘操作、启动失败/发送失败恢复、语音打断均 `NOT_RUN`；用户效果未验证。
 - **下一步：** ①确认最新主干 CI；②在目标窗口实测 AI 老师从启动到回答/失败重试的完整流程；③检查黑板主视觉、历史折叠、长回复布局与窄屏键盘；④依据真实观察修复，而不是把“页面能打开”当作验收；⑤随后再推进统一课堂骨架与跟读实机验收。
+
+
+## P0-B 可靠性补充交接：失败重试与消息去重（2026-10-26）
+
+- **发现的问题：** `ConversationCoreService.sendMessage` 在调用 AI 前先持久化用户消息；若请求失败，页面旧逻辑保留内存中的旧 session。用户重试时服务层只检查旧 session 尾部，可能再次追加同一条用户消息。启动阶段若首次导入请求失败，也可能留下“仅有用户消息”的活跃会话，重试应恢复该请求。
+- **修复：** `conversationCoreService.ts` 以持久化会话为当前基线；新增 `frontend/src/shared/utils/conversationRetry.ts` 的 `findRetryablePendingMessage`，只复用尾部完全匹配的用户消息；`UnitLearningPage.vue` 在回答失败后重载持久化会话并保留输入，启动重试会恢复现有会话尾部待处理消息。
+- **测试：** `frontend/src/shared/utils/conversationRetry.test.ts` 覆盖匹配重试、尾部 assistant 不误复用、文本不同和空历史；Frontend quality [#40291216089](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216089) PASS（单测、类型检查、生产构建）；Backend quality [#40291216256](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216256) PASS。已验证代码 SHA：`57132229dd4f8ced72f5a782be88624613935318`。
+- **未验证：** 尚未通过真实网络中断/AI 超时制造故障并验证窗口内重试、会话刷新与持久化一致性；真实 Windows/浏览器视觉验收仍 `NOT_RUN`。
+- **产品价值：** 用户回答失败后重试不应重复记录同一句话；重试应延续已有会话和上下文，而不是悄悄污染学习记录。

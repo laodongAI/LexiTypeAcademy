@@ -410,3 +410,18 @@ cd frontend; npm run build
 | 学习效果验证 | NOT_RUN | 尚无用户测试数据，不宣称已改善完成率或学习效果 |
 
 **产品理由：** 用户需要一眼看到当前教学重点和下一步，而不是在连续聊天记录中自行定位。历史对话仍可查阅，但默认不抢占主视觉；回答操作保持稳定位置。验收必须分别记录自动化、真实运行和用户效果证据。
+
+
+## P0-B 可靠性补充：AI 老师发送失败重试不重复追加消息（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 以持久化会话作为重试判定基线，避免 UI 旧 session 导致重复追加用户消息 | IMPLEMENTED | `frontend/src/shared/services/conversationCoreService.ts`：每次发送先读取已保存会话；只有最新尾部用户消息与本次文本完全一致才复用 |
+| AI 老师课堂失败后刷新已持久化会话状态 | IMPLEMENTED | `frontend/src/renderer/views/UnitLearningPage.vue`：回答失败后重载会话，保留输入并允许重试 |
+| 启动阶段存在已保存但未收到回复的用户消息时恢复同一请求 | IMPLEMENTED | 重试启动时检查现有活跃会话的尾部消息并重发原消息，避免创建重复会话/重复请求内容 |
+| 增加重试去重纯函数测试 | PASS | `frontend/src/shared/utils/conversationRetry.test.ts` 覆盖同一尾部用户消息复用、尾部为 assistant 时不复用、文本不一致/空历史不复用 |
+| Frontend quality | PASS | [Run #40291216089](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216089)：单元测试、类型检查、生产构建均通过；代码 SHA `57132229dd4f8ced72f5a782be88624613935318` |
+| Backend quality | PASS | [Run #40291216256](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216256)：通过；同一代码 SHA `57132229dd4f8ced72f5a782be88624613935318` |
+| 真实 AI 超时/网络中断后的端到端恢复 | NOT_RUN | 纯函数与 CI 已验证；真实网络故障、服务端超时、刷新后恢复仍需窗口级测试 |
+
+**发现原因：** 对话内核先持久化用户消息；若 AI 请求失败，UI 原先保留旧的内存会话，重试时内存消息尾部仍是上一条 assistant 消息，去重逻辑无法识别已保存的待处理用户消息。此次改为读取持久化会话再判断重试，并在 UI 失败后恢复已保存状态。
