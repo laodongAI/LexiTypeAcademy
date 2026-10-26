@@ -226,6 +226,6 @@
 - **P0-B 主干实现：** `frontend/src/renderer/views/UnitLearningPage.vue` 已改为黑板式 AI 老师课堂：中央突出最新老师讲解；课堂历史通过原生 details 折叠；回答输入固定在主课堂下方；显示老师思考/等待状态；错误时按启动失败或发送失败提供对应重试；不再自动将历史记录滚动到最底部。
 - **相关提交：** `7855c79291668188adc1d47e352f9a890a2c6810`（第一版布局）、`c6fc96b48e70c2cc1f3adb25f354d035a38ab5c8`（错误恢复与移除强制滚动）、`5e0c45526dc993f9879e38af9e4ee80205fc22f0`（清理过期 ref/import）、`570c2a09049b9f8954e40a86c6f4817d178207b1`（清理剩余滚动调用）。
 - **用户价值与交互理由：** 当前讲解成为视觉中心，避免长历史挤占主界面；历史可按需展开；用户查看历史时不被强制拉回底部；输入和提交动作保持稳定。复用现有 `conversationCoreService` 与语音播放能力。
-- **自动化证据：** 对 `570c2a09049b9f8954e40a86c6f4817d178207b1`，Frontend quality #? 的单测与类型检查已通过，生产构建在写入交接时仍运行；Backend quality 已 PASS。必须复查 [Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921) 最终结论。
+- **自动化证据：** 对 `570c2a09049b9f8954e40a86c6f4817d178207b1`，Frontend quality 的单测与类型检查已通过，生产构建在写入交接时仍运行；Backend quality 已 PASS。必须复查 [Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921) 最终结论。
 - **真实验收：** Windows/浏览器运行、桌面与窄屏截图、长回复、历史折叠、键盘操作、启动失败/发送失败恢复、语音打断均 `NOT_RUN`；用户效果未验证。
 - **下一步：** ①确认最新主干 CI；②在目标窗口实测 AI 老师从启动到回答/失败重试的完整流程；③检查黑板主视觉、历史折叠、长回复布局与窄屏键盘；④依据真实观察修复，而不是把“页面能打开”当作验收；⑤随后再推进统一课堂骨架与跟读实机验收。
