@@ -179,12 +179,30 @@ export class ConversationCoreService {
         requestId: `conversation-${session.id}-${userMessage.id}`,
       }, { timeout: 120000 })
       if (!response.content?.trim()) throw new Error('AI 返回了空内容，请重试')
+      const assistantMessage = makeMessage('assistant', response.content.trim())
       const completed: ConversationSession = {
         ...pending,
-        messages: [...pending.messages, makeMessage('assistant', response.content.trim())],
+        messages: [...pending.messages, assistantMessage],
         updatedAt: Date.now(),
       }
       await this.persist(completed, log, 'active')
+      // Record only turn metadata, never the learner's answer text. A deterministic event ID
+      // makes retries idempotent through LearningEventService's duplicate check.
+      void learningEventService.record({
+        eventId: `conversation-turn-${session.id}-${userMessage.id}`,
+        eventType: 'conversation_turn_completed',
+        occurredAt: completed.updatedAt,
+        activityId: userMessage.id,
+        courseId: completed.linkedCourseId,
+        lessonId: completed.linkedLessonId,
+        metadata: {
+          scenarioId: completed.scenarioId,
+          sessionId: completed.id,
+          learnerMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+          learnerInputLength: userText.length,
+        },
+      }).catch(error => console.warn('记录对话学习事件失败，不影响已保存的会话:', error))
       return completed
     } catch (error) {
       // 用户消息已持久化；错误由 UI 呈现，用户可重试而不丢失上下文。
