@@ -494,3 +494,14 @@ cd frontend; npm run build
 | 移除模仿模式随机生成的假波形 | IMPLEMENTED | `ImitationMode.vue` 改为标准发音/用户录音状态面板；真实波形能力未实现时不再误导用户 |
 | 复习词条与真实释义/例句数据关联 | TODO | 当前 `DueWord` 结构仍缺少释义/音标/例句，需追溯课程/词典数据源 |
 | 全部方法真实 E2E 与 AI/TTS/ASR 验收 | NOT_RUN | 需要真实浏览器、音频设备和服务端环境；静态盘点不能代替运行验收 |
+
+
+### 继续改进：模仿评分真实性与样式构建修复（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 修复 `ImitationMode.vue` 的 SCSS 构建错误 | FIXED_PENDING_CI | 恢复完整嵌套规则与响应式样式；等待最新前端 CI |
+| 移除模仿评分服务失败时固定返回 70 分并判定正确的降级逻辑 | IMPLEMENTED_PENDING_CI | 评分服务失败时不再显示伪分、不再发出答对事件；提示用户检查服务并允许重试 |
+| 移除缺失流畅度字段时默认补 70 分 | IMPLEMENTED_PENDING_CI | 仅使用评分服务实际返回值 |
+| 复习卡关联真实释义/音标/例句 | TODO | `DueWord` 当前仅包含 word/source/level/nextReview/reviewCount；需定位词典/教材数据模型并建立可靠关联 |
+| 最新主干前端/后端 CI | PENDING | 前端 https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40308885553；后端 https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40308885589 |
