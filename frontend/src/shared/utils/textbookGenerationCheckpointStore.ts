@@ -81,3 +81,21 @@ export function persistCheckpoint<T extends CheckpointIdentity>(
     return false
   }
 }
+
+export function deleteCheckpoint(
+  storage: CheckpointStorage,
+  collectionStorageKey: string,
+  legacyStorageKey: string,
+  key: string,
+): boolean {
+  const collection = readCheckpointCollection<CheckpointIdentity>(storage, collectionStorageKey, legacyStorageKey)
+  if (!collection[key]) return true
+  delete collection[key]
+  try {
+    storage.setItem(collectionStorageKey, JSON.stringify(collection))
+    storage.removeItem(legacyStorageKey)
+    return true
+  } catch {
+    return false
+  }
+}
