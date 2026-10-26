@@ -14,7 +14,8 @@
     <AdaptiveRecommendations 
       v-if="showRecommendations"
       :recommendations="recommendations"
-      @start-practice="startPracticeWithRecommendation"\n      @dismiss="showRecommendations = false"
+      @start-practice="startPracticeWithRecommendation"
+      @dismiss="showRecommendations = false"
     />
     
     <el-alert
