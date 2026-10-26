@@ -350,3 +350,13 @@ cd frontend; npm run build
 - 竞品范围：Duolingo、Babbel、Busuu、ELSA Speak、Speak、Memrise、British Council LearnEnglish、Anki、Pimsleur、LingQ；报告明确这不是未经方法学支持的绝对排名，也未声称本轮实机试用十款产品。
 - 首批微文案修复：ClassroomPage.vue commit `306a27ea619b5cda58fff1b252b89be88e5e21a2`；ConversationPage.vue commit `0ee9e28ee9d6c6e3858a6235a7923665ab4029a0`。前端 CI #245、后端 CI #160 在最后查询时仍为 pending；前一提交 #242/#157 成功不代表新改动已验证。
 - 下一步：等待最新 CI；为教材生成断点/部分成功、课堂 TTS 状态、对话失败重试补充自动化/可重复验收；在 Windows 真实窗口下检查按钮层级、键盘焦点、窄屏、音频打断与教师台词时序。
+
+
+## 五、产品基线驱动的实现与证据闭环（2026-10-26）
+
+| 任务 | 状态 | 验收证据 |
+| --- | --- | --- |
+| 建立产品基线执行与证据协议 | DONE（协议文档已提交；执行效果待后续任务验证） | [PRODUCT_EXECUTION_AND_EVIDENCE_PROTOCOL.md](../docs/product/PRODUCT_EXECUTION_AND_EVIDENCE_PROTOCOL.md)，提交 `ec728aeaded98292f5d6b9cc4a0af2cbf7039041` |
+| 每项改动强制回答用户价值、交互决策、效果证据三个问题 | DOING（作为后续任务门禁） | 每项任务必须附产品基线章节、验收标准、自动化测试和真实运行证据；当前没有因协议落盘而自动视为已验收的功能 |
+| 从产品深度评估报告逐项实施 P0 | TODO | 首选教材生成状态/草稿/检查点/部分成功闭环；实施前复核当前 main、CI 和相关 Skill |
+| 关键 UI/AI 文案真实窗口验收 | TODO | 目标环境、视口、操作步骤、实际结果及截图/日志；未执行前保持 NOT_RUN |
