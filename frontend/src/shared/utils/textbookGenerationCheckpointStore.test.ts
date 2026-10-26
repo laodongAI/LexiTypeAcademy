@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  deleteCheckpoint,
   getCheckpointByKey,
   getLatestCheckpoint,
   persistCheckpoint,
@@ -80,4 +81,22 @@ test('存储写入失败返回 false，不伪装为已保存', () => {
   const storage = new MemoryStorage()
   storage.failWrites = true
   assert.equal(persistCheckpoint(storage, collectionKey, legacyKey, { key: 'book', updatedAt: 1, lessons: ['draft'] }), false)
+})
+
+test('保存成功后只删除对应教材检查点', () => {
+  const storage = new MemoryStorage()
+  persistCheckpoint(storage, collectionKey, legacyKey, { key: 'book-a', updatedAt: 1, lessons: ['A'] })
+  persistCheckpoint(storage, collectionKey, legacyKey, { key: 'book-b', updatedAt: 2, lessons: ['B'] })
+
+  assert.equal(deleteCheckpoint(storage, collectionKey, legacyKey, 'book-a'), true)
+  const collection = readCheckpointCollection<Checkpoint>(storage, collectionKey, legacyKey)
+  assert.equal(getCheckpointByKey(collection, 'book-a'), null)
+  assert.deepEqual(getCheckpointByKey(collection, 'book-b')?.lessons, ['B'])
+})
+
+test('检查点清理失败返回 false', () => {
+  const storage = new MemoryStorage()
+  persistCheckpoint(storage, collectionKey, legacyKey, { key: 'book-a', updatedAt: 1, lessons: ['A'] })
+  storage.failWrites = true
+  assert.equal(deleteCheckpoint(storage, collectionKey, legacyKey, 'book-a'), false)
 })
