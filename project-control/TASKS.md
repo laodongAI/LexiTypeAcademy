@@ -360,3 +360,13 @@ cd frontend; npm run build
 | 每项改动强制回答用户价值、交互决策、效果证据三个问题 | DOING（作为后续任务门禁） | 每项任务必须附产品基线章节、验收标准、自动化测试和真实运行证据；当前没有因协议落盘而自动视为已验收的功能 |
 | 从产品深度评估报告逐项实施 P0 | TODO | 首选教材生成状态/草稿/检查点/部分成功闭环；实施前复核当前 main、CI 和相关 Skill |
 | 关键 UI/AI 文案真实窗口验收 | TODO | 目标环境、视口、操作步骤、实际结果及截图/日志；未执行前保持 NOT_RUN |
+
+
+## 五、产品基线实施任务（2026-10-26）
+
+| 任务 | 状态 | 验收证据 |
+| --- | --- | --- |
+| 将教材已有内容类型识别提取为纯函数并补齐单元测试 | CI_PENDING | [规则实现](https://github.com/laodongAI/LexiTypeAcademy/commit/881183c4e98cd96ed4e38bf292175fd0d1b5fa97)、[测试](https://github.com/laodongAI/LexiTypeAcademy/commit/5b6fbcdbdfa9e389ec8463d77818411fa681c091)、[组件接入](https://github.com/laodongAI/LexiTypeAcademy/commit/07292afd383858aeaa8be4d44ee4ac04346b87c7)、[前端 CI #256](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281030870) |
+| 将纯函数单元测试纳入 Frontend quality workflow | CI_PENDING | [workflow 修改](https://github.com/laodongAI/LexiTypeAcademy/commit/6417e76e3798ae4daf1b938d3ebfb00cb1e97a4e)；需等待 CI 实际执行结果 |
+| 教材生成草稿隔离、检查点保护、部分成功和恢复 | TODO | 需先设计多教材并存/冲突处理和数据保护验收，再编码 |
+| 真实教材增补与刷新/重启恢复 E2E | NOT_RUN | 需要目标浏览器/Windows 环境及真实教材数据 |
