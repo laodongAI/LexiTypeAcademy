@@ -300,6 +300,6 @@ LexiType Academy 不应定位为“拥有很多英语功能的工具箱”，而
 - **用户价值：** 生成教材投入时间较长；切换教材或改变生成配置时，旧的未保存内容不能被静默覆盖。保存课程后也不应误删另一教材的恢复点。
 - **交互决策：** 多教材检查点独立保存；同教材配置变更且已有草稿时，明确告知已完成内容项数和替换后果，提供“保留旧草稿”取消路径与明确替换操作。存储失败要停止而非伪装成功。
 - **代码：** 新增 `textbookGenerationCheckpointStore.ts` 与测试；生成面板改为按教材身份读写检查点、迁移旧版单检查点、按本次教材清理保存后的检查点，并改善替换/清理提示。
-- **自动化证据：** 最新代码提交 `9786de955a90a815e761cb28909796c4ad5256fe`；Frontend quality #268 单元测试 12/12 通过、TypeScript 类型检查通过，生产构建仍 pending；[CI 运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)。Backend quality #183 仍 pending：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)。
+- **自动化证据：** 代码提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 Frontend quality #268 PASS（12 项单元测试、TypeScript 类型检查、生产构建全部通过；[CI 记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)）；Backend quality #183 PASS（[CI 记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)）。后续主干提交仅更新文档，未改动这批代码。
 - **失败与修复记录：** `fb01277` 的类型检查发现 TS18047（checkpoint 可能为 null），已在 `9786de9` 修复；不能把前一失败提交描述为通过。
 - **真实验收与效果：** 浏览器/Windows 多教材切换、刷新恢复、localStorage 配额异常和真实教材增补均 `NOT_RUN`。目前没有用户样本，尚不能声称用户体验效果已得到实证提升。
