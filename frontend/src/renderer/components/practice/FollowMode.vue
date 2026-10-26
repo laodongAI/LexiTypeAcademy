@@ -22,7 +22,7 @@
           :icon="isPlaying ? 'VideoPause' : 'VideoPlay'"
           @click="toggleAudio"
         />
-        <p class="audio-hint">播放标准发音</p>
+        <p class="audio-hint">{{ isPlaying ? '老师正在领读…' : '老师已示范，可再次聆听' }}</p>
       </div>
       
       <!-- 录音区 -->
@@ -75,7 +75,7 @@
       <!-- 操作按钮 -->
       <div class="action-buttons">
         <el-button @click="toggleAudio">
-          播放示范
+          重听示范
         </el-button>
         <el-button
           v-if="!showResult"
@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, type Component, inject } from 'vue'
+import { ref, watch, onMounted, type Component, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { LessonItem, PracticeMode } from '../../../shared/types/course'
 import { getAudioPlayService } from '../../../shared/services/audioPlayService'
@@ -167,6 +167,7 @@ watch(() => props.item, () => {
   hintLevel.value = 0
   nextHint.value = null
   resetFeedback()
+  void playReferenceAudio()
 })
 
 // 停止所有音频和录音
@@ -174,6 +175,28 @@ function stopAudioAndRecording() {
   audioPlayService.stop()
   if (isRecording.value) {
     audioRecordService.stopRecording()
+  }
+}
+
+// 进入题目或切换题目时由老师自动领读；用户仍可主动重听。
+onMounted(() => {
+  void playReferenceAudio()
+})
+
+async function playReferenceAudio(): Promise<void> {
+  try {
+    audioPlayService.stop()
+    isPlaying.value = true
+    await audioPlayService.play({
+      type: 'tts',
+      source: props.item.english,
+      rate: 0.92,
+    })
+  } catch (error) {
+    console.error('老师领读失败:', error)
+    ElMessage.warning('自动领读失败，请点击“重听示范”')
+  } finally {
+    isPlaying.value = false
   }
 }
 
