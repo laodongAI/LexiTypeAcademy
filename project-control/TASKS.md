@@ -471,3 +471,15 @@ cd frontend; npm run build
 | 我的学习页面提供目标与计划快捷入口 | IMPLEMENTED | 真实导航验收 NOT_RUN |
 | 跟读题目进入/切换时自动领读 | IMPLEMENTED | 复用现有 TTS 服务；真实音频设备/自动播放行为 NOT_RUN |
 | 跟读方向键导航 | IMPLEMENTED | ← 上一项；→ 当前题完成后下一项；真实键盘验收 NOT_RUN |
+
+
+### 练习与复习静态审查（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 修复自适应练习推荐组件事件绑定中的字面量换行 | IMPLEMENTED | `AdaptivePracticeCenterPage.vue` |
+| 复习进度按当前已复习项计算，完成时不再同时显示复习卡与完成结果 | IMPLEMENTED | `ReviewPage.vue` |
+| 无有效复习会话时不将正确率显示为 0%；改为“本轮正确率”并显示 — | IMPLEMENTED | 避免误导用户 |
+| 复习卡片背面语义修正为“掌握状态” | IMPLEMENTED | 当前数据模型 `DueWord` 没有释义字段，不能伪造单词释义 |
+| 复习词义/例句关联、复习与课时练习的统一学习记录 | TODO | 需要追溯词典/教材数据源并设计统一事件口径 |
+| 最新主干 CI | PENDING | 以最新代码提交对应 Actions 为准；真实窗口验收 NOT_RUN |
