@@ -659,7 +659,7 @@ function getExistingTypes(course: { lessons?: Lesson[] } | null | undefined): st
       detected.add('grammar')
     } else if (/短文|阅读|课文|篇章/i.test(title)) {
       detected.add('passage')
-    } else if (/重点句|句子/i.test(title)) {
+    } else if (/重点句|句子|句型/i.test(title)) {
       detected.add('sentences')
     } else if (/单词|词汇/i.test(title)) {
       detected.add('words')
