@@ -147,18 +147,20 @@ export class ConversationCoreService {
   async sendMessage(session: ConversationSession, text: string): Promise<ConversationSession> {
     const userText = text.trim()
     if (!userText) throw new Error('请输入内容后再发送')
-    if (session.status !== 'active') throw new Error('该会话已结束，请新建会话继续')
 
     const log = await commonRepository.getAITaskLog(session.id)
     if (!log) throw new Error('找不到已保存的会话，请刷新会话列表')
-    // 如果上一次请求超时，用户消息已经持久化；用同一条尾部消息重试，避免重复追加。
-    const lastMessage = session.messages[session.messages.length - 1]
+    // 以持久化会话为准：上次请求失败时，UI 传入的 session 可能已过期，
+    // 但用户消息已经保存。先恢复最新会话，再识别同一条尾部消息，避免重试重复追加。
+    const latestSession = toSession(log) ?? session
+    if (latestSession.status !== 'active') throw new Error('该会话已结束，请新建会话继续')
+    const lastMessage = latestSession.messages[latestSession.messages.length - 1]
     const retryingPersistedMessage =
       lastMessage?.role === 'user' && lastMessage.content === userText ? lastMessage : undefined
     const userMessage = retryingPersistedMessage ?? makeMessage('user', userText)
     const pending: ConversationSession = {
-      ...session,
-      messages: retryingPersistedMessage ? [...session.messages] : [...session.messages, userMessage],
+      ...latestSession,
+      messages: retryingPersistedMessage ? [...latestSession.messages] : [...latestSession.messages, userMessage],
       updatedAt: Date.now(),
     }
 
