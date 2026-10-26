@@ -57,3 +57,20 @@
 - [ ] 刷新/崩溃恢复：NOT_RUN。
 - [ ] 使用真实模型测量生成耗时与并发影响：NOT_RUN。
 - [ ] Windows 本机完整 E2E：NOT_RUN。
+
+
+## 首个可测试规则切片（2026-10-26）
+
+### 用户价值与交互依据
+- 用户价值：补充生成依赖已有内容类型识别；误把“课文/对话”当成“句子”会让用户无法补齐缺失内容，错误识别也可能造成重复生成。将规则抽为纯函数，便于用明确样例锁定产品语义。
+- 交互依据：本次不改变页面控件与流程，先稳定用户可见的“已有内容”分类逻辑，避免在规则未验证前调整 UI。
+- 验收判据：五类显式标题可识别；“课文”归为短文而不是句子；“对话”本身不推断为句子；多课时结果去重且顺序稳定；空/未知标题不产生假类型；发音标记优先级明确。
+
+### 实现与证据状态
+- 新增纯函数：`frontend/src/shared/utils/textbookContentTypes.ts`。
+- 新增 Node 内置测试：`frontend/src/shared/utils/textbookContentTypes.test.ts`，覆盖上述 5 组行为。
+- 教材生成组件改为调用该纯函数：`frontend/src/renderer/components/ai/TextbookImportPanel.vue`。
+- 新增 `npm run test:unit`，并将其加入 Frontend quality workflow，避免测试仅存在但从未执行。
+- 提交：规则 `881183c`；测试 `5b6fbc`；测试脚本 `270370d`；组件接入 `07292af`；CI workflow `6417e76`。
+- 最新 Frontend quality #256：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281030870)，截至记录时 pending；Backend quality #171：[运行记录](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281031057)，截至记录时 pending。自动化测试结果待 CI 执行，不能提前标 PASS。
+- 浏览器/Windows、真实教材增补生成、持久化和恢复行为：`NOT_RUN`。本次没有改变视觉布局，也不据此声称 UI/真实生成验收通过。
