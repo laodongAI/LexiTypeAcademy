@@ -451,3 +451,13 @@ cd frontend; npm run build
 
 
 - 补充可访问性：课堂进入时将键盘焦点移入 dialog，退出后恢复到 AI 老师入口；已提交，真实键盘验收仍 NOT_RUN。
+
+
+### AI 课堂上下文与学习事件补充（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 课程上下文在 10,000 字符预算内保持有效 JSON | IMPLEMENTED | `teacherLessonContext.ts` 按完整条目装配；对应测试覆盖超长材料 |
+| 成功对话轮次写入统一学习事件 | IMPLEMENTED | `conversation_turn_completed` 记录消息 ID、输入长度与课程关联，不保存答案正文 |
+| 上下文与轮次事件自动化验证 | PENDING | 等待当前 main 的前端 CI |
+| 将教学反馈转为可追踪的评价结果/掌握度 | TODO | 不能仅凭 AI 自述更新掌握度 |
