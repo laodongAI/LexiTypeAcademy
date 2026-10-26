@@ -404,7 +404,7 @@ cd frontend; npm run build
 | AI 老师主界面改为当前讲解黑板，历史消息默认折叠 | IMPLEMENTED_UNVERIFIED | `frontend/src/renderer/views/UnitLearningPage.vue`；黑板展示最新 assistant 消息，保留完整历史记录，不新增会话存储 |
 | 固定回答区、状态提示与失败恢复入口 | IMPLEMENTED_UNVERIFIED | 新增当前讲解播报、思考/等待状态、启动失败与发送失败区分、Ctrl+Enter 提交；尚未实机验证 |
 | 移除 AI 历史记录自动滚底 | IMPLEMENTED_UNVERIFIED | 不再在每次消息变化后强制设置历史滚动位置，避免夺回用户滚动控制权 |
-| 前端单测与类型检查 | PASS（代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`） | [Frontend quality #?](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921)：单测、TypeScript 类型检查已通过；生产构建在记录时仍运行，需确认最终结果 |
+| 前端单测与类型检查 | PASS（代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`） | [Frontend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921)：单测、TypeScript 类型检查已通过；生产构建在记录时仍运行，需确认最终结果 |
 | 后端质量检查 | PASS（代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`） | [Backend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310907) |
 | Windows/浏览器真实课堂验收、窄屏/键盘、长回复、AI 错误恢复 | NOT_RUN | 需在目标窗口验证当前讲解是否清晰、历史折叠行为、输入区可达性、启动失败重试和发送失败重试；CI 不能替代视觉/交互验收 |
 | 学习效果验证 | NOT_RUN | 尚无用户测试数据，不宣称已改善完成率或学习效果 |
