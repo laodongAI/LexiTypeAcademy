@@ -324,7 +324,7 @@ async function handleSubmit() {
     if (scoreDetail) {
       scores.value = {
         accuracy: scoreDetail.accuracy,
-        fluency: scoreDetail.fluency || 70,
+        fluency: scoreDetail.fluency,
         completeness: scoreDetail.completeness,
       }
       showResult.value = true
@@ -390,27 +390,9 @@ async function handleSubmit() {
         },
       })
     } else {
-      // 评分失败，使用降级方案
-      ElMessage.warning('评分服务暂时不可用，使用简单评分')
-      scores.value = { accuracy: 70, fluency: 70, completeness: 70 }
-      showResult.value = true
-      emit('answer', true)
-
-      if (practiceAttemptContext?.courseId.value && practiceAttemptContext?.lessonId.value) {
-        void recordPracticeAttemptEvent({
-          courseId: practiceAttemptContext.courseId.value,
-          lessonId: practiceAttemptContext.lessonId.value,
-          unitId: props.item.id,
-          mode: 'imitation' as PracticeMode,
-          referenceText: props.item.english,
-          chineseHint: props.item.chinese,
-          recognizedText: response.text,
-          correct: true,
-          attemptCount: attemptCount.value,
-          hintLevelAtSubmit: hintLevel.value,
-          extra: { degraded: true },
-        })
-      }
+      // 评分服务不可用时不能伪造分数，也不能把未评价的录音记为答对。
+      showResult.value = false
+      ElMessage.warning('暂时无法获得发音评分。请检查网络或评分服务后重试；你的录音仍可回放。')
     }
   } catch (error) {
     console.error('评分失败:', error)
