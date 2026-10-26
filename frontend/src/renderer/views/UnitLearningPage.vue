@@ -18,7 +18,70 @@
 <footer class="stage-footer"><button type="button" :disabled="stageIndex === 0" @click="moveStage(-1)">上一步</button><button v-if="currentStage !== 'summary'" type="button" @click="skipStage">跳过本阶段</button><button v-if="currentStage !== 'summary'" type="button" class="primary-action" @click="completeAndNext">完成并继续</button><button v-if="currentStage === 'summary'" type="button" class="primary-action" @click="goBack">返回单元详情</button></footer>
 </main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div><label><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><div>学习建议：先理解整体，再拆解重点，最后尝试独立输出。</div></aside></div>
 </div>
-<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace"><div class="teacher-intro"><div><h2>AI 老师正在带你学习</h2><div>老师会一次讲一个重点，向你提问，并根据你的回答继续讲解。</div></div><button type="button" @click="learningMode = 'self'">切换自主学习</button></div><div v-if="teacherError">{{ teacherError }}</div><div class="teacher-messages" ref="messagesRef"><div v-if="!teacherSession?.messages.length && !teacherLoading">点击 AI 老师带学后，老师会开始本单元导入。</div><div v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role"><strong>{{ message.role === 'assistant' ? 'AI 老师' : '你' }}</strong><div>{{ message.content }}</div><small>{{ formatTime(message.createdAt) }}</small><button v-if="message.role === 'assistant'" type="button" @click="playText(message.content, 'teacher-' + message.id, 'zh')">朗读老师讲解</button></div><div v-if="teacherLoading">老师正在思考…</div></div><form class="teacher-composer" @submit.prevent="sendTeacherAnswer"><input v-model="teacherDraft" placeholder="写下你的回答，也可以用中文提问" :disabled="teacherLoading || !teacherSession || teacherSession.status !== 'active'" /><button type="submit" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active' || teacherLoading">{{ teacherLoading ? '老师思考中…' : '回答老师' }}</button></form></section>
+<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace teacher-classroom">
+  <header class="teacher-intro">
+    <div class="teacher-heading-copy">
+      <span class="section-kicker">AI TUTOR · UNIT CLASSROOM</span>
+      <h2>{{ course.title }} · AI 老师课堂</h2>
+      <p>一次聚焦一个学习重点；先看老师当前讲解，再回答问题。历史记录默认收起，不打断当前学习。</p>
+    </div>
+    <button type="button" @click="learningMode = 'self'">切换自主学习</button>
+  </header>
+
+  <div v-if="teacherError" class="teacher-error" role="alert">
+    <strong>本轮教学未完成</strong>
+    <span>{{ teacherError }}</span>
+    <button type="button" :disabled="teacherLoading" @click="sendTeacherAnswer">重试发送</button>
+  </div>
+
+  <main class="teacher-board" aria-live="polite">
+    <div class="board-topline">
+      <span class="board-label">当前教学内容</span>
+      <span v-if="teacherLoading" class="teacher-status"><i class="status-dot processing"></i>老师正在思考</span>
+      <span v-else-if="teacherSession?.status === 'active'" class="teacher-status"><i class="status-dot ready"></i>等待你的参与</span>
+    </div>
+    <div v-if="currentTeacherMessage" class="board-content">
+      <h3>老师当前讲解</h3>
+      <div class="board-text">{{ currentTeacherMessage.content }}</div>
+      <div class="board-actions">
+        <button type="button" @click="playText(currentTeacherMessage.content, 'teacher-current-' + currentTeacherMessage.id, 'zh')">朗读当前讲解</button>
+      </div>
+    </div>
+    <div v-else-if="teacherLoading" class="board-empty">
+      <span class="board-loader" aria-hidden="true"></span>
+      <h3>老师正在准备本单元导入</h3>
+      <p>正在整理本单元材料，稍后会显示当前讲解与问题。</p>
+    </div>
+    <div v-else class="board-empty">
+      <h3>准备开始本单元学习</h3>
+      <p>点击“AI 老师带学”后，老师会结合本单元材料介绍目标并提出第一个问题。</p>
+    </div>
+  </main>
+
+  <details class="teacher-history">
+    <summary>课堂记录 <span>{{ teacherSession?.messages.length || 0 }} 条消息</span></summary>
+    <div class="teacher-messages" ref="messagesRef">
+      <div v-if="!teacherSession?.messages.length && !teacherLoading" class="history-empty">还没有课堂记录。</div>
+      <article v-for="message in teacherSession?.messages || []" :key="message.id" class="teacher-message" :class="message.role">
+        <div class="history-message-heading">
+          <strong>{{ message.role === 'assistant' ? 'AI 老师' : '你' }}</strong>
+          <small>{{ formatTime(message.createdAt) }}</small>
+        </div>
+        <div class="history-message-content">{{ message.content }}</div>
+      </article>
+      <div v-if="teacherLoading" class="teacher-thinking" role="status">老师正在思考…</div>
+    </div>
+  </details>
+
+  <form class="teacher-composer" @submit.prevent="sendTeacherAnswer">
+    <label for="teacher-answer">你的回答</label>
+    <div class="teacher-input-row">
+      <textarea id="teacher-answer" v-model="teacherDraft" rows="2" placeholder="写下你的回答，也可以用中文提问" :disabled="teacherLoading || !teacherSession || teacherSession.status !== 'active'" @keydown.ctrl.enter.prevent="sendTeacherAnswer" />
+      <button type="submit" :disabled="!teacherDraft.trim() || !teacherSession || teacherSession.status !== 'active' || teacherLoading">{{ teacherLoading ? '老师思考中…' : '提交回答' }}</button>
+    </div>
+    <div class="composer-hint">按 Ctrl + Enter 提交。老师会根据你的真实回答继续引导。</div>
+  </form>
+</section>
 </div>
 </div>
 </template>
@@ -77,6 +140,7 @@ const teacherDraft = ref('')
 const teacherLoading = ref(false)
 const teacherError = ref('')
 const messagesRef = ref<HTMLElement | null>(null)
+const currentTeacherMessage = computed(() => [...(teacherSession.value?.messages || [])].reverse().find(message => message.role === 'assistant') || null)
 
 const stages: { id: StageId; label: string; description: string }[] = [
   { id: 'intro', label: '单元导入', description: '了解本单元主题、材料构成与学习目标。' },
@@ -421,6 +485,46 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 .aside-note { font-size: 12px; line-height: 1.7; color: #64748b; margin-top: 18px; }
 .stage-footer :deep(.el-button) { min-height: 38px; }
 .teacher-workspace { padding: 24px; }
+.teacher-classroom { display: flex; flex-direction: column; gap: 18px; min-height: min(72vh, 820px); }
+.teacher-intro { justify-content: space-between; align-items: flex-start; }
+.teacher-heading-copy { min-width: 0; }
+.teacher-heading-copy h2 { margin: 8px 0; }
+.teacher-heading-copy p { max-width: 720px; color: #64748b; line-height: 1.7; margin: 0; }
+.teacher-board { display: flex; flex: 1; flex-direction: column; min-height: 300px; padding: clamp(20px, 4vw, 42px); border: 1px solid #dbe5f2; border-radius: 18px; background: radial-gradient(ellipse at top left, #f0f6ff 0, #fff 62%); }
+.board-topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid #e2eaf5; }
+.board-label { color: #64748b; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+.teacher-status { display: inline-flex; align-items: center; gap: 7px; color: #64748b; font-size: 12px; }
+.status-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #94a3b8; }
+.status-dot.ready { background: #16a34a; }
+.status-dot.processing { background: #d97706; animation: pulse 1s infinite alternate; }
+.board-content { max-width: 900px; width: 100%; margin: auto; padding: 28px 0; }
+.board-content h3, .board-empty h3 { margin: 0 0 18px; color: #334155; font-size: 16px; }
+.board-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: clamp(18px, 2vw, 24px); line-height: 1.95; color: #172033; }
+.board-actions { margin-top: 24px; }
+.board-actions button, .teacher-error button { padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #334155; cursor: pointer; }
+.board-empty { display: grid; place-content: center; flex: 1; min-height: 220px; text-align: center; }
+.board-empty p { max-width: 540px; color: #64748b; line-height: 1.8; margin: 0 auto; }
+.board-loader { width: 24px; height: 24px; border: 3px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; margin: 0 auto 16px; animation: board-spin .8s linear infinite; }
+@keyframes board-spin { to { transform: rotate(360deg); } }
+.teacher-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 10px; background: #fff7f7; color: #991b1b; }
+.teacher-error span { flex: 1; min-width: 180px; }
+.teacher-history { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.teacher-history summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; font-weight: 700; color: #334155; }
+.teacher-history summary span { color: #64748b; font-size: 12px; font-weight: 500; }
+.teacher-history .teacher-messages { min-height: 120px; max-height: 280px; padding: 0 16px 16px; }
+.history-empty { color: #64748b; padding: 16px 0; }
+.teacher-message { display: block; padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; }
+.teacher-message.user { background: #f8fafc; }
+.history-message-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.history-message-heading small { color: #94a3b8; }
+.history-message-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
+.teacher-composer { padding-top: 4px; }
+.teacher-composer > label { display: block; margin-bottom: 8px; color: #475569; font-size: 13px; font-weight: 700; }
+.teacher-input-row { display: flex; align-items: stretch; gap: 12px; }
+.teacher-input-row textarea { flex: 1; min-width: 0; resize: vertical; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; line-height: 1.6; }
+.teacher-input-row button { min-width: 112px; padding: 10px 18px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 700; cursor: pointer; }
+.teacher-input-row button:disabled { opacity: .5; cursor: not-allowed; }
+.composer-hint { margin-top: 7px; color: #94a3b8; font-size: 12px; }
 .teacher-intro { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid #e2e8f0; }
 .teacher-intro h2 { margin: 0 0 6px; font-size: 22px; }
 .teacher-intro p { margin: 0; color: #64748b; line-height: 1.6; font-size: 13px; }
@@ -451,7 +555,10 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
   .stage-nav button { font-size: 12px; padding: 8px 10px; }
   .stage-heading, .grammar-heading, .teacher-intro, .composer-footer { align-items: flex-start; flex-direction: column; }
   .teacher-message { flex-wrap: wrap; }
-  .teacher-message .message-body { min-width: calc(100% - 55px); }
+  .teacher-input-row { flex-direction: column; }
+  .teacher-input-row button { min-height: 42px; }
+  .board-topline { align-items: flex-start; flex-direction: column; }
+  .teacher-error { align-items: flex-start; flex-direction: column; }
   .stage-footer { flex-direction: column; }
   .stage-footer-right { justify-content: flex-end; flex-wrap: wrap; }
 }
