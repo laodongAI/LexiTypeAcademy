@@ -380,3 +380,17 @@ cd frontend; npm run build
 | 多教材检查点隔离、旧版迁移、明确替换确认与定向清理 | TEST_PASS（自动化/构建） | [存储仓库](https://github.com/laodongAI/LexiTypeAcademy/commit/4eaf6c5eca933bb4106e840e08342938ae7c5648)、[保存后定向清理](https://github.com/laodongAI/LexiTypeAcademy/commit/38f7e11da8f140c130c228be768961f8d69ba337)、[代码提交](https://github.com/laodongAI/LexiTypeAcademy/commit/9786de955a90a815e761cb28909796c4ad5256fe)；Frontend quality #268 与 Backend quality #183 均 PASS，前端 12 项单测、类型检查和生产构建通过 |
 | 生产构建和 Backend quality 对当前代码的最终结果 | PENDING | [Frontend quality #268](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)、[Backend quality #183](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275) |
 | 浏览器/Windows 多教材切换、配置替换、刷新恢复、存储配额异常 E2E | NOT_RUN | 需要目标浏览器/Windows 环境；单元测试不能替代实机验收 |
+
+
+## 英语学习核心体验 P0-A：播放驱动的句子同步（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 产品基线与源码审查 | DONE（STATIC_REVIEW） | `docs/design/english-learning-core-experience-restructure-v1.md`、`docs/tasks/ENGLISH_LEARNING_UX_SOURCE_AUDIT_2026-10-26.md`；已读取 product-manager 与 ui-implementation-validation Skill 正文 |
+| 连续播放时当前句高亮/定位跟随实际播放 key | IMPLEMENTED_UNVERIFIED | 分支提交 `e6d97e4c61c342cffccc4f3749ccf9136394fa37`：`ReaderStage.vue` 监听共享播放器 `playingKey`，映射句子/词条索引并在 DOM 更新后定位；连播被中断时不再把所有句子记为已读 |
+| 播放 key → 渲染索引纯函数及单元测试 + 手动滚动控制 | TEST_PASS（最新代码 SHA） | `readerSpeechSync.ts`、`readerSpeechSync.test.ts` 与 `ReaderStage.vue` 自动跟随/手动滚动暂停/返回当前句；最新 [Frontend quality #286](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289483314) 对 SHA `9aa41da94c49aecd62b0889c3357ce8e97a1ca94` 的单测、类型检查和生产构建均 PASS。真实 Windows/浏览器交互仍 NOT_RUN |
+| 连续至少 10 句真实播放/高亮/滚动回归 | NOT_RUN | 当前执行环境没有目标 Windows 应用/真实浏览器交互会话，不能伪称已运行；需在本机连续播放至少 10 句，并覆盖切句、暂停/停止、手动滚动、TTS 失败与旧事件 |
+| 用户手动滚动时的自动跟随暂停/“回到当前句” | IMPLEMENTED_UNVERIFIED | `ReaderStage.vue` 增加跟随开关、滚轮主动滚动后暂停自动定位，以及“回到当前句”；仍需浏览器验证滚动意图与键盘/触控行为 |
+| 两套语音播放服务的并存边界 | TODO（边界已定位） | `FollowMode.vue` 的 `audioPlayService` 会创建自己的 `HTMLAudioElement`，TTS 失败时可回退 `speechSynthesis`；`ReaderStage.vue` 的 `useSpeechPlayer` 使用模块级唯一 `Audio`。目前是不同路由/组件路径，尚无证据证明它们同时播放；后续检查页面切换/卸载与教师播报打断，不应直接断言双音轨 |
+
+**本切片验收状态：** 静态修改已提交到 PR 分支；自动化测试/类型检查/构建等待 CI；Windows/浏览器 E2E、截图、真实 TTS 时序与用户效果验证均为 `NOT_RUN`。不得将代码写入或 CI 通过单独视为产品验收完成。

@@ -204,3 +204,16 @@
 - 失败透明记录：提交 `fb01277` 曾出现 TS18047，随后 `9786de9` 修复；最终 CI 结果仍需确认。
 - 真实运行：浏览器/Windows 多教材切换、刷新恢复、存储配额不足和真实教材增补 E2E 仍 `NOT_RUN`；不可标记 UI/端到端 VERIFIED。
 - 下一步：确认当前 CI 最终结果；通过后，在真实窗口中执行报告中的场景。若实机发现状态或数据行为与预期不符，优先修复，不以 CI 通过替代体验验收。
+
+
+## 英语学习核心体验 P0-A 交接（2026-10-26）
+
+- 当前分支：`design/english-learning-core-experience-2026-10-26`；Draft PR #10：<https://github.com/laodongAI/LexiTypeAcademy/pull/10>。
+- 产品基线：`docs/design/english-learning-core-experience-restructure-v1.md`；源码初审：`docs/tasks/ENGLISH_LEARNING_UX_SOURCE_AUDIT_2026-10-26.md`。
+- 本轮已读：`.aimes/skills/product-manager/SKILL.md`、`.aimes/skills/ui-implementation-validation/SKILL.md`、`AGENTS.md`、`.trae/rules/00-aimes-governance.md`、`docs/_governance/AIMES-CORE-V1.2.md`；Skill 正文已读取，但不代表 IDE/CLI 自动路由已验证。
+- 代码切片：`ReaderStage.vue` 监听共享播放器 `playingKey`，将实际播放 key 映射为当前句/词条索引；连播切句时同步高亮与定位。新增“跟随朗读：开/开启跟随”状态按钮，用户滚轮主动浏览后暂停自动定位，并可点击“回到当前句”恢复跟随。连播被停止/中断时不再把所有句子都标记为已读。纯函数 `readerSpeechSync.ts` 及 `readerSpeechSync.test.ts` 覆盖 key 到索引的映射。
+- 代码提交：`e6d97e4c61c342cffccc4f3749ccf9136394fa37`（播放驱动同步）、`382c8d116e5b173ae51e7e33a2bd4cb5e51854fb`（手动滚动控制）、`5057eea2e8980a08b68fc4e859197e4e9a4fa09c`（测试）。最新 UI 代码及任务记录提交 `9aa41da94c49aecd62b0889c3357ce8e97a1ca94` 的 Frontend quality <https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289483314> 已 PASS（单测、类型检查、生产构建）；Backend quality <https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289483301> 已 PASS。此为 CI 证据，不替代 Windows/浏览器 E2E。
+- 产品价值：连续朗读时高亮和滚动跟随实际播放项；用户手动滚动时不持续抢回视口；被停止的连播不应将未播放的句子计入已读。
+- 播放服务边界：`FollowMode.vue` 使用 `audioPlayService`（独立 Audio 元素，TTS 失败时可能回退 Web Speech），`ReaderStage.vue` 使用模块级 `useSpeechPlayer`。两者位于不同路由/组件路径；目前没有证据证明会同时播放，仍需验证路由切换与老师播报打断。
+- 验证限制：本轮没有可操作的目标 Windows 应用/浏览器会话；最新 UI 改动的 CI、真实播放、连续 10 句、手动滚动、窄屏、控制台/网络、TTS/ASR 端到端均需复核或为 `NOT_RUN`。未证明学习效果提升。
+- 下一步：①确认包含 `382c8d1` 的 Frontend quality；②在目标 Windows 窗口连续播放至少 10 句，检查高亮、自动定位、手动滚动暂停和返回当前句；③覆盖停止/中断、快速切句、TTS 失败、触控/键盘；④复核 PR diff 与最新 main 后再决定是否合并。
