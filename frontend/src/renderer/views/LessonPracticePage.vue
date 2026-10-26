@@ -79,6 +79,7 @@
             v-if="currentMode === 'dictation'"
             :item="currentItem"
             @next="handleNext"
+            @previous="handlePrevious"
             @answer="handleAnswer"
           />
 
@@ -343,6 +344,13 @@ function handleAnswer(correct: boolean, answer?: string) {
     correct,
     answer
   })
+}
+
+// 跟读时允许左箭头回看上一项；切换题目会重置该题的录音/评分状态并自动领读。
+function handlePrevious() {
+  if (currentIndex.value > 0) {
+    currentIndex.value--
+  }
 }
 
 // 下一题
