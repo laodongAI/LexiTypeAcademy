@@ -238,3 +238,13 @@
 - **测试：** `frontend/src/shared/utils/conversationRetry.test.ts` 覆盖匹配重试、尾部 assistant 不误复用、文本不同和空历史；Frontend quality [#40291216089](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216089) PASS（单测、类型检查、生产构建）；Backend quality [#40291216256](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40291216256) PASS。已验证代码 SHA：`57132229dd4f8ced72f5a782be88624613935318`。
 - **未验证：** 尚未通过真实网络中断/AI 超时制造故障并验证窗口内重试、会话刷新与持久化一致性；真实 Windows/浏览器视觉验收仍 `NOT_RUN`。
 - **产品价值：** 用户回答失败后重试不应重复记录同一句话；重试应延续已有会话和上下文，而不是悄悄污染学习记录。
+
+
+## 2026-10-26 交接：AI 英语课堂沉浸式体验首轮改造
+
+- 代码：`frontend/src/renderer/views/UnitLearningPage.vue`。AI 老师区域已改为通过 Vue Teleport 挂载到 body 的全屏 dialog；有显式退出按钮、Escape 退出、讲解区独立滚动、历史区限高和底部回答区。
+- 语音：朗读当前讲解根据文本是否包含中文字符选择 zh/en。中英混合内容仍采用单一语言策略，后续应考虑按句分段。
+- 模块职责：`LearningPlansPage.vue` 明确管理目标/排期/每日任务/打卡；`MyLearningPage.vue` 明确管理课程实际进度/学习历史。当前仅澄清入口与文案，没有合并数据模型或删除功能。
+- 设计：`docs/design/ai-classroom-experience-v1.md`。
+- 待验证：CI、浏览器真实窗口、窄屏、键盘焦点、Escape、退出后会话恢复、长讲解滚动和实际 TTS 语言效果。
+- 后续 P0：把 AI 自由文本教学升级为结构化教学步骤/状态机/评价协议；先定义契约和测试，再实施，不在本次 UI 改造中冒然更换对话数据结构。
