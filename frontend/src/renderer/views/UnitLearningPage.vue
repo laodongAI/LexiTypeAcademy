@@ -44,7 +44,12 @@
     </div>
     <div v-if="currentTeacherMessage" class="board-content">
       <h3>老师当前讲解</h3>
-      <div class="board-text">{{ currentTeacherMessage.content }}</div>
+      <div class="teacher-lesson-sections">
+        <section v-for="section in currentTeacherSections" :key="section.key" class="teacher-lesson-section" :class="'section-' + section.key">
+          <h4>{{ section.label }}</h4>
+          <div class="board-text">{{ section.content }}</div>
+        </section>
+      </div>
       <div class="board-actions">
         <button type="button" @click="playText(currentTeacherMessage.content, 'teacher-current-' + currentTeacherMessage.id, /[\u3400-\u9fff]/.test(currentTeacherMessage.content) ? 'zh' : 'en')">朗读当前讲解</button>
       </div>
@@ -99,6 +104,7 @@ import { AIService } from '../../shared/services/ai/aiService'
 import { conversationCoreService, type ConversationSession } from '../../shared/services/conversationCoreService'
 import { isAnswerCorrect, textSimilarity } from '../../shared/utils/textCompare'
 import { splitSentences } from '../../shared/utils/sentenceSplit'
+import { parseTeacherLessonContent } from '../../shared/utils/teacherLessonPresentation'
 import { playSpeech, stopSpeech } from '../composables/useSpeechPlayer'
 
 type StageId = 'intro' | 'reading' | 'sentences' | 'vocabulary' | 'grammar' | 'output' | 'summary'
@@ -143,6 +149,7 @@ const teacherDraft = ref('')
 const teacherLoading = ref(false)
 const teacherError = ref('')
 const currentTeacherMessage = computed(() => [...(teacherSession.value?.messages || [])].reverse().find(message => message.role === 'assistant') || null)
+const currentTeacherSections = computed(() => parseTeacherLessonContent(currentTeacherMessage.value?.content || ''))
 
 const stages: { id: StageId; label: string; description: string }[] = [
   { id: 'intro', label: '单元导入', description: '了解本单元主题、材料构成与学习目标。' },
@@ -518,7 +525,13 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 .status-dot.processing { background: #d97706; animation: pulse 1s infinite alternate; }
 .board-content { max-width: 900px; width: 100%; margin: auto; padding: 28px 0; }
 .board-content h3, .board-empty h3 { margin: 0 0 18px; color: #334155; font-size: 16px; }
-.board-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: clamp(18px, 2vw, 24px); line-height: 1.95; color: #172033; }
+.teacher-lesson-sections { display: grid; gap: 14px; }
+.teacher-lesson-section { padding: 16px 18px; border: 1px solid #e2e8f0; border-radius: 12px; background: rgb(255 255 255 / 86%); }
+.teacher-lesson-section h4 { margin: 0 0 8px; color: #64748b; font-size: 12px; letter-spacing: .04em; text-transform: none; }
+.teacher-lesson-section.section-question { border-color: #bfdbfe; background: #eff6ff; }
+.teacher-lesson-section.section-question h4 { color: #1d4ed8; }
+.teacher-lesson-section.section-feedback { border-color: #bbf7d0; background: #f0fdf4; }
+.board-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: clamp(18px, 2vw, 24px); line-height: 1.85; color: #172033; }
 .board-actions { margin-top: 24px; }
 .board-actions button, .teacher-error button { padding: 9px 14px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #334155; cursor: pointer; }
 .board-empty { display: grid; place-content: center; flex: 1; min-height: 220px; text-align: center; }
