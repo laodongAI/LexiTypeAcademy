@@ -48,7 +48,8 @@
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
-          <el-statistic title="本轮正确率" :value="accuracy" :suffix="reviewStore.currentSession ? '%' : ''" />
+          <el-statistic v-if="accuracy !== null" title="本轮正确率" :value="accuracy" suffix="%" />
+          <div v-else class="statistic-placeholder"><div>本轮正确率</div><strong>—</strong></div>
         </el-card>
       </el-col>
     </el-row>
@@ -186,8 +187,8 @@ const todayReviewed = computed(() => reviewStore.reviewStats?.reviewedToday ?? 0
 const totalWords = computed(() => reviewStore.reviewStats?.totalWords ?? 0)
 const accuracy = computed(() => {
   const session = reviewStore.currentSession
-  if (!session) return '—'
-  if (session.totalCount <= 0) return '—'
+  if (!session) return null
+  if (session.totalCount <= 0) return null
   // 会话进行中/完成都可用
   return Math.round((session.correctCount / session.totalCount) * 100)
 })
