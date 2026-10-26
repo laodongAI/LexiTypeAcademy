@@ -181,3 +181,15 @@
 - 后续每项任务必须关联产品基线章节、任务 ID、范围与非目标、交互理由、验收标准、实际执行命令、CI/提交、真实运行环境/视口/步骤/结果/截图或日志，以及未解决风险。
 - 当前状态：协议文档已提交；协议自身不代表任何功能已通过验收。此前微文案修改的真实窗口/键盘/视口/TTS 验收仍 NOT_RUN。AIMES 目标 IDE/CLI 自动路由仍 UNKNOWN/NOT_RUN。
 - 建议下一切片：先重查最新 main CI 和相关实现，再实施教材生成内容类型纯函数测试、草稿与 checkpoint 隔离、任务状态/部分成功/恢复验收。若发现更高优先级的真实阻塞，应记录依据后调整顺序。
+
+
+## 教材内容类型识别首个实现切片（2026-10-26）
+
+- 产品基线：`docs/product/PRODUCT_DEEP_REVIEW_AND_TOP10_BENCHMARK.md`；执行门禁：`docs/product/PRODUCT_EXECUTION_AND_EVIDENCE_PROTOCOL.md`。
+- 用户问题：已有内容类型识别直接决定补充生成是否跳过某类型；“课文/对话”误判可能让用户无法生成缺失内容。
+- 交互决策：本切片不改控件布局，先确保“已有内容”语义稳定，随后再处理草稿与检查点。测试覆盖五类显式标题、课文/对话边界、多课时去重、空/未知标题和标记优先级。
+- 改动：`frontend/src/shared/utils/textbookContentTypes.ts`、`frontend/src/shared/utils/textbookContentTypes.test.ts`、`frontend/src/renderer/components/ai/TextbookImportPanel.vue`、`frontend/package.json`、`.github/workflows/frontend-quality.yml`。
+- 提交：`881183c`（纯函数）、`5b6fbc`（测试）、`270370d`（测试脚本）、`07292af`（组件接入）、`6417e76`（CI 测试步骤）。
+- 当前 CI：[Frontend #256](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281030870) 与 [Backend #171](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281031057) 在最后查询时 pending。不得提前宣称测试或构建通过。
+- 真实运行/Windows/教材增补/刷新恢复验收仍 `NOT_RUN`；本切片没有验证学习效果提升。
+- 下一步：先确认 CI 实际结果；若测试脚本失败先修复。通过后，设计并实现多教材草稿/检查点隔离和显式恢复/覆盖保护，再为进度、部分成功、失败重试补齐状态矩阵与 E2E 步骤。
