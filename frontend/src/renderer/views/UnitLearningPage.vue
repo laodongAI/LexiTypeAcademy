@@ -486,12 +486,30 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 .aside-note { font-size: 12px; line-height: 1.7; color: #64748b; margin-top: 18px; }
 .stage-footer :deep(.el-button) { min-height: 38px; }
 .teacher-workspace { padding: 24px; }
-.teacher-classroom { display: flex; flex-direction: column; gap: 18px; min-height: min(72vh, 820px); }
+.teacher-classroom {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  height: 100dvh;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: clamp(16px, 2.4vw, 32px) clamp(16px, 4vw, 56px);
+  background: #f6f8fc;
+  color: #172033;
+}
+.teacher-exit { flex: none; display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155; font: inherit; font-weight: 700; cursor: pointer; }
+.teacher-exit span { font-size: 20px; line-height: 1; }
+.teacher-exit:hover { background: #f1f5f9; }
+.teacher-classroom :focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
 .teacher-intro { justify-content: space-between; align-items: flex-start; }
 .teacher-heading-copy { min-width: 0; }
 .teacher-heading-copy h2 { margin: 8px 0; }
 .teacher-heading-copy p { max-width: 720px; color: #64748b; line-height: 1.7; margin: 0; }
-.teacher-board { display: flex; flex: 1; flex-direction: column; min-height: 300px; padding: clamp(20px, 4vw, 42px); border: 1px solid #dbe5f2; border-radius: 18px; background: radial-gradient(ellipse at top left, #f0f6ff 0, #fff 62%); }
+.teacher-board { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; padding: clamp(20px, 4vw, 42px); border: 1px solid #dbe5f2; border-radius: 18px; background: radial-gradient(ellipse at top left, #f0f6ff 0, #fff 62%); box-shadow: 0 12px 36px rgb(15 23 42 / 5%); }
 .board-topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid #e2eaf5; }
 .board-label { color: #64748b; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
 .teacher-status { display: inline-flex; align-items: center; gap: 7px; color: #64748b; font-size: 12px; }
@@ -509,17 +527,17 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 @keyframes board-spin { to { transform: rotate(360deg); } }
 .teacher-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 10px; background: #fff7f7; color: #991b1b; }
 .teacher-error span { flex: 1; min-width: 180px; }
-.teacher-history { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.teacher-history { flex: 0 0 auto; max-height: 28vh; overflow: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .teacher-history summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; font-weight: 700; color: #334155; }
 .teacher-history summary span { color: #64748b; font-size: 12px; font-weight: 500; }
-.teacher-history .teacher-messages { min-height: 120px; max-height: 280px; padding: 0 16px 16px; }
+.teacher-history .teacher-messages { min-height: 0; max-height: 220px; padding: 0 16px 16px; }
 .history-empty { color: #64748b; padding: 16px 0; }
 .teacher-message { display: block; padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; }
 .teacher-message.user { background: #f8fafc; }
 .history-message-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .history-message-heading small { color: #94a3b8; }
 .history-message-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
-.teacher-composer { padding-top: 4px; }
+.teacher-composer { flex: 0 0 auto; padding: 14px 16px 12px; border: 1px solid #dbe5f2; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 5%); }
 .teacher-composer > label { display: block; margin-bottom: 8px; color: #475569; font-size: 13px; font-weight: 700; }
 .teacher-input-row { display: flex; align-items: stretch; gap: 12px; }
 .teacher-input-row textarea { flex: 1; min-width: 0; resize: vertical; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; line-height: 1.6; }
@@ -551,7 +569,15 @@ onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
   .mode-cards, .vocabulary-grid, .progress-strip { grid-template-columns: 1fr; }
   .learning-header { grid-template-columns: 1fr; }
   .header-meta { justify-content: flex-start; }
-  .stage-main, .stage-aside, .mode-picker, .teacher-workspace { padding: 16px; }
+  .stage-main, .stage-aside, .mode-picker { padding: 16px; }
+  .teacher-classroom { gap: 10px; padding: 12px; }
+  .teacher-intro { padding-bottom: 12px; }
+  .teacher-intro h2 { font-size: 18px; }
+  .teacher-board { flex: 1 1 auto; padding: 18px; }
+  .board-content { margin: 0; padding: 18px 0; }
+  .board-text { font-size: 17px; line-height: 1.75; }
+  .teacher-history { max-height: 22vh; }
+  .teacher-composer { padding: 12px; }
   .stage-nav { gap: 6px; }
   .stage-nav button { font-size: 12px; padding: 8px 10px; }
   .stage-heading, .grammar-heading, .teacher-intro, .composer-footer { align-items: flex-start; flex-direction: column; }
