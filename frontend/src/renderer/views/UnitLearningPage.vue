@@ -46,7 +46,7 @@
       <h3>老师当前讲解</h3>
       <div class="board-text">{{ currentTeacherMessage.content }}</div>
       <div class="board-actions">
-        <button type="button" @click="playText(currentTeacherMessage.content, 'teacher-current-' + currentTeacherMessage.id, 'zh')">朗读当前讲解</button>
+        <button type="button" @click="playText(currentTeacherMessage.content, 'teacher-current-' + currentTeacherMessage.id, /[\u3400-\u9fff]/.test(currentTeacherMessage.content) ? 'zh' : 'en')">朗读当前讲解</button>
       </div>
     </div>
     <div v-else-if="teacherLoading" class="board-empty">
