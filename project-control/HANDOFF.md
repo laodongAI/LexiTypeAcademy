@@ -160,3 +160,13 @@
 - AIMES：产品经理 Skill 文本已实际读取并应用；自动 Skill 路由仍未验证，registry 中的 UNKNOWN/空 evidence 必须保留，直到获得目标工具实际执行证据。
 
 - 追加代码修复 `e4972e4b4f9c9da98251257c7c5d1ebc531e9fea`：标题识别补充“句型”标记。正式审计清单已新增单元默认选择、增补行为与生成耗时基线项。
+
+
+## 产品经理深度评估交接（2026-10-26）
+
+- 报告：`docs/product/PRODUCT_DEEP_REVIEW_AND_TOP10_BENCHMARK.md`。
+- 本轮实际读取 AIMES product-manager、market-analysis、requirement-cognition、ui-quality-review、frontend-design 等 Skill 文件；产品分析与微文案审查步骤已实际执行，但注册表 validation_status 为 UNKNOWN，目标 IDE/CLI 自动路由仍未验证。
+- 首批低风险文案改动已提交：`306a27ea619b5cda58fff1b252b89be88e5e21a2`（课堂提示/教师台词）；`0ee9e28ee9d6c6e3858a6235a7923665ab4029a0`（AI 教学与面试输入提示）。
+- 最新 CI 在最后查询时仍 pending：Frontend #245、Backend #160。前一提交 Frontend #242/Backend #157 成功，但不覆盖后续 UI 文案提交。
+- 真实窗口/键盘/屏幕尺寸/语音时序验收仍 NOT_RUN；不得声称按钮位置、视觉和 TTS 交互已通过。
+- 继续优先：教材生成草稿/断点保护、进度状态真实化、首页主 CTA 与数据解释、课堂语音打断与提示适配、对话场景化反馈与失败恢复。
