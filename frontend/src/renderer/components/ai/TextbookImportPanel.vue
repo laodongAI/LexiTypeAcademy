@@ -636,16 +636,36 @@ function getExistingCourseForUnit(unitTitle: string) {
   }) ?? null
 }
 
+/**
+ * Infer generated content types from existing lesson metadata without treating
+ * every "课文/对话" lesson as a sentence lesson. The old broad sentence regex
+ * could incorrectly block supplementary generation for another content type.
+ *
+ * Prefer the explicit lesson title marker used by the generator. For legacy
+ * lesson titles, use ordered, non-overlapping fallback patterns.
+ */
 function getExistingTypes(course: { lessons?: Lesson[] } | null | undefined): string[] {
   if (!course) return []
-  const types: Array<[string, RegExp]> = [
-    ['words', /单词|词汇/i],
-    ['sentences', /句子|课文|对话/i],
-    ['passage', /短文|阅读/i],
-    ['grammar', /语法/i],
-    ['phonics', /phonics|发音|音标/i],
-  ]
-  return types.filter(([, pattern]) => course.lessons?.some(lesson => pattern.test(lesson.title))).map(([type]) => type)
+  const lessons = course.lessons || []
+  const detected = new Set<string>()
+  for (const lesson of lessons) {
+    const title = String(lesson.title || '').trim()
+    if (!title) continue
+
+    // Specific semantic markers must be checked before broader shape fallbacks.
+    if (/phonics|发音|音标/i.test(title)) {
+      detected.add('phonics')
+    } else if (/语法/i.test(title)) {
+      detected.add('grammar')
+    } else if (/短文|阅读|课文|篇章/i.test(title)) {
+      detected.add('passage')
+    } else if (/重点句|句子/i.test(title)) {
+      detected.add('sentences')
+    } else if (/单词|词汇/i.test(title)) {
+      detected.add('words')
+    }
+  }
+  return [...detected]
 }
 
 async function generateCourseFromTextbook() {
