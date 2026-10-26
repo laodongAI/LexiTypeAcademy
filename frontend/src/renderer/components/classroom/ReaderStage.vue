@@ -9,7 +9,7 @@
  *   4. 支持键盘聚焦与点击朗读；悬停朗读可整体关闭。
  */
 
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Headset, Loading, Plus, VideoPlay } from '@element-plus/icons-vue'
 import type { Course, Lesson, LessonItem } from '../../../shared/types/course'
@@ -101,6 +101,10 @@ const articleRef = ref<HTMLElement | null>(null)
 const stageRef = ref<HTMLElement | null>(null)
 /** 键盘导航的当前单元下标：-1 表示尚未定位 */
 const focusIndex = ref(-1)
+/** 自动跟随朗读；用户主动滚动后暂停，避免抢走阅读控制权 */
+const autoFollow = ref(true)
+/** 最近一次属于当前舞台的播放 key，停止后仍可用于“回到当前句” */
+const lastSpeechKey = ref<string | null>(null)
 
 /** 悬停定时器：句子朗读 */
 let sentenceTimer: ReturnType<typeof setTimeout> | null = null
@@ -535,8 +539,39 @@ async function playCurrent(): Promise<void> {
 }
 
 /**
+ * 用户主动滚动时暂停自动跟随，但仍持续更新当前句高亮。
+ * 这样用户可以查看上下文；“回到当前句”会重新启用跟随。
+ */
+function onManualScrollIntent(): void {
+  if (lastSpeechKey.value) autoFollow.value = false
+}
+
+function returnToCurrent(): void {
+  const key = lastSpeechKey.value
+  if (!key) return
+
+  const sentenceKeys = sentences.value.map(sentence => sentence.key)
+  const itemKeys = props.lesson.items.map(item => item.id)
+  const index = resolvePlayingIndex(key, sentenceKeys, itemKeys, isWordLesson.value)
+  if (index < 0) return
+
+  autoFollow.value = true
+  focusIndex.value = index
+  if (!isWordLesson.value) activeSentenceKey.value = key
+  void nextTick(() => scrollToIndex(index))
+}
+
+function toggleAutoFollow(): void {
+  if (autoFollow.value) {
+    autoFollow.value = false
+    return
+  }
+  returnToCurrent()
+}
+
+/**
  * 音频播放器的 playingKey 是当前实际播放项的唯一状态来源。
- * 连播会逐句更新该值；监听它可让高亮和滚动跟随真实播放，而不是只停留在 playAll 的首句。
+ * 连播会逐句更新该值；高亮跟随真实播放，滚动则尊重用户主动滚动的意图。
  */
 watch(playingKey, (key) => {
   if (!key) return
@@ -546,11 +581,18 @@ watch(playingKey, (key) => {
   const index = resolvePlayingIndex(key, sentenceKeys, itemKeys, isWordLesson.value)
   if (index < 0) return
 
+  lastSpeechKey.value = key
   focusIndex.value = index
   if (!isWordLesson.value) activeSentenceKey.value = key
 
-  // 等待 Vue 更新列表后再定位，避免滚动到上一个 DOM 节点。
-  void nextTick(() => scrollToIndex(index))
+  if (autoFollow.value) {
+    // 等待 Vue 更新列表后再定位，避免滚动到上一个 DOM 节点。
+    void nextTick(() => scrollToIndex(index))
+  }
+})
+
+onMounted(() => {
+  window.addEventListener('wheel', onManualScrollIntent, { passive: true })
 })
 
 /** 暴露给父组件的键盘导航能力 */
@@ -579,6 +621,8 @@ watch(
     lookupCount.value = 0
     focusIndex.value = -1
     activeSentenceKey.value = null
+    lastSpeechKey.value = null
+    autoFollow.value = true
     wordCard.value = null
     emitStats()
   },
@@ -586,6 +630,7 @@ watch(
 
 /** 组件卸载时停止音频与定时器 */
 onBeforeUnmount(() => {
+  window.removeEventListener('wheel', onManualScrollIntent)
   clearTimers()
   stop('unmount')
 })
@@ -609,6 +654,12 @@ onBeforeUnmount(() => {
         </el-button>
         <el-button size="small" :icon="Headset" :disabled="!isPlaying" @click="stop('toolbar')">
           停止
+        </el-button>
+        <el-button size="small" :type="autoFollow ? 'primary' : 'default'" @click="toggleAutoFollow">
+          {{ autoFollow ? '跟随朗读：开' : '开启跟随' }}
+        </el-button>
+        <el-button v-if="!autoFollow && lastSpeechKey" size="small" @click="returnToCurrent">
+          回到当前句
         </el-button>
       </div>
     </header>
