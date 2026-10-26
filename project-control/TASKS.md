@@ -390,7 +390,7 @@ cd frontend; npm run build
 | 连续播放时当前句高亮/定位跟随实际播放 key | IMPLEMENTED_UNVERIFIED | 分支提交 `e6d97e4c61c342cffccc4f3749ccf9136394fa37`：`ReaderStage.vue` 监听共享播放器 `playingKey`，映射句子/词条索引并在 DOM 更新后定位；连播被中断时不再把所有句子记为已读 |
 | 播放 key → 渲染索引纯函数及单元测试 | CI_PENDING | `frontend/src/shared/utils/readerSpeechSync.ts`、`readerSpeechSync.test.ts`；测试覆盖文章句子、词条、空 key 和无匹配 key。PR #10 Frontend quality run `40289084797` 当前 queued，尚未得到结果 |
 | 连续至少 10 句真实播放/高亮/滚动回归 | NOT_RUN | 当前执行环境没有目标 Windows 应用/真实浏览器交互会话，不能伪称已运行；需在本机连续播放至少 10 句，并覆盖切句、暂停/停止、手动滚动、TTS 失败与旧事件 |
-| 用户手动滚动时的自动跟随暂停/“回到当前句” | TODO | 本切片仅补播放驱动的句级高亮与自动定位；尚未实现滚动意图感知和显式返回按钮，需作为下一子切片处理，避免自动追随抢走用户控制权 |
-| 两套语音播放服务的并存边界 | TODO | `FollowMode.vue` 使用 `audioPlayService`，`ReaderStage.vue` 使用 `useSpeechPlayer`；需追查 audioPlayService 是否复用同一 HTMLAudioElement，确认是否可能双通道，暂不贸然合并服务 |
+| 用户手动滚动时的自动跟随暂停/“回到当前句” | IMPLEMENTED_UNVERIFIED | `ReaderStage.vue` 增加跟随开关、滚轮主动滚动后暂停自动定位，以及“回到当前句”；仍需浏览器验证滚动意图与键盘/触控行为 |
+| 两套语音播放服务的并存边界 | TODO（边界已定位） | `FollowMode.vue` 的 `audioPlayService` 会创建自己的 `HTMLAudioElement`，TTS 失败时可回退 `speechSynthesis`；`ReaderStage.vue` 的 `useSpeechPlayer` 使用模块级唯一 `Audio`。目前是不同路由/组件路径，尚无证据证明它们同时播放；后续检查页面切换/卸载与教师播报打断，不应直接断言双音轨 |
 
 **本切片验收状态：** 静态修改已提交到 PR 分支；自动化测试/类型检查/构建等待 CI；Windows/浏览器 E2E、截图、真实 TTS 时序与用户效果验证均为 `NOT_RUN`。不得将代码写入或 CI 通过单独视为产品验收完成。
