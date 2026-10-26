@@ -394,3 +394,19 @@ cd frontend; npm run build
 | 两套语音播放服务的并存边界 | TODO（边界已定位） | `FollowMode.vue` 的 `audioPlayService` 会创建自己的 `HTMLAudioElement`，TTS 失败时可回退 `speechSynthesis`；`ReaderStage.vue` 的 `useSpeechPlayer` 使用模块级唯一 `Audio`。目前是不同路由/组件路径，尚无证据证明它们同时播放；后续检查页面切换/卸载与教师播报打断，不应直接断言双音轨 |
 
 **本切片验收状态：** 静态修改已提交到 PR 分支；自动化测试/类型检查/构建等待 CI；Windows/浏览器 E2E、截图、真实 TTS 时序与用户效果验证均为 `NOT_RUN`。不得将代码写入或 CI 通过单独视为产品验收完成。
+
+
+## 英语学习核心体验 P0-B：AI 老师黑板式课堂（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| 将 P0-A 设计、播放同步、测试和交接记录合并到 main | MERGED | [PR #10](https://github.com/laodongAI/LexiTypeAcademy/pull/10)，合并提交 `f62373afff6e8f508bb662944857b86b4b2c939c)；后续默认直接在 `main` 开发 |
+| AI 老师主界面改为当前讲解黑板，历史消息默认折叠 | IMPLEMENTED_UNVERIFIED | `frontend/src/renderer/views/UnitLearningPage.vue`；黑板展示最新 assistant 消息，保留完整历史记录，不新增会话存储 |
+| 固定回答区、状态提示与失败恢复入口 | IMPLEMENTED_UNVERIFIED | 新增当前讲解播报、思考/等待状态、启动失败与发送失败区分、Ctrl+Enter 提交；尚未实机验证 |
+| 移除 AI 历史记录自动滚底 | IMPLEMENTED_UNVERIFIED | 不再在每次消息变化后强制设置历史滚动位置，避免夺回用户滚动控制权 |
+| 前端单测与类型检查 | PASS（代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`） | [Frontend quality #?](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310921)：单测、TypeScript 类型检查已通过；生产构建在记录时仍运行，需确认最终结果 |
+| 后端质量检查 | PASS（代码 SHA `570c2a09049b9f8954e40a86c6f4817d178207b1`） | [Backend quality](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40290310907) |
+| Windows/浏览器真实课堂验收、窄屏/键盘、长回复、AI 错误恢复 | NOT_RUN | 需在目标窗口验证当前讲解是否清晰、历史折叠行为、输入区可达性、启动失败重试和发送失败重试；CI 不能替代视觉/交互验收 |
+| 学习效果验证 | NOT_RUN | 尚无用户测试数据，不宣称已改善完成率或学习效果 |
+
+**产品理由：** 用户需要一眼看到当前教学重点和下一步，而不是在连续聊天记录中自行定位。历史对话仍可查阅，但默认不抢占主视觉；回答操作保持稳定位置。验收必须分别记录自动化、真实运行和用户效果证据。
