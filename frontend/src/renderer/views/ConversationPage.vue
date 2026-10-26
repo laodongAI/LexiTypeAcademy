@@ -105,7 +105,7 @@
               maxlength="4000"
               show-word-limit
               :disabled="sending || currentSession.status !== 'active'"
-              :placeholder="currentSession.status === 'active' ? '输入英文回答或用中文询问……' : '该会话已结束，请新建会话继续'"
+              :placeholder="currentSession.status !== 'active' ? '该会话已结束，请新建会话继续' : currentSession.scenarioId === 'english-interview' ? '请尽量用英文回答；回答结束后可查看表达建议。' : '用英文回答练习；如果卡住，可以用中文问提示。'"
               @keydown.ctrl.enter.prevent="sendMessage"
             />
             <div class="composer-footer">
