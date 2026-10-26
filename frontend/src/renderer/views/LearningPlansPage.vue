@@ -17,8 +17,8 @@
     <!-- 页面头部：标题与新建入口 -->
     <header class="page-header">
       <div>
-        <h2 class="page-title">学习计划</h2>
-        <p class="page-subtitle">管理学习目标、课程安排、每日任务和打卡。这里关注“计划怎么执行”；课程实际进度与学习历史请到「我的学习」查看。</p>
+        <h2 class="page-title">目标与计划</h2>
+        <p class="page-subtitle">设定学习目标、安排每日任务并记录打卡。实际课程进度与学习历史统一回到「我的学习」查看。</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建计划</el-button>
     </header>
