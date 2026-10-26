@@ -700,8 +700,9 @@ async function generateCourseFromTextbook() {
     const legacyKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
     let checkpoint = readGenerationCheckpoint(key) || readGenerationCheckpoint(legacyKey)
     const checkpointMatches = !!checkpoint && (checkpoint.key === key || (checkpoint.key === legacyKey && (!checkpoint.grade || checkpoint.grade === gradeKey))) && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
-    const completedContentCount = checkpoint
-      ? checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
+    const checkpointForCount = checkpoint
+    const completedContentCount = checkpointForCount
+      ? checkpointForCount.completedTasks.filter(task => checkpointForCount.unitTitles.some(unit => checkpointForCount.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
       : 0
     const hasRecoverableDraft = !!checkpoint && (checkpoint.completedTasks.length > 0 || Object.keys(checkpoint.lessonsByUnit).length > 0)
     if (!checkpointMatches && hasRecoverableDraft) {
