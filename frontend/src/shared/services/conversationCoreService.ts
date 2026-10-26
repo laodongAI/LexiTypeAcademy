@@ -7,6 +7,7 @@
 import { commonRepository } from '../database/repositories/commonRepository'
 import { apiPost } from './apiClient'
 import { learningEventService } from './learningEventService'
+import { findRetryablePendingMessage } from '../utils/conversationRetry'
 import type { AITaskLog } from '../types/common'
 
 export type ConversationScenarioId = 'ai-tutor' | 'english-interview'
@@ -154,9 +155,7 @@ export class ConversationCoreService {
     // 但用户消息已经保存。先恢复最新会话，再识别同一条尾部消息，避免重试重复追加。
     const latestSession = toSession(log) ?? session
     if (latestSession.status !== 'active') throw new Error('该会话已结束，请新建会话继续')
-    const lastMessage = latestSession.messages[latestSession.messages.length - 1]
-    const retryingPersistedMessage =
-      lastMessage?.role === 'user' && lastMessage.content === userText ? lastMessage : undefined
+    const retryingPersistedMessage = findRetryablePendingMessage(latestSession.messages, userText)
     const userMessage = retryingPersistedMessage ?? makeMessage('user', userText)
     const pending: ConversationSession = {
       ...latestSession,
