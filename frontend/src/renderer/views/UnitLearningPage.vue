@@ -18,14 +18,15 @@
 <footer class="stage-footer"><button type="button" :disabled="stageIndex === 0" @click="moveStage(-1)">上一步</button><button v-if="currentStage !== 'summary'" type="button" @click="skipStage">跳过本阶段</button><button v-if="currentStage !== 'summary'" type="button" class="primary-action" @click="completeAndNext">完成并继续</button><button v-if="currentStage === 'summary'" type="button" class="primary-action" @click="goBack">返回单元详情</button></footer>
 </main><aside class="stage-aside"><h3>本单元内容</h3><div v-for="lesson in course.lessons" :key="lesson.id" class="lesson-outline"><strong>{{ lesson.title }}</strong><small>{{ contentShapeLabel(lesson.contentShape) }} · {{ lesson.items?.length || 0 }} 条</small></div><label><input v-model="showTranslations" type="checkbox" /> 显示中文翻译</label><div>学习建议：先理解整体，再拆解重点，最后尝试独立输出。</div></aside></div>
 </div>
-<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace teacher-classroom">
+<Teleport to="body">
+<section v-if="!loading && !loadError && course && learningMode === 'teacher'" class="teacher-workspace teacher-classroom" role="dialog" aria-modal="true" aria-labelledby="teacher-classroom-title" tabindex="-1" @keydown.esc.stop.prevent="learningMode = 'self'">
   <header class="teacher-intro">
     <div class="teacher-heading-copy">
-      <span class="section-kicker">AI TUTOR · UNIT CLASSROOM</span>
-      <h2>{{ course.title }} · AI 老师课堂</h2>
-      <p>一次聚焦一个学习重点；先看老师当前讲解，再回答问题。历史记录默认收起，不打断当前学习。</p>
+      <span class="section-kicker">AI TUTOR · IMMERSIVE CLASSROOM</span>
+      <h2 id="teacher-classroom-title">{{ course.title }} · AI 英语课堂</h2>
+      <p>本课堂围绕当前单元教材展开：老师讲解一个重点，你完成回答，老师再根据你的实际回答反馈。退出后可返回原学习页面。</p>
     </div>
-    <button type="button" @click="learningMode = 'self'">切换自主学习</button>
+    <button type="button" class="teacher-exit" @click="learningMode = 'self'">退出课堂 <span aria-hidden="true">×</span></button>
   </header>
 
   <div v-if="teacherError" class="teacher-error" role="alert">
@@ -83,6 +84,7 @@
     <div class="composer-hint">按 Ctrl + Enter 提交。老师会根据你的真实回答继续引导。</div>
   </form>
 </section>
+</Teleport>
 </div>
 </div>
 </template>
