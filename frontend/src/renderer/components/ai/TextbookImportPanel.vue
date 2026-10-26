@@ -245,6 +245,7 @@ import type { CourseDraft } from '../../utils/aiCourseDraft'
 import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
 import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 import { courseSystemStore } from '../../../shared/services/courseSystemStore'
+import { inferGeneratedContentTypes } from '../../../shared/utils/textbookContentTypes'
 
 const router = useRouter()
 
@@ -645,27 +646,7 @@ function getExistingCourseForUnit(unitTitle: string) {
  * lesson titles, use ordered, non-overlapping fallback patterns.
  */
 function getExistingTypes(course: { lessons?: Lesson[] } | null | undefined): string[] {
-  if (!course) return []
-  const lessons = course.lessons || []
-  const detected = new Set<string>()
-  for (const lesson of lessons) {
-    const title = String(lesson.title || '').trim()
-    if (!title) continue
-
-    // Specific semantic markers must be checked before broader shape fallbacks.
-    if (/phonics|发音|音标/i.test(title)) {
-      detected.add('phonics')
-    } else if (/语法/i.test(title)) {
-      detected.add('grammar')
-    } else if (/短文|阅读|课文|篇章/i.test(title)) {
-      detected.add('passage')
-    } else if (/重点句|句子|句型/i.test(title)) {
-      detected.add('sentences')
-    } else if (/单词|词汇/i.test(title)) {
-      detected.add('words')
-    }
-  }
-  return [...detected]
+  return inferGeneratedContentTypes(course?.lessons)
 }
 
 async function generateCourseFromTextbook() {
