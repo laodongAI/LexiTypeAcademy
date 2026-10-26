@@ -283,3 +283,13 @@ LexiType Academy 不应定位为“拥有很多英语功能的工具箱”，而
 - 已提交 `frontend/src/renderer/views/ConversationPage.vue`（commit `0ee9e28ee9d6c6e3858a6235a7923665ab4029a0`）：按 AI 教学/英语面试场景区分输入提示；教学模式提示用户英文作答、卡住可用中文求助；面试模式提示尽量英文回答并可查看表达建议。
 - 最新主干的 Frontend quality #245 与 Backend quality #160 仍为 pending；前一轮提交上的 #242/#157 均成功，但不等于本轮最新改动已经通过。运行时 UI、真实 TTS 时序和用户可用性验收尚未执行。
 - 当前状态：微文案改动已提交，等待最新 CI；不标记 UI VERIFIED。
+
+
+## 11. 产品基线实施记录：教材内容类型识别测试（2026-10-26）
+
+- **用户问题：** 增补教材内容时，系统依赖课程标题判断某类型是否已存在；错误归类会导致缺失内容被跳过或生成重复内容。
+- **交互决策：** 本切片不改页面布局；先将规则提取为纯函数并锁定标题语义，避免 UI 展示的“已有类型”与生成器实际跳过逻辑不一致。
+- **代码改动：** 新增 `frontend/src/shared/utils/textbookContentTypes.ts`；新增 `textbookContentTypes.test.ts`；主用生成组件改为调用纯函数；新增 `npm run test:unit` 并加入前端 CI。
+- **验收范围：** 五类标题、课文/对话边界、多课时去重、空/未知标题、标记优先级。
+- **CI 状态：** Frontend quality #256 与 Backend quality #171 对提交 `6417e76e3798ae4daf1b938d3ebfb00cb1e97a4e` 尚为 pending，结果待定。
+- **真实验收：** 真实教材增补、UI 展示、刷新/重启恢复与 Windows E2E 均 `NOT_RUN`。没有用户样本，学习效果提升尚未证明。
