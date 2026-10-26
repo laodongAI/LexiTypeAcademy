@@ -388,7 +388,6 @@ async function sendTeacherAnswer(): Promise<void> {
   teacherDraft.value = ''
   try {
     teacherSession.value = await conversationCoreService.sendMessage(session, text)
-    await scrollTeacherMessages()
   } catch (error) {
     teacherDraft.value = text
     teacherError.value = error instanceof Error ? error.message : '回答发送失败，请重试。'
