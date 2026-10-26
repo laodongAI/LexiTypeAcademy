@@ -388,7 +388,7 @@ cd frontend; npm run build
 | --- | --- | --- |
 | 产品基线与源码审查 | DONE（STATIC_REVIEW） | `docs/design/english-learning-core-experience-restructure-v1.md`、`docs/tasks/ENGLISH_LEARNING_UX_SOURCE_AUDIT_2026-10-26.md`；已读取 product-manager 与 ui-implementation-validation Skill 正文 |
 | 连续播放时当前句高亮/定位跟随实际播放 key | IMPLEMENTED_UNVERIFIED | 分支提交 `e6d97e4c61c342cffccc4f3749ccf9136394fa37`：`ReaderStage.vue` 监听共享播放器 `playingKey`，映射句子/词条索引并在 DOM 更新后定位；连播被中断时不再把所有句子记为已读 |
-| 播放 key → 渲染索引纯函数及单元测试 | TEST_PASS（该 SHA） | `frontend/src/shared/utils/readerSpeechSync.ts`、`readerSpeechSync.test.ts`；针对 SHA `64d40329ac15421695e18a0deef35f34f1707bf4` 的 [Frontend quality #282](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289159926) 测试、类型检查、构建均 PASS；之后新增手动滚动 UI 逻辑，最新 [Frontend quality #284](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289418696) 正在运行，须以最新 SHA 结果为准 |
+| 播放 key → 渲染索引纯函数及单元测试 + 手动滚动控制 | TEST_PASS（最新代码 SHA） | `readerSpeechSync.ts`、`readerSpeechSync.test.ts` 与 `ReaderStage.vue` 自动跟随/手动滚动暂停/返回当前句；最新 [Frontend quality #286](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289483314) 对 SHA `9aa41da94c49aecd62b0889c3357ce8e97a1ca94` 的单测、类型检查和生产构建均 PASS。真实 Windows/浏览器交互仍 NOT_RUN |
 | 连续至少 10 句真实播放/高亮/滚动回归 | NOT_RUN | 当前执行环境没有目标 Windows 应用/真实浏览器交互会话，不能伪称已运行；需在本机连续播放至少 10 句，并覆盖切句、暂停/停止、手动滚动、TTS 失败与旧事件 |
 | 用户手动滚动时的自动跟随暂停/“回到当前句” | IMPLEMENTED_UNVERIFIED | `ReaderStage.vue` 增加跟随开关、滚轮主动滚动后暂停自动定位，以及“回到当前句”；仍需浏览器验证滚动意图与键盘/触控行为 |
 | 两套语音播放服务的并存边界 | TODO（边界已定位） | `FollowMode.vue` 的 `audioPlayService` 会创建自己的 `HTMLAudioElement`，TTS 失败时可回退 `speechSynthesis`；`ReaderStage.vue` 的 `useSpeechPlayer` 使用模块级唯一 `Audio`。目前是不同路由/组件路径，尚无证据证明它们同时播放；后续检查页面切换/卸载与教师播报打断，不应直接断言双音轨 |
