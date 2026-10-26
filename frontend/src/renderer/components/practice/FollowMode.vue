@@ -194,7 +194,7 @@ function handleFollowKeydown(event: KeyboardEvent): void {
   if (event.altKey || event.ctrlKey || event.metaKey) return
   const target = event.target
   if (target instanceof HTMLElement && (
-    target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)
+    target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
   )) return
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
