@@ -326,3 +326,16 @@ cd frontend; npm run build
 - CI 证据：Frontend quality PASS（TypeScript typecheck + production build，https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684942）；Backend quality PASS（https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40083684818）。待验证：AI 会话恢复、TTS/跟读跳转、不同内容形态空状态、刷新后进度恢复、Windows/浏览器 E2E。
 
 - 单元整体学习补充修正（2026-10-24）：阶段跳过与真正完成分开保存，跳过项单独显示且不计入完成率；重新完成阶段时清除其跳过状态。篇章拆句时不再把整段中文误配到第一句，也不把提取句链接到整段跟读项目。等待新分支 CI 验证；浏览器/Windows E2E 仍待执行。
+
+
+## 主干产品与实现专项审计（2026-10-26）
+
+- 正式清单：`docs/product/MAIN_BRANCH_PRODUCT_AUDIT_AND_IMPLEMENTATION_BACKLOG.md`。
+- 审计基线：`main` 原提交 `e37526ec927b00cd26bf7146ac0439137c2614c3`；本轮只读核对页面、服务、路由、Skills 注册表、工作流和既有任务证据。
+- 确认现状：首页已经消费真实学习看板；教材生成具备类型选择、断点、并发和部分保存重试；课程仓库具备集合层级；AI 教学/面试共享对话页面已存在。上述功能的真实浏览器/Windows 运行状态仍须分别验证。
+- 修复：`frontend/src/renderer/components/ai/TextbookImportPanel.vue` 的 `getExistingTypes()` 不再把“课文/对话”宽泛识别为“句子”，改为具体标记优先、非重叠分类。
+- 修复提交：`82be5efd6741ad45e437a0d67c6d1fa27a890fc7`；状态 `FIXED_PENDING_CI`，本轮尚未执行前端构建/浏览器回归，不可标记 VERIFIED。
+- 新增正式审计清单提交：`f392e80b06494d3158d6fcc9b19ef568e4fee1e8`。
+- 后续 P0 顺序：教材草稿/断点配置变化保护 → 生成进度与状态一致性验收 → 首页学习恢复和错误态 → 内容形态/教学方法契约 → 共享对话内核运行验收。
+- Skill 证据：本轮实际读取并使用 `.aimes/skills/product-manager/SKILL.md`；该 Skill 头部状态为 PROPOSED，注册表相关 `validation_status` 仍有 UNKNOWN，不能宣称工具运行时自动路由已验证。
+- 测试证据：以修复提交 `82be5efd6741ad45e437a0d67c6d1fa27a890fc7` 对应的 GitHub Actions 结果为准；本地构建、真实教材增补、刷新/重启、Windows 实机和浏览器 E2E 均需单独记录。
