@@ -200,7 +200,7 @@
 - 用户价值：教材生成时间成本高，切换教材不能静默覆盖另一教材的未保存内容；同教材修改生成配置也必须明确告知替换风险。
 - 交互：按教材身份隔离检查点；同教材已有草稿且配置变化时显示已完成内容项数，允许取消保留或明确确认替换；保存后只清理当前教材检查点；存储失败要显示错误并停止生成。
 - 改动：新增 `textbookGenerationCheckpointStore.ts` 与测试；生成组件改为多检查点读写、旧版单检查点迁移、定向删除；提示文案说明替换和清理失败后果。
-- 自动化：12 项单元测试通过；当前提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 TypeScript 类型检查通过；Frontend quality #268 生产构建仍 pending（[CI](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)），Backend quality #183 pending（[CI](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)）。
+- 自动化：代码提交 `9786de955a90a815e761cb28909796c4ad5256fe` 的 Frontend quality #268 与 Backend quality #183 均 PASS；前端 12 项单元测试、TypeScript 类型检查和生产构建通过（[Frontend CI](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817242)，[Backend CI](https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40281817275)）。之后提交仅为文档记录，不改动本批代码。
 - 失败透明记录：提交 `fb01277` 曾出现 TS18047，随后 `9786de9` 修复；最终 CI 结果仍需确认。
 - 真实运行：浏览器/Windows 多教材切换、刷新恢复、存储配额不足和真实教材增补 E2E 仍 `NOT_RUN`；不可标记 UI/端到端 VERIFIED。
 - 下一步：确认当前 CI 最终结果；通过后，在真实窗口中执行报告中的场景。若实机发现状态或数据行为与预期不符，优先修复，不以 CI 通过替代体验验收。
