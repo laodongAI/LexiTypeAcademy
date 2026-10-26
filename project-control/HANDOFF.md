@@ -211,8 +211,9 @@
 - 当前分支：`design/english-learning-core-experience-2026-10-26`；Draft PR #10：<https://github.com/laodongAI/LexiTypeAcademy/pull/10>。
 - 产品基线：`docs/design/english-learning-core-experience-restructure-v1.md`；源码初审：`docs/tasks/ENGLISH_LEARNING_UX_SOURCE_AUDIT_2026-10-26.md`。
 - 本轮已读：`.aimes/skills/product-manager/SKILL.md`、`.aimes/skills/ui-implementation-validation/SKILL.md`、`AGENTS.md`、`.trae/rules/00-aimes-governance.md`、`docs/_governance/AIMES-CORE-V1.2.md`；Skill 正文已读取，但不代表 IDE/CLI 自动路由已验证。
-- 代码切片：`ReaderStage.vue` 监听共享播放器 `playingKey`，把实际播放 key 映射为当前句/词条索引，并在 Vue 更新后滚动定位；播放全文被用户停止/中断时不再把所有句子都记为已读。纯函数 `readerSpeechSync.ts` 及 `readerSpeechSync.test.ts` 覆盖 key 到索引的映射。
-- 代码提交：`e6d97e4c61c342cffccc4f3749ccf9136394fa37`；测试提交：`5057eea2e8980a08b68fc4e859197e4e9a4fa09c`。测试随 Frontend quality run <https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289084797> 触发时状态为 queued；需重新查询最终结论。
-- 产品价值：连续朗读时高亮和滚动不再只依赖播放全文开始时的第一句；被停止的连播不应将未听完的句子虚报为已读。
-- 验证限制：本轮没有可操作的目标 Windows 应用/浏览器会话；真实播放、连续 10 句、手动滚动、窄屏、控制台/网络、TTS/ASR 端到端均 `NOT_RUN`。未证明学习效果提升。
-- 下一步：①确认 CI；②检查 `audioPlayService` 与 `useSpeechPlayer` 的音频元素是否独立，避免双通道；③设计/实现用户主动滚动后暂停自动跟随与“回到当前句”；④在目标 Windows 窗口连续播放至少 10 句，记录视口、操作步骤、实际结果与截图/日志；⑤复核 PR diff 与最新 main 后再决定是否合并。
+- 代码切片：`ReaderStage.vue` 监听共享播放器 `playingKey`，将实际播放 key 映射为当前句/词条索引；连播切句时同步高亮与定位。新增“跟随朗读：开/开启跟随”状态按钮，用户滚轮主动浏览后暂停自动定位，并可点击“回到当前句”恢复跟随。连播被停止/中断时不再把所有句子都标记为已读。纯函数 `readerSpeechSync.ts` 及 `readerSpeechSync.test.ts` 覆盖 key 到索引的映射。
+- 代码提交：`e6d97e4c61c342cffccc4f3749ccf9136394fa37`（播放驱动同步）、`382c8d116e5b173ae51e7e33a2bd4cb5e51854fb`（手动滚动控制）、`5057eea2e8980a08b68fc4e859197e4e9a4fa09c`（测试）。针对 SHA `64d40329ac15421695e18a0deef35f34f1707bf4` 的 Frontend quality <https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289159926> 与 Backend quality <https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40289160022> 均 PASS；该结果早于 `382c8d1` 的后续 UI 改动，不能视为最新版本最终验证。
+- 产品价值：连续朗读时高亮和滚动跟随实际播放项；用户手动滚动时不持续抢回视口；被停止的连播不应将未播放的句子计入已读。
+- 播放服务边界：`FollowMode.vue` 使用 `audioPlayService`（独立 Audio 元素，TTS 失败时可能回退 Web Speech），`ReaderStage.vue` 使用模块级 `useSpeechPlayer`。两者位于不同路由/组件路径；目前没有证据证明会同时播放，仍需验证路由切换与老师播报打断。
+- 验证限制：本轮没有可操作的目标 Windows 应用/浏览器会话；最新 UI 改动的 CI、真实播放、连续 10 句、手动滚动、窄屏、控制台/网络、TTS/ASR 端到端均需复核或为 `NOT_RUN`。未证明学习效果提升。
+- 下一步：①确认包含 `382c8d1` 的 Frontend quality；②在目标 Windows 窗口连续播放至少 10 句，检查高亮、自动定位、手动滚动暂停和返回当前句；③覆盖停止/中断、快速切句、TTS 失败、触控/键盘；④复核 PR diff 与最新 main 后再决定是否合并。
