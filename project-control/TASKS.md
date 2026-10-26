@@ -448,3 +448,6 @@ cd frontend; npm run build
 | 前端将教学标记渲染为独立卡片 | IMPLEMENTED | `teacherLessonPresentation.ts` 解析；旧自由文本回退为讲解卡片 |
 | 结构化教学解析单测 | IMPLEMENTED | `teacherLessonPresentation.test.ts` 覆盖标签顺序、旧消息兼容、空章节 |
 | 持久化教学状态机、证据化评价与掌握度更新 | TODO | 当前只定义输出格式，尚未把教学状态和评价结果作为独立领域数据持久化 |
+
+
+- 补充可访问性：课堂进入时将键盘焦点移入 dialog，退出后恢复到 AI 老师入口；已提交，真实键盘验收仍 NOT_RUN。
