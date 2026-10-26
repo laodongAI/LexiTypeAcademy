@@ -2,7 +2,7 @@
 
 > 审计对象：`laodongAI/LexiTypeAcademy` 的 `main` 分支。  
 > 基线提交：`e37526ec927b00cd26bf7146ac0439137c2614c3`（2026-10-24）。  
-> 本轮首个代码修复提交：`82be5efd6741ad45e437a0d67c6d1fa27a890fc7`。  
+> 本轮代码修复提交：`82be5efd6741ad45e437a0d67c6d1fa27a890fc7`、`e4972e4b4f9c9da98251257c7c5d1ebc531e9fea`。  
 > 审计方式：GitHub 主干文件静态审查、路由/Skill/工作流/任务记录交叉核对；不把历史记录中的测试结果当成本轮重新执行的证据。  
 > 状态约定：`CONFIRMED_CODE` = 当前代码可直接确认；`IMPLEMENTED_UNVERIFIED` = 已实现但缺运行验收；`FIXED_PENDING_CI` = 本轮已修复、待 CI 与运行验证；`NOT_RUN` = 本轮未执行。
 
@@ -70,10 +70,10 @@
 - **验收标准**：
   - [ ] 标题“Unit 1 - 课文”只识别为 passage，不识别为 sentences。
   - [ ] 标题“Unit 1 - 对话”不会自动阻止新增 sentences。
-  - [ ] 标题“Unit 1 - 句子”“Unit 1 - 单词”“Unit 1 - 语法”“Unit 1 - Phonics”分别识别为对应类型。
+  - [ ] 标题“Unit 1 - 句子/句型”“Unit 1 - 单词”“Unit 1 - 语法”“Unit 1 - Phonics”分别识别为对应类型。
   - [ ] 已有单词、补充句子、再补短文后，原课程不丢失、不重复生成已有类型。
   - [ ] Typecheck/build 通过，并在实际教材数据上完成增补回归。
-- **状态**：`FIXED_PENDING_CI`。本轮已将宽泛正则改为按优先级执行的非重叠标记；自动化与真实教材回归尚未完成。
+- **状态**：`FIXED_PENDING_CI`。本轮已将宽泛正则改为按优先级执行的非重叠标记，并补充“句型”标记；自动化与真实教材回归尚未完成。
 
 ### LTA-P0-02 教材生成断点、配置变化与未保存草稿保护
 
@@ -240,7 +240,7 @@
 ## 5. 本轮实施记录
 
 - 已修改 `frontend/src/renderer/components/ai/TextbookImportPanel.vue` 的 `getExistingTypes()`：移除把“课文/对话”宽泛映射到句子的规则，改为具体标记优先、互斥分类。
-- 提交：`82be5efd6741ad45e437a0d67c6d1fa27a890fc7`。
+- 提交：`82be5efd6741ad45e437a0d67c6d1fa27a890fc7`、`e4972e4b4f9c9da98251257c7c5d1ebc531e9fea`。
 - 本轮尚未运行本地前端构建、浏览器或 Windows 实机验收；应检查该提交的 GitHub Actions 状态。此修复目前是 `FIXED_PENDING_CI`，不得标记 `VERIFIED`。
 - 该修复仍属于旧课程标题兼容方案。长期正确方案是持久化显式内容类型，避免把标题当作数据契约。
 

@@ -339,3 +339,6 @@ cd frontend; npm run build
 - 后续 P0 顺序：教材草稿/断点配置变化保护 → 生成进度与状态一致性验收 → 首页学习恢复和错误态 → 内容形态/教学方法契约 → 共享对话内核运行验收。
 - Skill 证据：本轮实际读取并使用 `.aimes/skills/product-manager/SKILL.md`；该 Skill 头部状态为 PROPOSED，注册表相关 `validation_status` 仍有 UNKNOWN，不能宣称工具运行时自动路由已验证。
 - 测试证据：以修复提交 `82be5efd6741ad45e437a0d67c6d1fa27a890fc7` 对应的 GitHub Actions 结果为准；本地构建、真实教材增补、刷新/重启、Windows 实机和浏览器 E2E 均需单独记录。
+
+- 补充修复提交：`e4972e4b4f9c9da98251257c7c5d1ebc531e9fea`，旧课程标题中的“句型”也归入 sentences 类型；同样待前端 CI 与真实教材回归。
+- 增补审计：已追加 `LTA-P0-11`（单元默认选择与增补行为）及 `LTA-P1-12`（教材生成耗时分解与安全优化）；耗时优化必须先取得可复现基线，不直接盲目提高并发。
