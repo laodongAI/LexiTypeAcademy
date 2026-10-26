@@ -246,7 +246,7 @@ import { courseDraftFromWordEntries } from '../../utils/aiCourseDraft'
 import { addDiagnosticLog } from '../../../shared/services/diagnosticLogService'
 import { courseSystemStore } from '../../../shared/services/courseSystemStore'
 import { inferGeneratedContentTypes } from '../../../shared/utils/textbookContentTypes'
-import { getCheckpointByKey, getLatestCheckpoint, persistCheckpoint, readCheckpointCollection } from '../../../shared/utils/textbookGenerationCheckpointStore'
+import { deleteCheckpoint, getCheckpointByKey, getLatestCheckpoint, persistCheckpoint, readCheckpointCollection } from '../../../shared/utils/textbookGenerationCheckpointStore'
 
 const router = useRouter()
 
@@ -1107,10 +1107,17 @@ async function saveCourses() {
       savedIds.value = [...ids]
     }
     savedIds.value = ids
-    const checkpoint = readGenerationCheckpoint()
+    const checkpointKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName, selectedGradeKey())
+    const legacyCheckpointKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
+    const checkpoint = readGenerationCheckpoint(checkpointKey) || readGenerationCheckpoint(legacyCheckpointKey)
     if (checkpoint?.status === 'completed') {
-      localStorage.removeItem(GENERATION_CHECKPOINT_KEY)
-      checkpointStatus.value = ''
+      const removed = deleteCheckpoint(
+        localStorage,
+        GENERATION_CHECKPOINTS_KEY,
+        LEGACY_GENERATION_CHECKPOINT_KEY,
+        checkpoint.key,
+      )
+      checkpointStatus.value = removed ? '' : '课程已保存，但本地断点清理失败；请勿重复生成，稍后重新进入检查点管理'
     }
     addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功（已有内容已合并，新内容按类型追加）', { count: ids.filter(Boolean).length, courseIds: ids.filter(Boolean) })
     ElMessage.success('课程已保存到课程仓库')
