@@ -367,6 +367,11 @@ async function chooseTeacherMode(): Promise<void> {
       && session.title === title && session.status === 'active')
     if (existing) {
       teacherSession.value = existing
+      const pendingMessage = existing.messages[existing.messages.length - 1]
+      // 上次启动请求若已保存用户消息但未得到老师回复，重试同一条消息而不是创建重复会话。
+      if (pendingMessage?.role === 'user') {
+        teacherSession.value = await conversationCoreService.sendMessage(existing, pendingMessage.content)
+      }
       return
     }
     const session = await conversationCoreService.createSession('ai-tutor', title, {
@@ -389,6 +394,8 @@ async function sendTeacherAnswer(): Promise<void> {
   try {
     teacherSession.value = await conversationCoreService.sendMessage(session, text)
   } catch (error) {
+    // sendMessage 会先持久化用户输入；刷新组件状态，确保重试能识别同一条待处理消息。
+    try { teacherSession.value = await conversationCoreService.getSession(session.id) ?? session } catch { teacherSession.value = session }
     teacherDraft.value = text
     teacherError.value = error instanceof Error ? error.message : '回答发送失败，请重试。'
   } finally { teacherLoading.value = false }
