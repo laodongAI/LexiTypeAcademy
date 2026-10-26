@@ -13,35 +13,18 @@
         <div class="chinese-text">{{ item.chinese }}</div>
       </div>
       
-      <!-- 波形显示区 -->
-      <div class="waveform-section">
-        <div class="waveform-container">
-          <div class="waveform standard">
-            <div class="waveform-label">标准发音</div>
-            <div class="waveform-visual">
-              <div
-                v-for="i in 50"
-                :key="i"
-                class="wave-bar"
-                :style="{ height: `${Math.random() * 60 + 20}%` }"
-              />
-            </div>
-          </div>
-          
-          <div v-if="hasRecording" class="waveform user">
-            <div class="waveform-label">你的发音</div>
-            <div class="waveform-visual">
-              <div
-                v-for="i in 50"
-                :key="i"
-                class="wave-bar user"
-                :style="{ height: `${Math.random() * 60 + 20}%` }"
-              />
-            </div>
-          </div>
+      <!-- 真实音频波形尚未实现：使用明确的状态面板，避免随机装饰误导为真实波形 -->
+      <div class="audio-status-section">
+        <div class="audio-status-card">
+          <strong>标准发音</strong>
+          <span>{{ isPlayingStandard ? '正在播放老师示范' : '可播放标准发音进行对照' }}</span>
+        </div>
+        <div class="audio-status-card" :class="{ ready: hasRecording, recording: isRecording }">
+          <strong>你的录音</strong>
+          <span>{{ isRecording ? '正在录音…' : hasRecording ? '录音已完成，可播放或提交评价' : '尚未录音' }}</span>
         </div>
       </div>
-      
+
       <!-- 控制区 -->
       <div class="control-section">
         <div class="control-group">
@@ -468,114 +451,46 @@ function handleNext() {
     }
   }
   
-  .waveform-section {
-    padding: 24px 0;
-    
-    .waveform-container {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      
-      .waveform {
-        .waveform-label {
-          font-size: 14px;
-          color: var(--el-text-color-secondary);
-          margin-bottom: 12px;
-        }
-        
-        .waveform-visual {
-          display: flex;
-          align-items: flex-end;
-          gap: 2px;
-          height: 80px;
-          padding: 8px;
-          background-color: var(--el-fill-color-light);
-          border-radius: 8px;
-          
-          .wave-bar {
-            flex: 1;
-            background: linear-gradient(to top, var(--el-color-primary), var(--el-color-primary-light-3));
-            border-radius: 2px;
-            transition: height 0.3s;
-            
-            &.user {
-              background: linear-gradient(to top, var(--el-color-success), var(--el-color-success-light-3));
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  .control-section {
-    display: flex;
-    justify-content: center;
-    gap: 32px;
-    padding: 24px 0;
-    
-    .control-group {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      
-      .control-label {
-        font-size: 14px;
-        color: var(--el-text-color-secondary);
-      }
-    }
-  }
-  
-  .result-section {
-    margin: 24px 0;
-    
-    .result-content {
-      h3 {
-        text-align: center;
-        margin: 0 0 24px 0;
-        font-size: 18px;
-      }
-      
-      .scores {
-        .score-item {
-          margin-bottom: 20px;
-          
-          .score-label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            color: var(--el-text-color-secondary);
-          }
-        }
-        
-        .overall-score {
-          text-align: center;
-          padding: 24px;
-          margin-top: 24px;
-          border-top: 2px solid var(--el-border-color);
-          
-          .score-label {
-            display: block;
-            margin-bottom: 12px;
-            font-size: 16px;
-            color: var(--el-text-color-secondary);
-          }
-          
-          .score-value {
-            font-size: 48px;
-            font-weight: 600;
-            color: var(--el-color-primary);
-          }
-        }
-      }
-    }
-  }
-  
-  .action-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 32px;
+  .audio-status-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.audio-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: var(--el-fill-color-lighter);
+}
+
+.audio-status-card strong {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+}
+
+.audio-status-card span {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.audio-status-card.ready {
+  border-color: var(--el-color-success-light-5);
+}
+
+.audio-status-card.recording {
+  border-color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
+}
+
+@media (max-width: 640px) {
+  .audio-status-section {
+    grid-template-columns: 1fr;
   }
 }
 </style>
