@@ -7,6 +7,14 @@
 <template>
   <div class="my-learning-page">
     <el-alert
+      class="learning-responsibility-note"
+      type="info"
+      show-icon
+      :closable="false"
+      title="这里记录你实际学了什么"
+      description="管理正在学习的课程、真实课程进度、最近学习时间和待复习内容。学习目标、每日排期与打卡请到「学习计划」管理。"
+    />
+    <el-alert
       v-if="learningStore.error"
       class="load-alert"
       type="warning"
