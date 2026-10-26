@@ -9,11 +9,12 @@
  *   4. 支持键盘聚焦与点击朗读；悬停朗读可整体关闭。
  */
 
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Headset, Loading, Plus, VideoPlay } from '@element-plus/icons-vue'
 import type { Course, Lesson, LessonItem } from '../../../shared/types/course'
 import { splitSentences, tokenizeSentence, normalizeWord } from '../../../shared/utils/sentenceSplit'
+import { resolvePlayingIndex } from '../../../shared/utils/readerSpeechSync'
 import { createLogger } from '../../../shared/utils/logger'
 import { useSpeechPlayer } from '../../composables/useSpeechPlayer'
 import { reviewRepository } from '../../../shared/database/repositories/reviewRepository'
@@ -429,11 +430,12 @@ async function playAll(): Promise<void> {
   if (entries.length === 0) return
   activeSentenceKey.value = entries[0].key
   logger.info('播放全文', { count: entries.length })
-  await playSequence(entries)
+  const completed = await playSequence(entries)
 
-  // 连播结束后同步已读统计
-  entries.forEach(entry => readSentenceKeys.value.add(entry.key))
-  activeSentenceKey.value = null
+  // 只有连播自然完成才把整组标记为已读；停止/切换导致的中断不能伪装成完成。
+  if (completed) {
+    entries.forEach(entry => readSentenceKeys.value.add(entry.key))
+  }
   emitStats()
 }
 
@@ -457,7 +459,7 @@ function onItemClick(item: LessonItem, index: number): void {
 }
 
 /**
- * 滚动到指定单元，保证键盘导航时内容始终可见
+ * 滚动到指定单元，保证键盘导航与连续朗读时内容始终可见
  * @param index 单元下标
  */
 function scrollToIndex(index: number): void {
@@ -531,6 +533,25 @@ async function playCurrent(): Promise<void> {
   const sentence = sentences.value[index]
   if (sentence) await playSentence(sentence)
 }
+
+/**
+ * 音频播放器的 playingKey 是当前实际播放项的唯一状态来源。
+ * 连播会逐句更新该值；监听它可让高亮和滚动跟随真实播放，而不是只停留在 playAll 的首句。
+ */
+watch(playingKey, (key) => {
+  if (!key) return
+
+  const sentenceKeys = sentences.value.map(sentence => sentence.key)
+  const itemKeys = props.lesson.items.map(item => item.id)
+  const index = resolvePlayingIndex(key, sentenceKeys, itemKeys, isWordLesson.value)
+  if (index < 0) return
+
+  focusIndex.value = index
+  if (!isWordLesson.value) activeSentenceKey.value = key
+
+  // 等待 Vue 更新列表后再定位，避免滚动到上一个 DOM 节点。
+  void nextTick(() => scrollToIndex(index))
+})
 
 /** 暴露给父组件的键盘导航能力 */
 defineExpose({
