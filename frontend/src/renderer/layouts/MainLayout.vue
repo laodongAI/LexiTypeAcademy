@@ -149,7 +149,6 @@ import { useSettingsStore, ThemeType } from '../stores'
 import {
   House,
   User,
-  Calendar,
   Folder,
   Edit,
   Trophy,
@@ -193,7 +192,6 @@ const theme = computed(() => settingsStore.theme)
 const primaryMenuItems = [
   { path: '/', title: '首页', icon: House },
   { path: '/my-learning', title: '我的学习', icon: User },
-  { path: '/plans', title: '学习计划', icon: Calendar },
   { path: '/course-repository', title: '课程仓库', icon: Folder },
 ]
 
