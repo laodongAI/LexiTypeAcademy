@@ -700,11 +700,14 @@ async function generateCourseFromTextbook() {
     const legacyKey = makeGenerationKey(publisherForm.publisher, textbookForm.series, textbookForm.textbookName)
     let checkpoint = readGenerationCheckpoint(key) || readGenerationCheckpoint(legacyKey)
     const checkpointMatches = !!checkpoint && (checkpoint.key === key || (checkpoint.key === legacyKey && (!checkpoint.grade || checkpoint.grade === gradeKey))) && JSON.stringify({ unitTitles: checkpoint.unitTitles, contentTypes: checkpoint.contentTypes, withAudio: checkpoint.withAudio, coreCount: checkpoint.coreCount, extraCount: checkpoint.extraCount }) === JSON.stringify(config)
+    const completedContentCount = checkpoint
+      ? checkpoint.completedTasks.filter(task => checkpoint.unitTitles.some(unit => checkpoint.contentTypes.some(type => task === generationTaskKey(unit, type)))).length
+      : 0
     const hasRecoverableDraft = !!checkpoint && (checkpoint.completedTasks.length > 0 || Object.keys(checkpoint.lessonsByUnit).length > 0)
     if (!checkpointMatches && hasRecoverableDraft) {
       try {
         await ElMessageBox.confirm(
-          `当前教材已有生成草稿（已完成 ${checkpoint?.completedTasks.length || 0} 项内容）。继续将替换该教材的旧断点和未保存草稿；如需保留，请取消并恢复原配置后先预览/保存。是否仍要替换？`,
+          `当前教材已有生成草稿（已完成 ${completedContentCount} 项内容）。继续将替换该教材的旧断点和未保存草稿；如需保留，请取消并恢复原配置后先预览/保存。是否仍要替换？`,
           '检测到已有生成草稿',
           {
             confirmButtonText: '替换旧草稿并继续',
@@ -1117,7 +1120,7 @@ async function saveCourses() {
         LEGACY_GENERATION_CHECKPOINT_KEY,
         checkpoint.key,
       )
-      checkpointStatus.value = removed ? '' : '课程已保存，但本地断点清理失败；请勿重复生成，稍后重新进入检查点管理'
+      checkpointStatus.value = removed ? '' : '课程已保存，但本地断点清理失败。为避免重复生成，请先刷新并确认课程仓库中已存在对应课程，再继续操作。'
     }
     addDiagnosticLog('info', 'textbook-course-generation', '教材课程批量保存成功（已有内容已合并，新内容按类型追加）', { count: ids.filter(Boolean).length, courseIds: ids.filter(Boolean) })
     ElMessage.success('课程已保存到课程仓库')
