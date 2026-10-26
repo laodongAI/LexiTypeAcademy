@@ -438,3 +438,13 @@ cd frontend; npm run build
 | 前端 CI 与真实窗口验收 | NOT_RUN | 提交后以 CI 结果补录；localhost 真实窗口尚未由自动化浏览器验证 |
 
 设计记录：`docs/design/ai-classroom-experience-v1.md`。
+
+
+### AI 课堂教学协议补充（2026-10-26）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| AI 老师提示词输出结构化教学标记 | IMPLEMENTED | `conversationCoreService.ts` 要求状态、目标、讲解、问题、反馈与下一步标记 |
+| 前端将教学标记渲染为独立卡片 | IMPLEMENTED | `teacherLessonPresentation.ts` 解析；旧自由文本回退为讲解卡片 |
+| 结构化教学解析单测 | IMPLEMENTED | `teacherLessonPresentation.test.ts` 覆盖标签顺序、旧消息兼容、空章节 |
+| 持久化教学状态机、证据化评价与掌握度更新 | TODO | 当前只定义输出格式，尚未把教学状态和评价结果作为独立领域数据持久化 |
