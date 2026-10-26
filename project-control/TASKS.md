@@ -342,3 +342,11 @@ cd frontend; npm run build
 
 - 补充修复提交：`e4972e4b4f9c9da98251257c7c5d1ebc531e9fea`，旧课程标题中的“句型”也归入 sentences 类型；同样待前端 CI 与真实教材回归。
 - 增补审计：已追加 `LTA-P0-11`（单元默认选择与增补行为）及 `LTA-P1-12`（教材生成耗时分解与安全优化）；耗时优化必须先取得可复现基线，不直接盲目提高并发。
+
+
+## 产品深度评估与 Top 10 竞品对标（2026-10-26）
+
+- 正式报告：`docs/product/PRODUCT_DEEP_REVIEW_AND_TOP10_BENCHMARK.md`。已基于当前 main 的页面/服务/Skill 静态代码和公开竞品资料建立事实、推断与 NOT_RUN 边界。
+- 竞品范围：Duolingo、Babbel、Busuu、ELSA Speak、Speak、Memrise、British Council LearnEnglish、Anki、Pimsleur、LingQ；报告明确这不是未经方法学支持的绝对排名，也未声称本轮实机试用十款产品。
+- 首批微文案修复：ClassroomPage.vue commit `306a27ea619b5cda58fff1b252b89be88e5e21a2`；ConversationPage.vue commit `0ee9e28ee9d6c6e3858a6235a7923665ab4029a0`。前端 CI #245、后端 CI #160 在最后查询时仍为 pending；前一提交 #242/#157 成功不代表新改动已验证。
+- 下一步：等待最新 CI；为教材生成断点/部分成功、课堂 TTS 状态、对话失败重试补充自动化/可重复验收；在 Windows 真实窗口下检查按钮层级、键盘焦点、窄屏、音频打断与教师台词时序。
