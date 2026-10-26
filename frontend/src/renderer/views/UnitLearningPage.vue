@@ -31,7 +31,8 @@
   <div v-if="teacherError" class="teacher-error" role="alert">
     <strong>本轮教学未完成</strong>
     <span>{{ teacherError }}</span>
-    <button type="button" :disabled="teacherLoading" @click="sendTeacherAnswer">重试发送</button>
+    <button v-if="teacherSession && teacherDraft.trim()" type="button" :disabled="teacherLoading" @click="sendTeacherAnswer">重试发送</button>
+    <button v-else type="button" :disabled="teacherLoading" @click="chooseTeacherMode">重试启动课堂</button>
   </div>
 
   <main class="teacher-board" aria-live="polite">
@@ -139,7 +140,6 @@ const teacherSession = ref<ConversationSession | null>(null)
 const teacherDraft = ref('')
 const teacherLoading = ref(false)
 const teacherError = ref('')
-const messagesRef = ref<HTMLElement | null>(null)
 const currentTeacherMessage = computed(() => [...(teacherSession.value?.messages || [])].reverse().find(message => message.role === 'assistant') || null)
 
 const stages: { id: StageId; label: string; description: string }[] = [
@@ -367,7 +367,6 @@ async function chooseTeacherMode(): Promise<void> {
       && session.title === title && session.status === 'active')
     if (existing) {
       teacherSession.value = existing
-      await scrollTeacherMessages()
       return
     }
     const session = await conversationCoreService.createSession('ai-tutor', title, {
@@ -376,7 +375,6 @@ async function chooseTeacherMode(): Promise<void> {
     })
     const updated = await conversationCoreService.sendMessage(session, '我们开始学习这个单元吧。请先介绍学习目标，然后进入第一步，并向我提出一个问题。')
     teacherSession.value = updated
-    await scrollTeacherMessages()
   } catch (error) {
     teacherError.value = error instanceof Error ? error.message : 'AI 老师暂时无法开始，请检查 AI 服务配置后重试。'
   } finally { teacherLoading.value = false }
@@ -396,11 +394,6 @@ async function sendTeacherAnswer(): Promise<void> {
     teacherError.value = error instanceof Error ? error.message : '回答发送失败，请重试。'
   } finally { teacherLoading.value = false }
 }
-async function scrollTeacherMessages(): Promise<void> {
-  await nextTick()
-  if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight
-}
-watch(() => teacherSession.value?.messages.length, () => { void scrollTeacherMessages() })
 onMounted(() => { void loadCourse() })
 onBeforeUnmount(() => { stopSpeech('unit-learning-unmount') })
 </script>
