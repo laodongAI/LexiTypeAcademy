@@ -46,7 +46,8 @@
               <button
                 type="button"
                 class="mode-card"
-                :class="{ active: currentMode === mode.value }"
+                :class="{ active: currentMode === mode.value, disabled: mode.available === false }"
+                :disabled="mode.available === false"
                 @click="currentMode = mode.value"
               >
                 <div class="mode-card-left">
@@ -54,7 +55,10 @@
                 </div>
                 <div class="mode-card-right">
                   <div class="mode-name">{{ mode.label }}</div>
-                  <div class="mode-desc">{{ mode.description }}</div>
+                  <div class="mode-desc">{{ mode.goal }}</div>
+                  <div class="mode-hint" :class="{ warn: mode.available === false }">
+                    {{ mode.available === false ? mode.unavailableReason : mode.whenToChoose }}
+                  </div>
                 </div>
               </button>
             </el-col>
@@ -172,7 +176,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { Headset, Microphone, DocumentCopy, Film, ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useCourseStore } from '../stores/courseStore'
-import { PracticeMode, type LessonItem } from '../../shared/types/course'
+import { PracticeMode, type Lesson, type LessonItem } from '../../shared/types/course'
+import { getLearningMethod, getLessonMethodUnavailableReason, isLessonMethodAvailable } from '../../shared/utils/learningMethodRegistry'
 import { useTeachingFeedback, teachingFeedbackKey } from '../composables/useTeachingFeedback'
 import { practiceAttemptContextKey } from '../composables/practiceAttemptContext'
 import { learningEventService } from '../../shared/services/learningEventService'
@@ -218,33 +223,29 @@ const showResultDialog = ref(false)
 // 本次练习开始时间（毫秒时间戳）：用于统计真实耗时与 WPM，未开始时为 0
 const practiceStartedAt = ref(0)
 
-// 练习模式列表
-const practiceModeslist = [
-  {
-    value: 'dictation' as PracticeMode,
-    label: '听写模式',
-    description: '听音频，输入英文',
-    icon: Headset
-  },
-  {
-    value: 'follow' as PracticeMode,
-    label: '跟读模式',
-    description: '跟随音频朗读',
-    icon: Microphone
-  },
-  {
-    value: 'translation' as PracticeMode,
-    label: '翻译模式',
-    description: '看中文，写英文',
-    icon: DocumentCopy
-  },
-  {
-    value: 'imitation' as PracticeMode,
-    label: '模仿模式',
-    description: '模仿音频发音',
-    icon: Film
+// 当前课时对象：用于注册表判断各练习模式的数据前置条件
+const currentLesson = ref<Lesson | null>(null)
+
+// 练习模式卡片：文案统一来自学习方法注册表（单一来源），可用性按当前课时数据判断
+const PRACTICE_MODE_IDS = ['dictation', 'follow', 'translation', 'imitation'] as const
+const PRACTICE_MODE_ICONS = {
+  dictation: Headset,
+  follow: Microphone,
+  translation: DocumentCopy,
+  imitation: Film,
+} as const
+const practiceModeslist = computed(() => PRACTICE_MODE_IDS.map(id => {
+  const method = getLearningMethod(id)
+  return {
+    value: id as PracticeMode,
+    label: method?.label ?? id,
+    goal: method?.goal ?? '',
+    whenToChoose: method?.whenToChoose ?? '',
+    icon: PRACTICE_MODE_ICONS[id],
+    available: currentLesson.value ? isLessonMethodAvailable(id, currentLesson.value) !== false : undefined,
+    unavailableReason: currentLesson.value ? getLessonMethodUnavailableReason(id, currentLesson.value) : '',
   }
-]
+}))
 
 // 计算属性
 const currentItem = computed(() => lessonItems.value[currentIndex.value])
@@ -277,6 +278,7 @@ onMounted(async () => {
   }
   
   lessonTitle.value = lesson.title
+  currentLesson.value = lesson
   const requestedItemId = route.query.itemId
   const availableItems = lesson.items || []
   lessonItems.value = typeof requestedItemId === 'string'
@@ -312,7 +314,7 @@ onMounted(async () => {
 
 // 获取模式标签
 function getModeLabel(mode: PracticeMode | '') {
-  const modeObj = practiceModeslist.find(m => m.value === mode)
+  const modeObj = practiceModeslist.value.find(m => m.value === mode)
   return modeObj?.label || '未选择'
 }
 
@@ -322,7 +324,15 @@ function startPractice() {
     ElMessage.warning('请先选择练习模式')
     return
   }
-  
+
+  // 注册表前置条件不满足时阻止开始，并解释原因（深链进入同样受保护）
+  const selectedMode = practiceModeslist.value.find(m => m.value === currentMode.value)
+  if (selectedMode?.available === false) {
+    ElMessage.warning(selectedMode.unavailableReason || '当前课时内容不支持该模式')
+    currentMode.value = ''
+    return
+  }
+
   if (lessonItems.value.length === 0) {
     ElMessage.warning('该课时暂无练习内容')
     return
@@ -592,6 +602,28 @@ onBeforeUnmount(() => {
 .mode-desc {
   font-size: 13px;
   color: var(--text-color-secondary);
+}
+
+.mode-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-color-secondary);
+  opacity: 0.85;
+}
+
+.mode-hint.warn {
+  color: var(--el-color-warning, #e6a23c);
+  opacity: 1;
+}
+
+.mode-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.mode-card.disabled:hover {
+  border-color: var(--border-color-light);
+  transform: none;
 }
 
 .practice-area {

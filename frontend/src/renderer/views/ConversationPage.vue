@@ -111,6 +111,47 @@
             </el-button>
           </div>
 
+          <div
+            v-if="currentSession.status === 'completed' && currentSession.messages.some(message => message.role === 'user')"
+            class="feedback-action review-action"
+          >
+            <div>
+              <strong>本次对话复盘</strong>
+              <p>汇总关键纠错、可用表达和下一步练习建议。AI 反馈只是建议，不会自动更新学习记录。</p>
+            </div>
+            <el-button plain :loading="reviewLoading" @click="generateSessionReview">
+              {{ review ? '重新生成复盘' : '生成复盘' }}
+            </el-button>
+          </div>
+
+          <div v-if="review" class="review-result">
+            <p v-if="review.summary" class="review-summary">{{ review.summary }}</p>
+            <div v-if="review.corrections.length" class="review-section">
+              <h4>关键纠错</h4>
+              <div v-for="(item, index) in review.corrections" :key="index" class="review-correction">
+                <p class="review-original">原句：{{ item.original }}</p>
+                <p class="review-suggestion">建议：{{ item.suggestion }}</p>
+                <p v-if="item.reason" class="review-reason">{{ item.reason }}</p>
+              </div>
+            </div>
+            <div v-if="review.expressions.length" class="review-section">
+              <h4>可用表达</h4>
+              <ul>
+                <li v-for="(expr, index) in review.expressions" :key="index">{{ expr }}</li>
+              </ul>
+            </div>
+            <div v-if="review.nextActions.length" class="review-section">
+              <h4>下一步练习</h4>
+              <ul>
+                <li v-for="(action, index) in review.nextActions" :key="index">{{ action }}</li>
+              </ul>
+            </div>
+            <p v-if="!review.corrections.length && !review.expressions.length && !review.nextActions.length" class="review-empty">
+              本次对话没有提取到可复盘的内容。
+            </p>
+          </div>
+          <el-alert v-if="reviewError" :title="reviewError" type="error" :closable="false" class="review-error" />
+
           <form class="composer" @submit.prevent="handleSendMessage">
             <el-input
               v-model="draft"
@@ -147,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Loading, Microphone, VideoPlay } from '@element-plus/icons-vue'
@@ -156,6 +197,14 @@ import {
   type ConversationScenarioId,
   type ConversationSession,
 } from '../../shared/services/conversationCoreService'
+import { getAIService } from '../../shared/services/ai/aiService'
+import {
+  CONVERSATION_REVIEW_SYSTEM_PROMPT,
+  buildConversationReviewPrompt,
+  parseConversationReview,
+  type ConversationReview,
+  type ReviewTurn,
+} from '../../shared/utils/conversationReview'
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
 import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
 import { learningEventService } from '../../shared/services/learningEventService'
@@ -173,6 +222,9 @@ const savingFeedback = ref(false)
 const savingTutorFeedbackId = ref<string | null>(null)
 const startingPracticeMessageId = ref<string | null>(null)
 const savedTutorFeedbackIds = ref<Set<string>>(new Set())
+const reviewLoading = ref(false)
+const review = ref<ConversationReview | null>(null)
+const reviewError = ref('')
 const errorMessage = ref('')
 const recording = ref(false)
 const transcribing = ref(false)
@@ -654,6 +706,49 @@ async function saveInterviewFeedback() {
   }
 }
 
+// 切换会话时清空上一场复盘，避免把 A 会话的建议显示在 B 会话
+watch(selectedSessionId, () => {
+  review.value = null
+  reviewError.value = ''
+})
+
+/**
+ * 会话结束后生成集中复盘（RULE-CONV-001）：引用学员真实表达做纠错、
+ * 提取可用表达与下一步建议；失败时提示重试，不伪造复盘内容。
+ */
+async function generateSessionReview() {
+  const session = currentSession.value
+  if (!session || reviewLoading.value) return
+  const turns: ReviewTurn[] = session.messages
+    .filter(message => message.role === 'user' || message.role === 'assistant')
+    .map(message => ({ role: message.role, content: message.content }))
+  if (!turns.some(turn => turn.role === 'user')) {
+    ElMessage.warning('本次会话还没有你的练习记录，无法复盘')
+    return
+  }
+  reviewLoading.value = true
+  reviewError.value = ''
+  try {
+    const ai = getAIService()
+    const raw = await ai.chat([
+      { role: 'system', content: CONVERSATION_REVIEW_SYSTEM_PROMPT },
+      { role: 'user', content: buildConversationReviewPrompt(turns, session.scenarioId) },
+    ], { temperature: 0.3, maxTokens: 1500 })
+    const parsed = parseConversationReview(raw)
+    if (!parsed) {
+      review.value = null
+      reviewError.value = 'AI 返回的复盘格式无法解析，请重试'
+      return
+    }
+    review.value = parsed
+  } catch (error) {
+    review.value = null
+    reviewError.value = `生成复盘失败：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    reviewLoading.value = false
+  }
+}
+
 async function finishSession(status: 'completed' | 'abandoned') {
   const session = currentSession.value
   if (!session) return
@@ -720,6 +815,20 @@ onBeforeUnmount(() => {
 .feedback-action { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; margin: 0 0 16px; border: 1px solid var(--border-color-light); border-radius: 10px; }
 .feedback-action strong { display: block; margin-bottom: 4px; }
 .feedback-action p { margin: 0; color: var(--text-color-secondary); font-size: 12px; line-height: 1.6; }
+
+.review-action { margin-top: 4px; }
+.review-result { padding: 14px 16px; margin: 0 0 16px; border: 1px solid var(--border-color-light); border-radius: 10px; background: var(--fill-color-light, #fafafa); }
+.review-result h4 { margin: 12px 0 8px; font-size: 13px; }
+.review-result h4:first-child, .review-summary + .review-section h4 { margin-top: 0; }
+.review-summary { margin: 0 0 4px; font-size: 13px; color: var(--text-color); }
+.review-section ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; }
+.review-correction { padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--fill-color, #f5f7fa); }
+.review-correction p { margin: 2px 0; font-size: 13px; line-height: 1.6; }
+.review-original { color: var(--text-color-secondary); }
+.review-suggestion { color: var(--el-color-success, #67c23a); }
+.review-reason { color: var(--text-color-secondary); font-size: 12px; }
+.review-empty { margin: 0; font-size: 13px; color: var(--text-color-secondary); }
+.review-error { margin-bottom: 16px; }
 .composer { border-top: 1px solid var(--border-color-light); padding-top: 16px; }
 .composer-footer { margin-top: 10px; }
 .composer-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -4,7 +4,7 @@
  * 统一管理课时内容形态与课堂方法的适配规则，供入口弹窗和课堂页共用。
  * 此处只判断现有数据是否满足方法前置条件，不隐式转换或改写课程内容。
  */
-import { ContentShape, type Lesson } from '../types/course'
+import { ContentShape, type Lesson } from '../types/course.ts'
 import type { ClassroomMode } from '../types/classroom'
 
 export interface LearningMethodRule {

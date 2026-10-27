@@ -143,7 +143,7 @@
                 size="small"
                 @click="handleStartPractice(row as Lesson)"
               >
-                进入课堂
+                选择学法
               </el-button>
               <el-button
                 size="small"

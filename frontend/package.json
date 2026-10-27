@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src --ext .ts,.vue",
-    "test:unit": "node --experimental-strip-types --test src/shared/utils/*.test.ts"
+    "test:unit": "node --experimental-transform-types --test src/shared/utils/*.test.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

@@ -587,3 +587,15 @@ cd frontend; npm run build
 - 交互边界：只对已保存的 AI 教学反馈显示复练入口；新会话创建后首轮请求失败时，保留会话与可重试的用户消息，错误由现有对话流程展示。
 - 验证：代码已提交 main；前端 CI、类型检查、实际 AI 端到端复练、刷新后事件追溯与窄屏 UI 验收待确认，当前 NOT_RUN。
 - 状态：IMPLEMENTED_UNVERIFIED。
+
+## 学习方法统一注册表与对话后复盘（2026-10-28）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| S1 统一学习方法注册表（单一来源：目标/选择理由/步骤/证据类型/承载壳，覆盖课堂 4+classic、练习 4、单元 2、复习 2、中心 2、对话 2 共 17 项） | TEST_PASS | `frontend/src/shared/utils/learningMethodRegistry.ts` + `learningMethodRegistry.test.ts`（7 用例）；课堂可用性复用 `learningMethodCompatibility.ts` 不复制规则 |
+| S2-lite 课程详情入口语义澄清（每课时「进入课堂」→「选择学法」；「开始单元学习」保持为主入口） | IMPLEMENTED_UNVERIFIED | `CourseDetailPage.vue`；完整决策流合并仍待用户确认直达习惯 |
+| S3-lite 练习中心假听写入口清理（移除「功能开发中」占位卡片与分支，3 卡布局对齐） | IMPLEMENTED_UNVERIFIED | `PracticeCenterPage.vue` |
+| S4 课时练习模式卡消费注册表（听写/跟读/翻译/模仿显示注册表目标与选择理由；前置条件不满足禁用并解释；深链同样受保护） | IMPLEMENTED_UNVERIFIED | `LessonPracticePage.vue`；跟读/模仿以 whenToChoose 明确区分（说得出来 vs 说得像） |
+| IMP-08 AI 对话后复盘（WeSpeak 借鉴：会话结束→集中纠错/表达/下一步；对话中不打断） | IMPLEMENTED_UNVERIFIED | `conversationReview.ts` 纯函数 + 6 用例单测；`ConversationPage.vue` completed 会话显示复盘卡；解析器截断/丢弃/返回 null 防伪 |
+| 测试基建修正（node strip-only 不支持 enum） | DONE | `package.json` test:unit 改 `--experimental-transform-types`；`learningMethodCompatibility.ts` 运行时导入补 `.ts` 扩展名 |
+| 验证：test:unit 42/42、vue-tsc exit 0、生产构建 ✓ 31.86s | PASS | 本机执行；浏览器真实 UI、AI 复盘真实调用、语音类模式实机均为 NOT_RUN |

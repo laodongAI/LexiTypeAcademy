@@ -373,3 +373,13 @@
 - 提交 45df292d602861b5102f4823358e157f77856ac1：已保存的 AI 教学反馈下新增“开始复练”，从反馈原文创建新的共享 AI 教学会话，并引导模型将反馈转为简短、可交互的练习；通过 conversation_feedback_practice_started 事件记录来源反馈与复练会话关联（事件类型更新提交 c9738236f55f62cdaff1ec98aaa43890efc5e1ba）。
 - 复用已有 conversationCoreService、learningEventService 与 AI 后端代理；未新增独立复练页面、业务表或第二套对话实现。单词 SM-2 复习仍保持原有语义。
 - 状态：IMPLEMENTED_UNVERIFIED。前端 CI、构建/类型检查、真实 AI 交互、失败重试、反馈事件关联和窄屏验收均需继续核实；未做浏览器实测。
+
+## 学习方法注册表 + 对话后复盘交接（2026-10-28）
+
+- 本轮已读：`controlled-implementation`、`product-manager`、`product-analysis`、`market-analysis` Skill 正文；`COMPETITOR_INSPIRED_PRODUCT_IMPROVEMENT_V1.md`（IMP-07/08 与 RULE-CONV-001）；`learning-methods-and-ui-flows-v1.md`、`english-learning-core-experience-restructure-v1.md`。
+- 新增单一权威目录：`frontend/src/shared/utils/learningMethodRegistry.ts`。所有方法入口卡片应从它取 `label/goal/whenToChoose/steps/evidence/evidenceNote`；`evidence` 是防误导硬边界（recording-text-match ≠ 专业发音评分），UI 文案不得超出声明。
+- 对话复盘：`conversationReview.ts` 提供 `CONVERSATION_REVIEW_SYSTEM_PROMPT`/`buildConversationReviewPrompt`/`parseConversationReview`；复盘仅在会话 completed 后手动触发，AI 返回格式非法时显示错误并允许重试，不伪造内容。
+- 测试注意：`test:unit` 现用 `--experimental-transform-types`（strip-only 不支持 TS enum）；`shared/utils` 下运行时相互导入需带 `.ts` 扩展名（tsconfig 已开 allowImportingTsExtensions，Vite/构建不受影响）。
+- 验证：`npm run test:unit` 42/42 PASS；`vue-tsc --noEmit` exit 0；`npm run build` 通过（31.86s）。浏览器真实窗口、AI 复盘真实调用、练习模式禁用态实机走查均 NOT_RUN。
+- 保护边界：工作区仍有用户未提交的 TTS/音频管线 WIP（backend 4 改 3 新增、UnitLearningPage.vue 合并结果、useSpeechPlayer 等），未触碰、未提交。
+- 下一步：①实机走查课程详情「选择学法」与练习模式禁用态；②真实 AI 会话验证复盘卡；③后续切片见整改方案 S2（完整决策流合并）、S5（复习数据关联）、S6（游戏成绩落库），实施前需用户确认对应门禁问题。

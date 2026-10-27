@@ -26,21 +26,12 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12" :md="8">
         <el-card shadow="hover" class="practice-card" @click="startQuickPractice('pinyin', 'basic')">
           <div class="practice-card-content">
             <el-icon :size="40" color="#E6A23C"><School /></el-icon>
             <h3>拼音学习</h3>
             <p>声母韵母练习</p>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="practice-card" @click="startQuickPractice('dictation', 'sentence')">
-          <div class="practice-card-content">
-            <el-icon :size="40" color="#F56C6C"><Headset /></el-icon>
-            <h3>听写练习</h3>
-            <p>听音写句</p>
           </div>
         </el-card>
       </el-col>
@@ -105,7 +96,6 @@ import {
   EditPen,
   Lightning,
   School,
-  Headset,
   TrendCharts,
   CircleCheck,
   Timer,
@@ -202,9 +192,6 @@ function startQuickPractice(type: string, level: string) {
     case 'pinyin':
       activeTab.value = 'pinyin'
       ElMessage.success('开始拼音学习')
-      break
-    case 'dictation':
-      ElMessage.info('听写练习功能开发中')
       break
   }
 }
