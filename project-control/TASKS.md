@@ -531,3 +531,14 @@ cd frontend; npm run build
 | IMP-01C 读取失败与真实空状态区分 | IMPLEMENTED_UNVERIFIED | 推荐规则识别数据警告；练习统计读取失败保留 null，不以 0 代替；待故障注入和浏览器验收 |
 | IMP-01D 后端推荐 API 架构决策 | TODO | 当前切片沿用既有前端聚合服务；先审查 FastAPI 各仓库/看板 API，确定是否有必要新增聚合端点，不得直接复制业务规则 |
 | IMP-01E CI 与 Windows/浏览器验收 | NOT_RUN | 当前对话没有运行本地项目命令或浏览器；需查看 GitHub Actions 结果并执行真实窗口验证 |
+
+
+## 英语对话语音交互第一切片（2026-10-27）
+
+| 任务 | 状态 | 证据 / 限制 |
+| --- | --- | --- |
+| CONV-VOICE-01 AI 回复 TTS 朗读入口 | IMPLEMENTED_UNVERIFIED | `ConversationPage.vue` 对 AI 回复提供按需朗读，复用现有 `generateSpeech`；TTS 服务状态与浏览器播放仍需实测 |
+| CONV-VOICE-02 麦克风录音转写 | IMPLEMENTED_UNVERIFIED | 使用 `getUserMedia` + `MediaRecorder` 录制，调用既有 `asrApiService.recognize` 将英文转写填入输入框；用户确认后才发送，避免误发 |
+| CONV-VOICE-03 权限与失败反馈 / 清理资源 | IMPLEMENTED_UNVERIFIED | 覆盖浏览器不支持、麦克风拒绝、空录音、ASR 失败提示；组件卸载时停止录音轨道并停止播放 |
+| CONV-VOICE-04 连续自动收音闭环 | TODO | 当前仍需用户点击开始/结束录音，尚未实现 AI 播放结束自动收音、静音检测与轮次状态机；须在真实设备验证 ASR 能力后实施 |
+| CONV-VOICE-05 CI 与真实浏览器/麦克风验收 | NOT_RUN | 需查看本次提交 Actions；本次未运行本地构建或真实浏览器/麦克风测试 |
