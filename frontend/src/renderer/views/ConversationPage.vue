@@ -208,6 +208,8 @@ async function startRecording() {
       if (event.data.size > 0) recordedChunks.push(event.data)
     }
     mediaRecorder.onstop = () => {
+      recordingStream?.getTracks().forEach(track => track.stop())
+      recordingStream = null
       void transcribeRecording()
     }
     mediaRecorder.start()
@@ -222,10 +224,10 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop()
+  }
   recording.value = false
-  recordingStream?.getTracks().forEach(track => track.stop())
-  recordingStream = null
 }
 
 async function transcribeRecording() {
@@ -422,7 +424,10 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+  if (mediaRecorder) {
+    mediaRecorder.onstop = null
+    if (mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+  }
   recordingStream?.getTracks().forEach(track => track.stop())
   currentAudio?.pause()
 })
