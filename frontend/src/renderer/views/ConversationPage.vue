@@ -590,7 +590,7 @@ async function startTutorFeedbackPractice(messageId: string, feedbackContent: st
       '',
       'Saved teaching feedback:',
       feedbackContent,
-    ].join('\\n')
+    ].join('\n')
     await sendMessage(practicePrompt)
   } catch (error) {
     console.error('启动教学反馈复练失败:', error)
