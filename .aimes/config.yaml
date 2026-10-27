@@ -48,6 +48,13 @@ tools:
   adapter_status: template
   entry_paths:
   - AGENTS.md
+- id: chatgpt-work
+  name: ChatGPT Work
+  adapter_status: template
+  entry_paths:
+  - docs/_governance/adapters/CHATGPT-WORK-ENTRY.md
+  - .aimes/adapters/chatgpt-work/PROJECT-INSTRUCTIONS.md
+  - .aimes/adapters/chatgpt-work/README.md
 policy:
   preserve_existing_files: true
   auto_overwrite: false

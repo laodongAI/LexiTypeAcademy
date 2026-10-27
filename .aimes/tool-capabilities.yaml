@@ -40,3 +40,8 @@ tools:
   rule_loading: unknown
   runtime_validation: not-run
   evidence: []
+- id: chatgpt-work
+  product_version: unknown
+  rule_loading: unknown
+  runtime_validation: not-run
+  evidence: []
