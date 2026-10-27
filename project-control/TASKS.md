@@ -599,3 +599,9 @@ cd frontend; npm run build
 | IMP-08 AI 对话后复盘（WeSpeak 借鉴：会话结束→集中纠错/表达/下一步；对话中不打断） | IMPLEMENTED_UNVERIFIED | `conversationReview.ts` 纯函数 + 6 用例单测；`ConversationPage.vue` completed 会话显示复盘卡；解析器截断/丢弃/返回 null 防伪 |
 | 测试基建修正（node strip-only 不支持 enum） | DONE | `package.json` test:unit 改 `--experimental-transform-types`；`learningMethodCompatibility.ts` 运行时导入补 `.ts` 扩展名 |
 | 验证：test:unit 42/42、vue-tsc exit 0、生产构建 ✓ 31.86s | PASS | 本机执行；浏览器真实 UI、AI 复盘真实调用、语音类模式实机均为 NOT_RUN |
+
+### 学习方法注册表交付补充（2026-10-28）
+
+- 提交：`6458a1d feat(learning): unify method registry and add conversation review`（12 文件，已推送 origin/main）；用户 TTS WIP 未包含。
+- 新增运行时证据：本地后端 8010（`GET /api/review/stats` → 200）与前端 Vite 5183 启动正常；6 个修改/新增模块（4 视图 + 2 注册表/复盘模块）经 Vite 按需编译全部 200，无编译错误。
+- 浏览器视觉走查：本会话浏览器自动化工具（node_repl MCP）不可用，按治理规则标记 BLOCKED；页面交互（按钮文案、禁用态、复盘卡渲染）需人工或后续会话实机验证。
