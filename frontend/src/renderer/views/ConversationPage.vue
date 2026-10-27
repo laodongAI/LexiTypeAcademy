@@ -73,7 +73,13 @@
             >
               <div class="message-bubble">
                 <span class="message-role">{{ message.role === 'user' ? '我' : 'AI' }}</span>
-                <p>{{ message.content }}</p>
+                <template v-if="message.role === 'assistant' && currentSession.scenarioId === 'ai-tutor' && parseTutorSections(message.content).length">
+                  <section v-for="section in parseTutorSections(message.content)" :key="section.title" class="tutor-feedback-section">
+                    <strong>{{ section.title }}</strong>
+                    <p>{{ section.content }}</p>
+                  </section>
+                </template>
+                <p v-else>{{ message.content }}</p>
                 <el-button v-if="message.role === 'assistant'" text size="small" :loading="speakingMessageId === message.id" @click="playAssistantMessage(message.id, message.content)">
                   <el-icon><VideoPlay /></el-icon> 朗读英文回复
                 </el-button>
@@ -351,6 +357,22 @@ function stopSilenceDetection() {
   }
 }
 
+const TUTOR_SECTION_LABELS = ['教学状态', '本步目标', '老师讲解', '请你回答', '反馈与纠错', '下一步'] as const
+
+function parseTutorSections(content: string): Array<{ title: string; content: string }> {
+  const markerPattern = /【(教学状态|本步目标|老师讲解|请你回答|反馈与纠错|下一步)】/g
+  const matches = [...content.matchAll(markerPattern)]
+  if (!matches.length) return []
+  return matches.map((match, index) => {
+    const start = (match.index ?? 0) + match[0].length
+    const end = matches[index + 1]?.index ?? content.length
+    return {
+      title: match[1] ?? '学习反馈',
+      content: content.slice(start, end).trim(),
+    }
+  }).filter(section => section.content.length > 0 && TUTOR_SECTION_LABELS.includes(section.title as typeof TUTOR_SECTION_LABELS[number]))
+}
+
 function statusLabel(status: ConversationSession['status']): string {
   if (status === 'completed') return '已结束'
   if (status === 'abandoned') return '已放弃'
@@ -578,6 +600,9 @@ onBeforeUnmount(() => {
 .message-row.user .message-bubble { background: var(--primary-color-light-9, var(--fill-color-light)); }
 .message-role { font-size: 12px; font-weight: 600; color: var(--text-color-secondary); }
 .message-bubble p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; line-height: 1.7; }
+.tutor-feedback-section { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--primary-color); background: var(--fill-color-lighter, var(--fill-color-light)); border-radius: 0 8px 8px 0; }
+.tutor-feedback-section strong { display: block; font-size: 12px; color: var(--text-color-secondary); margin-bottom: 4px; }
+.tutor-feedback-section p { margin: 0; }
 .message-bubble small { font-size: 11px; color: var(--text-color-secondary); }
 .assistant-thinking { display: flex; gap: 8px; align-items: center; color: var(--text-color-secondary); padding: 8px; }
 .feedback-action { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; margin: 0 0 16px; border: 1px solid var(--border-color-light); border-radius: 10px; }
