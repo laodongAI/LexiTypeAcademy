@@ -112,8 +112,11 @@
               @keydown.ctrl.enter.prevent="sendMessage"
             />
             <div class="composer-footer">
-              <span>可输入文字，也可录音转成文字；Ctrl + Enter 发送</span>
+              <span>{{ voiceStatus === 'listening' ? '正在聆听…说完后会自动识别' : voiceStatus === 'transcribing' ? '正在识别语音…' : voiceStatus === 'thinking' ? 'AI 正在回复…' : voiceStatus === 'speaking' ? 'AI 正在朗读…' : '可输入文字，也可录音转成文字' }}</span>
               <div class="composer-actions">
+                <el-button :type="continuousVoiceMode ? 'success' : 'default'" plain :disabled="sending || transcribing || currentSession.status !== 'active'" @click="toggleContinuousVoiceMode">
+                  {{ continuousVoiceMode ? '退出连续对话' : '连续语音对话' }}
+                </el-button>
                 <el-button v-if="!recording" plain :loading="transcribing" :disabled="sending || currentSession.status !== 'active'" @click="startRecording">
                   <el-icon><Microphone /></el-icon> 语音输入
                 </el-button>
@@ -159,6 +162,14 @@ const errorMessage = ref('')
 const recording = ref(false)
 const transcribing = ref(false)
 const speakingMessageId = ref<string | null>(null)
+const continuousVoiceMode = ref(false)
+const voiceStatus = ref<'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'>('idle')
+let silenceAudioContext: AudioContext | null = null
+let silenceAnalyser: AnalyserNode | null = null
+let silenceFrame = 0
+let speechStartedAt = 0
+let lastVoiceAt = 0
+let silenceDetectionStartedAt = 0
 let mediaRecorder: MediaRecorder | null = null
 let recordingStream: MediaStream | null = null
 let recordedChunks: BlobPart[] = []
@@ -181,11 +192,19 @@ async function playAssistantMessage(messageId: string, content: string) {
     audio.onended = () => {
       if (currentAudio === audio) currentAudio = null
       speakingMessageId.value = null
+      if (continuousVoiceMode.value) {
+        voiceStatus.value = 'idle'
+        void startRecording()
+      }
     }
     audio.onerror = () => {
       if (currentAudio === audio) currentAudio = null
       speakingMessageId.value = null
       ElMessage.error('语音播放失败，请检查 TTS 服务状态')
+      if (continuousVoiceMode.value) {
+        voiceStatus.value = 'idle'
+        void startRecording()
+      }
     }
     await audio.play()
   } catch (error) {
@@ -204,6 +223,7 @@ async function startRecording() {
     recordedChunks = []
     recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true })
     mediaRecorder = new MediaRecorder(recordingStream)
+    if (continuousVoiceMode.value) startSilenceDetection(recordingStream)
     mediaRecorder.ondataavailable = event => {
       if (event.data.size > 0) recordedChunks.push(event.data)
     }
@@ -214,6 +234,7 @@ async function startRecording() {
     }
     mediaRecorder.start()
     recording.value = true
+    voiceStatus.value = 'listening'
   } catch (error) {
     recordingStream?.getTracks().forEach(track => track.stop())
     recordingStream = null
@@ -224,10 +245,12 @@ async function startRecording() {
 }
 
 function stopRecording() {
+  stopSilenceDetection()
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop()
   }
   recording.value = false
+  if (voiceStatus.value === 'listening') voiceStatus.value = 'transcribing'
 }
 
 async function transcribeRecording() {
@@ -239,16 +262,88 @@ async function transcribeRecording() {
     return
   }
   transcribing.value = true
+  voiceStatus.value = 'transcribing'
   try {
     const result = await getASRApiService().recognize({ audio: blob, language: 'en-US' })
     if (!result.success || !result.text?.trim()) {
       throw new Error(result.error || '没有识别到清晰的语音，请重试或直接输入文字。')
     }
-    draft.value = [draft.value.trim(), result.text.trim()].filter(Boolean).join(' ')
+    if (continuousVoiceMode.value) {
+      voiceStatus.value = 'thinking'
+      await sendMessage(result.text.trim())
+    } else {
+      draft.value = [draft.value.trim(), result.text.trim()].filter(Boolean).join(' ')
+      voiceStatus.value = 'idle'
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '语音识别失败，请重试。'
+    voiceStatus.value = 'idle'
+    if (continuousVoiceMode.value) window.setTimeout(() => void startRecording(), 900)
   } finally {
     transcribing.value = false
+  }
+}
+
+function toggleContinuousVoiceMode() {
+  if (continuousVoiceMode.value) {
+    continuousVoiceMode.value = false
+    stopRecording()
+    currentAudio?.pause()
+    currentAudio = null
+    speakingMessageId.value = null
+    voiceStatus.value = 'idle'
+    return
+  }
+  continuousVoiceMode.value = true
+  void startRecording()
+}
+
+function startSilenceDetection(stream: MediaStream) {
+  stopSilenceDetection()
+  const AudioContextClass = window.AudioContext
+  if (!AudioContextClass) return
+  silenceAudioContext = new AudioContextClass()
+  const source = silenceAudioContext.createMediaStreamSource(stream)
+  silenceAnalyser = silenceAudioContext.createAnalyser()
+  silenceAnalyser.fftSize = 512
+  source.connect(silenceAnalyser)
+  const samples = new Uint8Array(silenceAnalyser.fftSize)
+  speechStartedAt = 0
+  lastVoiceAt = 0
+  silenceDetectionStartedAt = Date.now()
+  const detect = () => {
+    if (!recording.value || !silenceAnalyser || !continuousVoiceMode.value) return
+    silenceAnalyser.getByteTimeDomainData(samples)
+    let sum = 0
+    for (const sample of samples) {
+      const normalized = (sample - 128) / 128
+      sum += normalized * normalized
+    }
+    const rms = Math.sqrt(sum / samples.length)
+    const now = Date.now()
+    if (rms > 0.035) {
+      if (!speechStartedAt) speechStartedAt = now
+      lastVoiceAt = now
+    }
+    const hasSpeech = speechStartedAt > 0 && lastVoiceAt > 0
+    const quietLongEnough = hasSpeech && now - lastVoiceAt > 1200 && now - speechStartedAt > 500
+    const maxDurationReached = now - silenceDetectionStartedAt > 15000
+    if (quietLongEnough || maxDurationReached) {
+      stopRecording()
+      return
+    }
+    silenceFrame = window.requestAnimationFrame(detect)
+  }
+  silenceFrame = window.requestAnimationFrame(detect)
+}
+
+function stopSilenceDetection() {
+  if (silenceFrame) window.cancelAnimationFrame(silenceFrame)
+  silenceFrame = 0
+  silenceAnalyser = null
+  if (silenceAudioContext) {
+    void silenceAudioContext.close().catch(() => undefined)
+    silenceAudioContext = null
   }
 }
 
@@ -326,9 +421,9 @@ function selectSession(id: number) {
   if (session) scenarioId.value = session.scenarioId
 }
 
-async function sendMessage() {
+async function sendMessage(voiceText?: string) {
   const session = currentSession.value
-  const text = draft.value.trim()
+  const text = (voiceText ?? draft.value).trim()
   if (!session || !text || sending.value || session.status !== 'active') return
   sending.value = true
   draft.value = ''
@@ -336,12 +431,24 @@ async function sendMessage() {
   try {
     const updated = await conversationCoreService.sendMessage(session, text)
     sessions.value = sessions.value.map(item => item.id === updated.id ? updated : item)
+    if (continuousVoiceMode.value) {
+      const latestAssistant = [...updated.messages].reverse().find(message => message.role === 'assistant')
+      if (latestAssistant) {
+        voiceStatus.value = 'speaking'
+        await playAssistantMessage(latestAssistant.id, latestAssistant.content)
+      } else {
+        voiceStatus.value = 'idle'
+        window.setTimeout(() => void startRecording(), 500)
+      }
+    }
   } catch (error) {
     console.error('发送 AI 对话失败:', error)
     const saved = await conversationCoreService.getSession(session.id).catch(() => null)
     if (saved) sessions.value = sessions.value.map(item => item.id === saved.id ? saved : item)
-    draft.value = text
+    if (voiceText === undefined) draft.value = text
     errorMessage.value = error instanceof Error ? error.message : 'AI 请求失败，请检查模型设置后重试。'
+    voiceStatus.value = 'idle'
+    if (continuousVoiceMode.value) window.setTimeout(() => void startRecording(), 1200)
   } finally {
     sending.value = false
   }
@@ -424,6 +531,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  continuousVoiceMode.value = false
+  stopSilenceDetection()
   if (mediaRecorder) {
     mediaRecorder.onstop = null
     if (mediaRecorder.state !== 'inactive') mediaRecorder.stop()
