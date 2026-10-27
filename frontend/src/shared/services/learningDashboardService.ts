@@ -12,6 +12,8 @@ import type { LearningCourse } from '../types/learning'
 import type { Lesson, CourseProgress, PracticeRecord } from '../types/course'
 import type { PlanDashboard, StudyPlan } from '../types/studyPlan'
 import type { DueWord, ReviewStats } from '../types/review'
+import { chooseNextLearningAction } from '../utils/nextLearningAction'
+import type { NextLearningAction } from '../utils/nextLearningAction'
 
 export interface ResumeLearningTarget {
   courseId: string
@@ -31,6 +33,7 @@ export interface HomeLearningDashboard {
   activePlan: StudyPlan | null
   planDashboard: PlanDashboard | null
   warnings: string[]
+  nextAction: NextLearningAction
 }
 
 /** 将单项数据读取失败与“真实空数据”区分开，允许首页部分降级。 */
@@ -72,15 +75,31 @@ export class LearningDashboardService {
       }
     }
 
+    const hasDueReview = reviewStats !== null
+      ? reviewStats.dueToday > 0
+      : dueResult.status === 'fulfilled'
+        ? dueWords.length > 0
+        : null
+    const nextPlanLesson = planDashboard?.lessonTasks[0] ?? null
+    const nextAction = chooseNextLearningAction({
+      resumeTarget,
+      hasDueReview,
+      dueReviewCount: reviewStats?.dueToday ?? null,
+      nextPlanLesson,
+      planTitle: activePlan?.title ?? null,
+      hasDataWarnings: warnings.length > 0,
+    })
+
     return {
       resumeTarget,
       learningCourses,
       dueWords,
       reviewStats,
-      todayPracticeCount: todayPracticeRecords.length,
+      todayPracticeCount: practiceResult.status === 'fulfilled' ? todayPracticeRecords.length : null,
       activePlan,
       planDashboard,
       warnings,
+      nextAction,
     }
   }
 

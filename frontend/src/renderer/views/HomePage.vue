@@ -6,16 +6,16 @@
     <el-card class="welcome-card" shadow="never">
       <div class="welcome-content">
         <div class="welcome-text">
-          <h2>欢迎来到 LexiType Academy</h2>
-          <p>从一个英语单词、一句表达或一次听说练习开始，稳步积累你的英语能力。</p>
+          <h2>{{ dashboard?.nextAction.title ?? '今天继续一点英语' }}</h2>
+          <p>{{ dashboard?.nextAction.description ?? '正在根据你的学习记录准备下一步。' }}</p>
         </div>
         <div class="welcome-actions">
-          <el-button type="primary" size="large" @click="navigateTo('/course-repository')">
-            <el-icon><Folder /></el-icon>
-            浏览英语课程
+          <el-button type="primary" size="large" :loading="loading" :disabled="loading || !dashboard" @click="runNextAction">
+            <el-icon><VideoPlay /></el-icon>
+            {{ dashboard?.nextAction.ctaLabel ?? '正在准备…' }}
           </el-button>
-          <el-button size="large" @click="navigateTo('/conversation')">
-            AI 教学 / 英语面试
+          <el-button size="large" :disabled="loading" @click="navigateTo('/conversation')">
+            AI 英语老师 / 情景对话
           </el-button>
         </div>
       </div>
@@ -38,38 +38,6 @@
 
     <template v-else>
       <section class="dashboard-grid">
-        <el-card class="resume-card" shadow="never">
-          <template #header>
-            <div class="card-heading">
-              <span>继续学习</span>
-              <el-tag v-if="dashboard?.resumeTarget" type="success" effect="plain">已恢复学习位置</el-tag>
-            </div>
-          </template>
-          <template v-if="dashboard?.resumeTarget">
-            <h3>{{ dashboard.resumeTarget.courseTitle }}</h3>
-            <p class="muted">{{ dashboard.resumeTarget.lessonTitle }}</p>
-            <el-progress
-              :percentage="dashboard.resumeTarget.completionPercentage"
-              :stroke-width="8"
-              :show-text="true"
-            />
-            <p v-if="dashboard.resumeTarget.lastStudiedAt" class="muted last-studied">
-              上次学习：{{ formatDate(dashboard.resumeTarget.lastStudiedAt) }}
-            </p>
-            <el-button type="primary" @click="resumeLearning">
-              <el-icon><VideoPlay /></el-icon>
-              从上次课时继续
-            </el-button>
-          </template>
-          <el-empty
-            v-else
-            description="还没有可恢复的未完成课时"
-            :image-size="76"
-          >
-            <el-button type="primary" @click="navigateTo('/course-repository')">选择一门课程</el-button>
-          </el-empty>
-        </el-card>
-
         <el-card class="today-card" shadow="never">
           <template #header>
             <div class="card-heading">
@@ -283,10 +251,20 @@ function navigateTo(path: string) {
   void router.push(path)
 }
 
-function resumeLearning() {
-  const target = dashboard.value?.resumeTarget
-  if (!target) return
-  openLesson(target.courseId, target.lessonId)
+function runNextAction() {
+  const action = dashboard.value?.nextAction
+  if (!action) return
+
+  if (action.kind === 'resume' || action.kind === 'plan-lesson') {
+    if (action.courseId && action.lessonId) {
+      openLesson(action.courseId, action.lessonId)
+    } else {
+      navigateTo('/course-repository')
+    }
+    return
+  }
+
+  navigateTo(action.kind === 'review' ? '/review' : '/course-repository')
 }
 
 function openLesson(courseId: string, lessonId: string) {
@@ -346,6 +324,12 @@ async function reloadDashboard() {
       activePlan: null,
       planDashboard: null,
       warnings: ['首页学习数据加载失败，请检查本地后端是否正常运行'],
+      nextAction: {
+        kind: 'browse-courses',
+        title: '学习数据暂时不可用',
+        description: '请重新加载数据；你也可以先浏览课程。系统不会将读取失败当成没有学习记录。',
+        ctaLabel: '浏览英语课程',
+      },
     }
   } finally {
     loading.value = false
@@ -386,7 +370,7 @@ onMounted(() => {
 .retry-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   margin-bottom: 28px;
 }
