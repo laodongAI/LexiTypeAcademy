@@ -74,6 +74,9 @@
               <div class="message-bubble">
                 <span class="message-role">{{ message.role === 'user' ? '我' : 'AI' }}</span>
                 <p>{{ message.content }}</p>
+                <el-button v-if="message.role === 'assistant'" text size="small" :loading="speakingMessageId === message.id" @click="playAssistantMessage(message.id, message.content)">
+                  <el-icon><VideoPlay /></el-icon> 朗读英文回复
+                </el-button>
                 <small>{{ formatTime(message.createdAt) }}</small>
               </div>
             </div>
@@ -109,10 +112,16 @@
               @keydown.ctrl.enter.prevent="sendMessage"
             />
             <div class="composer-footer">
-              <span>Ctrl + Enter 发送 · 会话自动保存到本地 SQLite</span>
-              <el-button type="primary" native-type="submit" :loading="sending" :disabled="!draft.trim() || currentSession.status !== 'active'">
-                发送
-              </el-button>
+              <span>可输入文字，也可录音转成文字；Ctrl + Enter 发送</span>
+              <div class="composer-actions">
+                <el-button v-if="!recording" plain :loading="transcribing" :disabled="sending || currentSession.status !== 'active'" @click="startRecording">
+                  <el-icon><Microphone /></el-icon> 语音输入
+                </el-button>
+                <el-button v-else type="danger" plain @click="stopRecording">结束录音并识别</el-button>
+                <el-button type="primary" native-type="submit" :loading="sending" :disabled="!draft.trim() || currentSession.status !== 'active'">
+                  发送
+                </el-button>
+              </div>
             </div>
           </form>
         </template>
@@ -123,10 +132,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, Loading } from '@element-plus/icons-vue'
+import { ArrowDown, Loading, Microphone, VideoPlay } from '@element-plus/icons-vue'
 import {
   conversationCoreService,
   type ConversationScenarioId,
@@ -135,6 +144,8 @@ import {
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
 import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
 import { learningEventService } from '../../shared/services/learningEventService'
+import { asrApiService } from '../../shared/services/asrApiService'
+import { generateSpeech } from '../../shared/services/ttsApiService'
 
 const router = useRouter()
 const sessions = ref<ConversationSession[]>([])
@@ -145,10 +156,99 @@ const sending = ref(false)
 const loadingSessions = ref(false)
 const savingFeedback = ref(false)
 const errorMessage = ref('')
+const recording = ref(false)
+const transcribing = ref(false)
+const speakingMessageId = ref<string | null>(null)
+let mediaRecorder: MediaRecorder | null = null
+let recordingStream: MediaStream | null = null
+let recordedChunks: BlobPart[] = []
+let currentAudio: HTMLAudioElement | null = null
 
 const currentSession = computed(
   () => sessions.value.find(session => session.id === selectedSessionId.value) ?? null,
 )
+
+async function playAssistantMessage(messageId: string, content: string) {
+  if (speakingMessageId.value === messageId) return
+  currentAudio?.pause()
+  currentAudio = null
+  speakingMessageId.value = messageId
+  try {
+    const audioUrl = await generateSpeech(content, 'en')
+    if (!audioUrl) throw new Error('语音合成未返回可播放音频')
+    const audio = new Audio(audioUrl)
+    currentAudio = audio
+    audio.onended = () => {
+      if (currentAudio === audio) currentAudio = null
+      speakingMessageId.value = null
+    }
+    audio.onerror = () => {
+      if (currentAudio === audio) currentAudio = null
+      speakingMessageId.value = null
+      ElMessage.error('语音播放失败，请检查 TTS 服务状态')
+    }
+    await audio.play()
+  } catch (error) {
+    speakingMessageId.value = null
+    errorMessage.value = error instanceof Error ? error.message : '无法播放语音'
+  }
+}
+
+async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    errorMessage.value = '当前浏览器不支持录音，请改用文字输入。'
+    return
+  }
+  try {
+    errorMessage.value = ''
+    recordedChunks = []
+    recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    mediaRecorder = new MediaRecorder(recordingStream)
+    mediaRecorder.ondataavailable = event => {
+      if (event.data.size > 0) recordedChunks.push(event.data)
+    }
+    mediaRecorder.onstop = () => {
+      void transcribeRecording()
+    }
+    mediaRecorder.start()
+    recording.value = true
+  } catch (error) {
+    recordingStream?.getTracks().forEach(track => track.stop())
+    recordingStream = null
+    errorMessage.value = error instanceof Error && error.name === 'NotAllowedError'
+      ? '麦克风权限未获批准，请在浏览器地址栏允许麦克风后重试。'
+      : '无法启动麦克风，请检查设备和浏览器权限。'
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+  recording.value = false
+  recordingStream?.getTracks().forEach(track => track.stop())
+  recordingStream = null
+}
+
+async function transcribeRecording() {
+  const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
+  recordedChunks = []
+  mediaRecorder = null
+  if (blob.size === 0) {
+    errorMessage.value = '没有录到有效音频，请重试。'
+    return
+  }
+  transcribing.value = true
+  try {
+    const result = await asrApiService.recognize({ audio: blob, language: 'en-US' })
+    if (!result.success || !result.text?.trim()) {
+      throw new Error(result.error || '没有识别到清晰的语音，请重试或直接输入文字。')
+    }
+    draft.value = [draft.value.trim(), result.text.trim()].filter(Boolean).join(' ')
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '语音识别失败，请重试。'
+  } finally {
+    transcribing.value = false
+  }
+}
 
 function statusLabel(status: ConversationSession['status']): string {
   if (status === 'completed') return '已结束'
@@ -320,6 +420,12 @@ async function finishSession(status: 'completed' | 'abandoned') {
 onMounted(() => {
   void loadSessions()
 })
+
+onBeforeUnmount(() => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
+  recordingStream?.getTracks().forEach(track => track.stop())
+  currentAudio?.pause()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -357,6 +463,7 @@ onMounted(() => {
 .feedback-action p { margin: 0; color: var(--text-color-secondary); font-size: 12px; line-height: 1.6; }
 .composer { border-top: 1px solid var(--border-color-light); padding-top: 16px; }
 .composer-footer { margin-top: 10px; }
+.composer-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .composer-footer span { color: var(--text-color-secondary); font-size: 12px; }
 @media (max-width: 860px) {
   .conversation-layout { grid-template-columns: 1fr; }
