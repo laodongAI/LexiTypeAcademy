@@ -144,7 +144,7 @@ import {
 import { learningDashboardService } from '../../shared/services/learningDashboardService'
 import { studyPlanRepository } from '../../shared/database/repositories/studyPlanRepository'
 import { learningEventService } from '../../shared/services/learningEventService'
-import { asrApiService } from '../../shared/services/asrApiService'
+import { getASRApiService } from '../../shared/services/asrApiService'
 import { generateSpeech } from '../../shared/services/ttsApiService'
 
 const router = useRouter()
@@ -240,7 +240,7 @@ async function transcribeRecording() {
   }
   transcribing.value = true
   try {
-    const result = await asrApiService.recognize({ audio: blob, language: 'en-US' })
+    const result = await getASRApiService().recognize({ audio: blob, language: 'en-US' })
     if (!result.success || !result.text?.trim()) {
       throw new Error(result.error || '没有识别到清晰的语音，请重试或直接输入文字。')
     }
