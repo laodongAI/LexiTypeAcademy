@@ -542,3 +542,15 @@ cd frontend; npm run build
 | CONV-VOICE-03 权限与失败反馈 / 清理资源 | IMPLEMENTED_UNVERIFIED | 覆盖浏览器不支持、麦克风拒绝、空录音、ASR 失败提示；组件卸载时停止录音轨道并停止播放 |
 | CONV-VOICE-04 连续自动收音闭环 | TODO | 当前仍需用户点击开始/结束录音，尚未实现 AI 播放结束自动收音、静音检测与轮次状态机；须在真实设备验证 ASR 能力后实施 |
 | CONV-VOICE-05 CI 与真实浏览器/麦克风验收 | NOT_RUN | 需查看本次提交 Actions；本次未运行本地构建或真实浏览器/麦克风测试 |
+
+
+## 连续语音对话试验切片（2026-10-27）
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 可选连续语音模式入口 | IMPLEMENTED_UNVERIFIED | 学员显式开启，可随时退出；默认不自动收音 |
+| 静音检测结束一轮录音 | IMPLEMENTED_UNVERIFIED | Web Audio RMS 阈值，连续静音约 1.2 秒结束；单轮录音最长 15 秒 |
+| ASR 识别后自动发送 | IMPLEMENTED_UNVERIFIED | 仅在显式连续模式下自动发送识别结果；普通语音输入仍回填草稿供确认 |
+| AI 回复 TTS 后自动继续聆听 | IMPLEMENTED_UNVERIFIED | 复用既有 TTS，播放结束后尝试进入下一轮；失败路径有重试保护 |
+| CI / 真实浏览器和麦克风验收 | NOT_RUN | 新提交 CI 需确认；尚无真实设备端到端证据 |
+| 语音边界与误触发调优 | TODO | RMS 阈值、停顿长度、环境噪声、用户打断、播放回声需真实设备调试 |
