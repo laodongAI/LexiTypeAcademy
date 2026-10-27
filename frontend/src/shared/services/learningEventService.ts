@@ -19,6 +19,7 @@ export type LearningEventType =
   | 'conversation_abandoned'
   | 'conversation_turn_completed'
   | 'conversation_feedback_saved'
+  | 'conversation_feedback_practice_started'
 
 export interface LearningEvent {
   eventId: string
