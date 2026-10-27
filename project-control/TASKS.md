@@ -554,3 +554,10 @@ cd frontend; npm run build
 | AI 回复 TTS 后自动继续聆听 | IMPLEMENTED_UNVERIFIED | 复用既有 TTS，播放结束后尝试进入下一轮；失败路径有重试保护 |
 | CI / 真实浏览器和麦克风验收 | NOT_RUN | 新提交 CI 需确认；尚无真实设备端到端证据 |
 | 语音边界与误触发调优 | TODO | RMS 阈值、停顿长度、环境噪声、用户打断、播放回声需真实设备调试 |
+
+
+### 连续语音 CI 类型错误修复（2026-10-27）
+
+- 提交 `6e65c45`：将 Vue 表单和 Ctrl+Enter 的事件处理器改为无参数的 `handleSendMessage()` 包装函数，避免把可选字符串参数的 `sendMessage(voiceText?)` 直接绑定为 DOM 事件处理器。
+- 根因证据：前一轮前端 CI 的 TypeScript 错误为 `ConversationPage.vue(102,12)` 和 `(112,16)`，类型不兼容；单元测试通过，但类型检查失败，生产构建被跳过。
+- 当前提交对应的前端 CI：待执行/待确认；不得把修复本身当作验证通过。
