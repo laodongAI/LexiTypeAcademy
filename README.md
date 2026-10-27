@@ -116,6 +116,8 @@ backend\.venv\Scripts\python.exe scripts\check_models.py --json
 
 本项目的产品体验改进按明确基线和可验证任务推进：
 
+- [竞品亮点借鉴与第一版产品改进设计](docs/product/COMPETITOR_INSPIRED_PRODUCT_IMPROVEMENT_V1.md)：六个英语学习竞品、借鉴判断、现有功能映射、简洁学习 UI、后端教学规则、实施路线和验收标准。
+- [产品文档导航](docs/README.md)：产品基线、设计、实施清单和 AIMES 治理记录入口。
 - [AI 课程生成与学习体验专项审计](docs/product/AI_COURSE_GENERATION_AND_LEARNING_EXPERIENCE_AUDIT.md)：三种生成方式、内容与教学法匹配、课程仓库层级、学习体验、恢复验收和诊断日志的审计与改进路线。
 - [产品改进基线](docs/product/PRODUCT_IMPROVEMENT_BASELINE.md)：目标用户、核心学习闭环、已确认问题、待验证风险、产品指标与交付规则。
 - [P0 实施清单与验收标准](docs/product/P0_IMPLEMENTATION_BACKLOG.md)：优先修复项、实施要求、验收标准与状态。
