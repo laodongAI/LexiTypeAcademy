@@ -80,6 +80,9 @@
                   </section>
                 </template>
                 <p v-else>{{ message.content }}</p>
+                <el-button v-if="message.role === 'assistant' && currentSession.scenarioId === 'ai-tutor' && parseTutorSections(message.content).length" text size="small" :disabled="savingTutorFeedbackId === message.id || savedTutorFeedbackIds.has(message.id)" :loading="savingTutorFeedbackId === message.id" @click="saveTutorFeedback(message.id, message.content)">
+                  {{ savedTutorFeedbackIds.has(message.id) ? '已保存反馈' : '保存学习反馈' }}
+                </el-button>
                 <el-button v-if="message.role === 'assistant'" text size="small" :loading="speakingMessageId === message.id" @click="playAssistantMessage(message.id, message.content)">
                   <el-icon><VideoPlay /></el-icon> 朗读英文回复
                 </el-button>
@@ -164,6 +167,8 @@ const draft = ref('')
 const sending = ref(false)
 const loadingSessions = ref(false)
 const savingFeedback = ref(false)
+const savingTutorFeedbackId = ref<string | null>(null)
+const savedTutorFeedbackIds = ref<Set<string>>(new Set())
 const errorMessage = ref('')
 const recording = ref(false)
 const transcribing = ref(false)
@@ -490,6 +495,51 @@ function handleFinishCommand(command: string | number | object) {
   }
 }
 
+async function loadSavedTutorFeedback() {
+  try {
+    const events = await learningEventService.listRecent(500)
+    savedTutorFeedbackIds.value = new Set(
+      events
+        .filter(event => event.eventType === 'conversation_feedback_saved' && event.metadata?.scenarioId === 'ai-tutor')
+        .map(event => String(event.metadata?.assistantMessageId ?? ''))
+        .filter(Boolean),
+    )
+  } catch (error) {
+    console.warn('读取已保存的教学反馈失败:', error)
+  }
+}
+
+async function saveTutorFeedback(messageId: string, content: string) {
+  const session = currentSession.value
+  if (!session || session.scenarioId !== 'ai-tutor' || savedTutorFeedbackIds.value.has(messageId)) return
+  savingTutorFeedbackId.value = messageId
+  errorMessage.value = ''
+  try {
+    await learningEventService.record({
+      eventId: `conversation-tutor-feedback-${session.id}-${messageId}`,
+      eventType: 'conversation_feedback_saved',
+      occurredAt: Date.now(),
+      activityId: messageId,
+      courseId: session.linkedCourseId,
+      lessonId: session.linkedLessonId,
+      metadata: {
+        scenarioId: 'ai-tutor',
+        sessionId: session.id,
+        assistantMessageId: messageId,
+        feedbackContent: content,
+        sectionTitles: parseTutorSections(content).map(section => section.title),
+      },
+    })
+    savedTutorFeedbackIds.value = new Set([...savedTutorFeedbackIds.value, messageId])
+    ElMessage.success('学习反馈已保存，可在学习事件记录中追溯')
+  } catch (error) {
+    console.error('保存教学反馈失败:', error)
+    errorMessage.value = '保存学习反馈失败，请稍后重试。'
+  } finally {
+    savingTutorFeedbackId.value = null
+  }
+}
+
 async function saveInterviewFeedback() {
   const session = currentSession.value
   if (!session || session.scenarioId !== 'english-interview' || !session.messages.some(message => message.role === 'user')) return
@@ -558,6 +608,7 @@ async function finishSession(status: 'completed' | 'abandoned') {
 
 onMounted(() => {
   void loadSessions()
+  void loadSavedTutorFeedback()
 })
 
 onBeforeUnmount(() => {
