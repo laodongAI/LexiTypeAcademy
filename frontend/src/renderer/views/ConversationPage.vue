@@ -591,7 +591,8 @@ async function startTutorFeedbackPractice(messageId: string, feedbackContent: st
       'Saved teaching feedback:',
       feedbackContent,
     ].join('\n')
-    await sendMessage(practicePrompt)
+    draft.value = practicePrompt
+    await sendMessage()
   } catch (error) {
     console.error('启动教学反馈复练失败:', error)
     errorMessage.value = error instanceof Error ? error.message : '启动复练失败，请稍后重试。'
