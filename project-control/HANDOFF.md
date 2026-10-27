@@ -367,3 +367,9 @@
 - 代码提交：`a6ed01447b4317499927b5e9cf714534925081b0`。AI 教学回复新增“保存学习反馈”，复用 `learningEventService` 的 `conversation_feedback_saved` 事件，按会话和回复 ID 去重，并在页面加载时恢复已保存标记。
 - 任务台账：见 `project-control/TASKS.md` 的“AI 教学反馈保存与追溯（2026-10-27）”。当前仅保存可追溯事件，不自动创建复练任务。
 - CI 和浏览器实机验收仍待查；需验证保存、刷新恢复、重复点击幂等及窄屏布局。
+
+## 2026-10-27 已保存教学反馈复练闭环
+
+- 提交 45df292d602861b5102f4823358e157f77856ac1：已保存的 AI 教学反馈下新增“开始复练”，从反馈原文创建新的共享 AI 教学会话，并引导模型将反馈转为简短、可交互的练习；通过 conversation_feedback_practice_started 事件记录来源反馈与复练会话关联（事件类型更新提交 c9738236f55f62cdaff1ec98aaa43890efc5e1ba）。
+- 复用已有 conversationCoreService、learningEventService 与 AI 后端代理；未新增独立复练页面、业务表或第二套对话实现。单词 SM-2 复习仍保持原有语义。
+- 状态：IMPLEMENTED_UNVERIFIED。前端 CI、构建/类型检查、真实 AI 交互、失败重试、反馈事件关联和窄屏验收均需继续核实；未做浏览器实测。
