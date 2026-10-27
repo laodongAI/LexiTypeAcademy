@@ -565,7 +565,7 @@ async function startTutorFeedbackPractice(messageId: string, feedbackContent: st
     scenarioId.value = 'ai-tutor'
     draft.value = ''
 
-    await learningEventService.record({
+    void learningEventService.record({
       eventId: 'conversation-feedback-practice-started-' + sourceSession.id + '-' + messageId,
       eventType: 'conversation_feedback_practice_started',
       occurredAt: Date.now(),
@@ -577,7 +577,7 @@ async function startTutorFeedbackPractice(messageId: string, feedbackContent: st
         sourceAssistantMessageId: messageId,
         practiceSessionId: session.id,
       },
-    })
+    }).catch(error => console.warn('记录教学反馈复练事件失败，不影响复练启动:', error))
 
     const practicePrompt = [
       'I want to practise and apply the following saved English-learning feedback.',
