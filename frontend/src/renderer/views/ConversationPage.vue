@@ -99,7 +99,7 @@
             </el-button>
           </div>
 
-          <form class="composer" @submit.prevent="sendMessage">
+          <form class="composer" @submit.prevent="handleSendMessage">
             <el-input
               v-model="draft"
               type="textarea"
@@ -109,7 +109,7 @@
               show-word-limit
               :disabled="sending || currentSession.status !== 'active'"
               :placeholder="currentSession.status !== 'active' ? '该会话已结束，请新建会话继续' : currentSession.scenarioId === 'english-interview' ? '请尽量用英文回答；回答结束后可查看表达建议。' : '用英文回答练习；如果卡住，可以用中文问提示。'"
-              @keydown.ctrl.enter.prevent="sendMessage"
+              @keydown.ctrl.enter.prevent="handleSendMessage"
             />
             <div class="composer-footer">
               <span>{{ voiceStatus === 'listening' ? '正在聆听…说完后会自动识别' : voiceStatus === 'transcribing' ? '正在识别语音…' : voiceStatus === 'thinking' ? 'AI 正在回复…' : voiceStatus === 'speaking' ? 'AI 正在朗读…' : '可输入文字，也可录音转成文字' }}</span>
@@ -423,6 +423,10 @@ function selectSession(id: number) {
   draft.value = ''
   const session = sessions.value.find(item => item.id === id)
   if (session) scenarioId.value = session.scenarioId
+}
+
+function handleSendMessage() {
+  void sendMessage()
 }
 
 async function sendMessage(voiceText?: string) {
