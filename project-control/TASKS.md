@@ -578,3 +578,12 @@ cd frontend; npm run build
 - 提交：`a6ed01447b4317499927b5e9cf714534925081b0`。
 - 验证：代码已提交 main；新提交对应 CI 结果待检查；浏览器持久化、刷新恢复和重复点击实测 `NOT_RUN`。
 - 状态：`IMPLEMENTED_UNVERIFIED`，不得标记为端到端 VERIFIED。
+
+## 已保存教学反馈 → 交互式复练（2026-10-27）
+
+- 任务：让学习者从已保存的 AI 教学反馈直接开始复练，避免反馈只保存、不进入实际练习。
+- 实现：frontend/src/renderer/views/ConversationPage.vue 在已保存的教学反馈下显示“开始复练”；点击后通过现有 conversationCoreService 创建 AI 教学会话，并把原反馈作为复练依据，要求 AI 组织短练习、等待学习者作答、纠错并提供一次重试。
+- 数据：新增 conversation_feedback_practice_started 学习事件，关联来源会话/反馈消息和复练会话；继续复用现有对话持久化与学习事件存储，不新增表、不把反馈伪装成 SM-2 单词复习记录。
+- 交互边界：只对已保存的 AI 教学反馈显示复练入口；新会话创建后首轮请求失败时，保留会话与可重试的用户消息，错误由现有对话流程展示。
+- 验证：代码已提交 main；前端 CI、类型检查、实际 AI 端到端复练、刷新后事件追溯与窄屏 UI 验收待确认，当前 NOT_RUN。
+- 状态：IMPLEMENTED_UNVERIFIED。
