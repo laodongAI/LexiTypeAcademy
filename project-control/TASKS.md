@@ -505,3 +505,18 @@ cd frontend; npm run build
 | 移除缺失流畅度字段时默认补 70 分 | IMPLEMENTED_PENDING_CI | 仅使用评分服务实际返回值 |
 | 复习卡关联真实释义/音标/例句 | TODO | `DueWord` 当前仅包含 word/source/level/nextReview/reviewCount；需定位词典/教材数据模型并建立可靠关联 |
 | 最新主干前端/后端 CI | PENDING | 前端 https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40308885553；后端 https://github.com/laodongAI/LexiTypeAcademy/actions/runs/40308885589 |
+
+
+## 竞品亮点借鉴与第一版产品改进设计（2026-10-27）
+
+| 任务 | 状态 | 验收证据 / 边界 |
+| --- | --- | --- |
+| 六个英语学习竞品亮点、借鉴判断与现有功能映射 | PROPOSED | `docs/product/COMPETITOR_INSPIRED_PRODUCT_IMPROVEMENT_V1.md`；官方产品页面链接已记录 |
+| 复杂教学规则后置、学员流程与 UI 简化原则 | PROPOSED | 同上：统一课堂、内容类型活动模板、首页单一主任务、设置页默认/高级分层 |
+| 后端学习任务推荐与教学规则编排 | TODO | 先审计当前 main 的服务、数据契约和已有能力，避免平行数据源；需定义 API/错误态/幂等与测试 |
+| 统一学习活动模板（词、句、文章/对话、跟读） | TODO | 先对照现有学习方法实现与 UI；按小切片复用组件并验收 |
+| 写作修订、短口语和 AI 对话反馈闭环 | TODO | 先核实现有入口/数据模型；原稿保留、ASR/评分证据边界、来源关系和失败恢复为硬门禁 |
+| 本版设计文档纳入 README 与 docs 导航 | DONE | `docs/README.md`、`README.md` 已链接新设计文档；GitHub 写入成功 |
+| 自动化验证、Windows/浏览器课堂验收、学习效果基线 | NOT_RUN | 本次只写入产品设计与任务记录；未修改业务代码，未运行项目测试或实机验收 |
+
+**实施顺序建议：** 先完成 P0 证据核查与真实运行缺陷，再实施首页“下一步学习”聚合；随后以单词、句子、文章/对话和跟读为代表流程统一课堂；最后将写作/口语/会话反馈转为可追溯复练。所有实施任务必须先核对当前 main 与已有 P0 清单，避免重复实现。
