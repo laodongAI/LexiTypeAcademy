@@ -210,6 +210,10 @@ async function playAssistantMessage(messageId: string, content: string) {
   } catch (error) {
     speakingMessageId.value = null
     errorMessage.value = error instanceof Error ? error.message : '无法播放语音'
+    if (continuousVoiceMode.value) {
+      voiceStatus.value = 'idle'
+      window.setTimeout(() => { if (continuousVoiceMode.value) void startRecording() }, 900)
+    }
   }
 }
 
@@ -278,7 +282,7 @@ async function transcribeRecording() {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '语音识别失败，请重试。'
     voiceStatus.value = 'idle'
-    if (continuousVoiceMode.value) window.setTimeout(() => void startRecording(), 900)
+    if (continuousVoiceMode.value) window.setTimeout(() => { if (continuousVoiceMode.value) void startRecording() }, 900)
   } finally {
     transcribing.value = false
   }
@@ -438,7 +442,7 @@ async function sendMessage(voiceText?: string) {
         await playAssistantMessage(latestAssistant.id, latestAssistant.content)
       } else {
         voiceStatus.value = 'idle'
-        window.setTimeout(() => void startRecording(), 500)
+        window.setTimeout(() => { if (continuousVoiceMode.value) void startRecording() }, 500)
       }
     }
   } catch (error) {
@@ -448,7 +452,7 @@ async function sendMessage(voiceText?: string) {
     if (voiceText === undefined) draft.value = text
     errorMessage.value = error instanceof Error ? error.message : 'AI 请求失败，请检查模型设置后重试。'
     voiceStatus.value = 'idle'
-    if (continuousVoiceMode.value) window.setTimeout(() => void startRecording(), 1200)
+    if (continuousVoiceMode.value) window.setTimeout(() => { if (continuousVoiceMode.value) void startRecording() }, 1200)
   } finally {
     sending.value = false
   }
