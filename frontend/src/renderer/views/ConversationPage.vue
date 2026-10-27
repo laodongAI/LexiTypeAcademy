@@ -83,6 +83,9 @@
                 <el-button v-if="message.role === 'assistant' && currentSession.scenarioId === 'ai-tutor' && parseTutorSections(message.content).length" text size="small" :disabled="savingTutorFeedbackId === message.id || savedTutorFeedbackIds.has(message.id)" :loading="savingTutorFeedbackId === message.id" @click="saveTutorFeedback(message.id, message.content)">
                   {{ savedTutorFeedbackIds.has(message.id) ? '已保存反馈' : '保存学习反馈' }}
                 </el-button>
+                <el-button v-if="message.role === 'assistant' && currentSession.scenarioId === 'ai-tutor' && savedTutorFeedbackIds.has(message.id)" text size="small" :loading="startingPracticeMessageId === message.id" :disabled="startingPracticeMessageId !== null" @click="startTutorFeedbackPractice(message.id, message.content)">
+                  {{ startingPracticeMessageId === message.id ? '正在准备复练…' : '开始复练' }}
+                </el-button>
                 <el-button v-if="message.role === 'assistant'" text size="small" :loading="speakingMessageId === message.id" @click="playAssistantMessage(message.id, message.content)">
                   <el-icon><VideoPlay /></el-icon> 朗读英文回复
                 </el-button>
@@ -168,6 +171,7 @@ const sending = ref(false)
 const loadingSessions = ref(false)
 const savingFeedback = ref(false)
 const savingTutorFeedbackId = ref<string | null>(null)
+const startingPracticeMessageId = ref<string | null>(null)
 const savedTutorFeedbackIds = ref<Set<string>>(new Set())
 const errorMessage = ref('')
 const recording = ref(false)
@@ -537,6 +541,62 @@ async function saveTutorFeedback(messageId: string, content: string) {
     errorMessage.value = '保存学习反馈失败，请稍后重试。'
   } finally {
     savingTutorFeedbackId.value = null
+  }
+}
+
+async function startTutorFeedbackPractice(messageId: string, feedbackContent: string) {
+  const sourceSession = currentSession.value
+  if (!sourceSession || sourceSession.scenarioId !== 'ai-tutor' || !savedTutorFeedbackIds.value.has(messageId)) return
+
+  startingPracticeMessageId.value = messageId
+  errorMessage.value = ''
+  try {
+    const session = await conversationCoreService.createSession('ai-tutor', '教学反馈复练', {
+      courseId: sourceSession.linkedCourseId,
+      lessonId: sourceSession.linkedLessonId,
+      contextSummary: [
+        sourceSession.linkedCourseId ? 'Continue from the learner linked course' : '',
+        sourceSession.linkedLessonId ? 'Continue from the learner linked lesson' : '',
+        'Practice is based on saved feedback message ' + messageId,
+      ].filter(Boolean).join('; '),
+    })
+    sessions.value = [session, ...sessions.value]
+    selectedSessionId.value = session.id
+    scenarioId.value = 'ai-tutor'
+    draft.value = ''
+
+    await learningEventService.record({
+      eventId: 'conversation-feedback-practice-started-' + sourceSession.id + '-' + messageId,
+      eventType: 'conversation_feedback_practice_started',
+      occurredAt: Date.now(),
+      activityId: messageId,
+      courseId: sourceSession.linkedCourseId,
+      lessonId: sourceSession.linkedLessonId,
+      metadata: {
+        sourceSessionId: sourceSession.id,
+        sourceAssistantMessageId: messageId,
+        practiceSessionId: session.id,
+      },
+    })
+
+    const practicePrompt = [
+      'I want to practise and apply the following saved English-learning feedback.',
+      'Do not merely repeat the feedback. Turn it into a short interactive drill:',
+      '1) choose the most important one or two learning points;',
+      '2) give one concise example if needed;',
+      '3) ask me one question or ask me to rewrite one sentence;',
+      '4) wait for my answer, then correct it with a brief explanation and one retry if needed;',
+      '5) finish with a short summary of what I demonstrated, without claiming mastery from one attempt.',
+      '',
+      'Saved teaching feedback:',
+      feedbackContent,
+    ].join('\\n')
+    await sendMessage(practicePrompt)
+  } catch (error) {
+    console.error('启动教学反馈复练失败:', error)
+    errorMessage.value = error instanceof Error ? error.message : '启动复练失败，请稍后重试。'
+  } finally {
+    startingPracticeMessageId.value = null
   }
 }
 
