@@ -617,3 +617,11 @@ cd frontend; npm run build
   4. 移除 wheel 监听与 scrollIntoView；悬停朗读仅作用于当前页可见单元，滚动误触发的混乱随之消除。
 - 验证：`vue-tsc --noEmit` exit 0；ReaderStage/ClassroomPage 经 Vite 按需编译 200；`test:unit` 42/42 PASS。浏览器视觉走查与交互实测 NOT_RUN（本会话无浏览器自动化工具），待人工在 5183 实机确认。
 - 状态：IMPLEMENTED_UNVERIFIED；文件含用户未提交 TTS WIP（ClassroomPage.vue），未提交。
+
+### 单元学习页固定视口骨架（2026-10-28）
+
+- 用户反馈：`/courses/:courseId/learn`（单元学习页）仍整页滚动，与课堂幻灯片原则不一致。
+- 说明：上一轮幻灯片化作用于课时课堂页（ClassroomPage/ReaderStage）；本轮把同一原则落到单元学习页。
+- 差异：单元学习页无悬停朗读（全部按钮触发），不存在滚动误读问题；因此采用与页内 AI 老师黑板一致的方案——整页 `100vh/overflow:hidden` 固定骨架（页头、阶段导航、底部操作常驻），阶段内容与右侧大纲超出视口时仅在各自面板内部滚动；窄屏（≤960px）回退常规滚动。
+- 改动：`UnitLearningPage.vue`（根容器 flex 链、`self-mode-shell` 包裹层、内容区/侧栏内部滚动、窄屏回退），纯增量样式+1 处模板类名。
+- 验证：`vue-tsc` exit 0；Vite 按需编译 200；`test:unit` 42/42。实机视觉 NOT_RUN，待用户在 5183 确认（HMR 已生效）。文件含用户 WIP，未提交。
