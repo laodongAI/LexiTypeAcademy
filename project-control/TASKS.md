@@ -632,3 +632,14 @@ cd frontend; npm run build
 - 实现（UnitLearningPage.vue 增量）：`readingSlides` 按篇切分再按容量切页（一篇可跨多页、篇间不混页，`splitSentences` 切句、整篇兜底）；容量由 ResizeObserver 实测（80px/句保守估算）；页内禁止滚动、内容垂直居中；"朗读本页/连读本篇/停止/翻译开关 + 上一页/页码/下一页"常驻页脚；连读时播放 key 驱动自动翻页跟随；全文翻译仅显示在本篇第一段；窄屏（≤960px）内容区回退内部滚动防裁切。
 - 朗读 key 前缀 `read:`；连读复用 playSpeechSequence（含后台预取流水线）。
 - 验证：vue-tsc exit 0；Vite 编译 200；test:unit 42/42。实机交互（翻页、连读跟随、容量密度）NOT_RUN，待用户在 5183 验收（HMR 已生效）。
+
+### 自助学习页"没变化/混乱"根因修复：MainLayout 全屏链路（2026-10-28）
+
+- 用户反馈：单元学习页"还是老样子，界面很混乱"。
+- 根因（两层）：
+  1. 应用外壳 `.main-content`（el-main）是 `overflow-y:auto` 滚动容器，且内层 `.content-container` 有 `padding:48px; max-width:1280px`——页面根设 `height:100vh` 在容器内超出可视高（应用 header+双层 padding），外层滚动条依旧；两层 padding/max-width 叠加导致视觉混乱。课堂页同样受影响。
+  2. `learningMode` 初始即 'self'，两张大模式选择卡常驻，固定视口下 chrome 过高拥挤。
+- 修复：
+  1. MainLayout 新增 fullscreen 路由模式：`meta.fullscreen` → `main-content--fullscreen`（overflow hidden）+ `content-container--fullscreen`（无 padding/max-width、height:100% flex 链）；UnitLearning 与 Classroom 路由已标记；两页根高度 100vh→100%。
+  2. 单元页紧凑化：两张大模式卡 → 一行"自主学习 | AI 老师带学"切换条（保留 teacherModeTrigger 焦点锚点与 chooseTeacherMode 逻辑）；页头 h1 缩小、副标题隐藏；进度条与阶段导航间距压缩。
+- 验证：vue-tsc exit 0；MainLayout/router/UnitLearning/Classroom Vite 编译全 200；test:unit 42/42。实机视觉 NOT_RUN，待用户刷新 5183 验收（路由 meta 变更建议强刷一次）。
