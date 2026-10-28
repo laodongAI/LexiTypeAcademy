@@ -385,3 +385,9 @@
 - 下一步：①实机走查课程详情「选择学法」与练习模式禁用态；②真实 AI 会话验证复盘卡；③后续切片见整改方案 S2（完整决策流合并）、S5（复习数据关联）、S6（游戏成绩落库），实施前需用户确认对应门禁问题。
 
 - 交付提交：`6458a1d`（已推送）。运行时验证：后端 8010 / 前端 5183 已在本地启动（ZCode 会话后台任务），`GET /api/review/stats` 200；Vite 对 6 个改动模块按需编译全 200。浏览器视觉走查 BLOCKED（本会话无浏览器自动化工具），待人工实机确认按钮文案、模式禁用态与复盘卡。
+
+## 课堂幻灯片化交接（2026-10-28）
+
+- 改动文件：`frontend/src/renderer/components/classroom/ReaderStage.vue`（分页逻辑+模板+样式）、`frontend/src/renderer/views/ClassroomPage.vue`（壳层固定视口 CSS，增量）。ClassroomPage.vue 同时承载用户 TTS WIP，提交需与用户协调。
+- 关键语义：幻灯片容量由 ResizeObserver 实测（句子按 96px/句保守估算，词卡按网格列×行）；`goToPage(page, keepFollow)`——朗读/键盘导航 keepFollow=true 自动翻页，手动点按钮 keepFollow=false 暂停跟随。分页后 `onItemClick` 等使用全局下标（pageStartIndex + 局部下标）。
+- 验证边界：类型/编译/单测通过；幻灯片视觉、翻页跟随、悬停稳定性需实机走查（HMR 已生效，用户可直接在 5183 课堂页验证）。

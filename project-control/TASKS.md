@@ -605,3 +605,15 @@ cd frontend; npm run build
 - 提交：`6458a1d feat(learning): unify method registry and add conversation review`（12 文件，已推送 origin/main）；用户 TTS WIP 未包含。
 - 新增运行时证据：本地后端 8010（`GET /api/review/stats` → 200）与前端 Vite 5183 启动正常；6 个修改/新增模块（4 视图 + 2 注册表/复盘模块）经 Vite 按需编译全部 200，无编译错误。
 - 浏览器视觉走查：本会话浏览器自动化工具（node_repl MCP）不可用，按治理规则标记 BLOCKED；页面交互（按钮文案、禁用态、复盘卡渲染）需人工或后续会话实机验证。
+
+## 课堂幻灯片化：固定视口教学界面（2026-10-28）
+
+- 用户反馈：教学界面应类似幻灯片不能滚动；滚动与悬停朗读互相干扰（滚动经过的句子被误触发朗读）。
+- 根因：`.classroom-page` 为 min-height:100vh 整页滚动 + ReaderStage `scrollIntoView` 自动定位 + 悬停触发三者叠加。
+- 改造（ReaderStage.vue + ClassroomPage.vue，均为增量修改）：
+  1. 课堂壳层固定视口：`height:100vh; overflow:hidden`，布局 flex/grid `minmax(0,1fr)`；右侧助手改内部滚动；燃尽/词根舞台根节点内部滚动防裁切；窄屏（≤1100px）回退常规滚动布局。
+  2. 精读幻灯片分页：句子按"页"呈现（容量按舞台实际尺寸 ResizeObserver 测量，保守估算不溢出），页内禁止滚动、内容垂直居中；词卡网格同样分页。
+  3. 翻页导航：页脚"上一页/下一页 + 页码"；连播/键盘导航跨页自动翻页（保持跟随）；手动翻页暂停自动跟随，"回到当前句"恢复（沿用旧滚动语义）。
+  4. 移除 wheel 监听与 scrollIntoView；悬停朗读仅作用于当前页可见单元，滚动误触发的混乱随之消除。
+- 验证：`vue-tsc --noEmit` exit 0；ReaderStage/ClassroomPage 经 Vite 按需编译 200；`test:unit` 42/42 PASS。浏览器视觉走查与交互实测 NOT_RUN（本会话无浏览器自动化工具），待人工在 5183 实机确认。
+- 状态：IMPLEMENTED_UNVERIFIED；文件含用户未提交 TTS WIP（ClassroomPage.vue），未提交。
